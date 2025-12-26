@@ -1,0 +1,7 @@
+{
+  "name": "Samiati 1.0",
+  "description": "A community-driven cultural storytelling and language learning platform connecting users with their heritage through stories, proverbs, and AI-powered conversations.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
