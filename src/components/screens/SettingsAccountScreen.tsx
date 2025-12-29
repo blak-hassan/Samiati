@@ -1,4 +1,4 @@
-
+﻿
 import React from 'react';
 import { Screen, User } from '@/types';
 
@@ -11,7 +11,7 @@ interface Props {
 const SettingsAccountScreen: React.FC<Props> = ({ navigate, goBack, user }) => {
   return (
     <div className="flex flex-col min-h-screen bg-stone-50 dark:bg-background-dark transition-colors duration-300">
-      <header className="flex items-center p-4 sticky top-0 bg-stone-50 dark:bg-background-dark z-10 border-b border-stone-200 dark:border-white/5">
+      <header className="flex items-center p-4 sticky top-0 bg-stone-50 dark:bg-background-dark z-10 border-stone-200 dark:border-white/5">
         <button onClick={goBack} className="p-2 -ml-2 text-stone-900 dark:text-white rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
             <span className="material-symbols-outlined">arrow_back</span>
         </button>
@@ -67,3 +67,4 @@ const SettingsAccountScreen: React.FC<Props> = ({ navigate, goBack, user }) => {
 };
 
 export default SettingsAccountScreen;
+

@@ -1,3 +1,4 @@
+﻿"use client";
 import React, { useState } from 'react';
 import { Screen } from '@/types';
 
@@ -94,3 +95,4 @@ const ChangePasswordScreen: React.FC<Props> = ({ goBack }) => {
 };
 
 export default ChangePasswordScreen;
+

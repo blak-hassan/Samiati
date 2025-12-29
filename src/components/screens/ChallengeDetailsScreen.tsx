@@ -1,3 +1,4 @@
+﻿"use client";
 
 import React, { useState } from 'react';
 import { Screen, User } from '@/types';
@@ -171,7 +172,7 @@ const ChallengeDetailsScreen: React.FC<Props> = ({ navigate, goBack, onViewProfi
                       <img src={user.avatar} alt={user.name} className="w-12 h-12 rounded-full object-cover group-hover:ring-2 ring-[#cf6317] transition-all" />
                       <div className="flex-1 text-left">
                         <p className="font-bold text-stone-900 dark:text-white group-hover:text-[#cf6317] transition-colors">{user.name}</p>
-                        <p className="text-xs text-stone-500 dark:text-[#A8A29E] font-medium">{user.count} • <span className="text-green-600 dark:text-green-400">{user.verified} verified</span></p>
+                        <p className="text-xs text-stone-500 dark:text-[#A8A29E] font-medium">{user.count} â€¢ <span className="text-green-600 dark:text-green-400">{user.verified} verified</span></p>
                       </div>
                     </button>
                     <span className={`material-symbols-outlined text-2xl ${user.trophyColor}`}>emoji_events</span>
@@ -227,3 +228,4 @@ const ChallengeDetailsScreen: React.FC<Props> = ({ navigate, goBack, onViewProfi
 };
 
 export default ChallengeDetailsScreen;
+

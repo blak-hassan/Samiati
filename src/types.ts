@@ -73,12 +73,20 @@ export interface User {
   culturalBackground?: string;
   location?: string;
   role?: UserRole; // User's moderation role
+  xp?: number;
+  level?: number;
+  badges?: string[];
+  followerCount?: number;
+  followingCount?: number;
+  languages?: LanguageSkill[];
 }
 
 export interface Message {
   id: string;
-  sender: 'user' | 'ai' | 'system';
+  sender: 'user' | 'ai' | 'other' | 'system';
   text: string;
+  translatedText?: string;
+  targetLanguage?: string;
   timestamp: Date;
   feedback?: 'up' | 'down';
   comments?: string[];

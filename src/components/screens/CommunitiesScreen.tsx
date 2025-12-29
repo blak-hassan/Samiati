@@ -1,3 +1,4 @@
+"use client";
 
 import React, { useState } from 'react';
 import { Screen, Community } from '@/types';
@@ -12,11 +13,19 @@ import { INITIAL_COMMUNITIES } from '@/data/mock';
 interface Props {
     navigate: (screen: Screen, params?: any) => void;
     goBack: () => void;
+    communities?: Community[]; // New prop
 }
 
-const CommunitiesScreen: React.FC<Props> = ({ navigate, goBack }) => {
+const CommunitiesScreen: React.FC<Props> = ({ navigate, goBack, communities: initialCommunities }) => {
     const [searchQuery, setSearchQuery] = useState('');
-    const [communities, setCommunities] = useState<Community[]>(INITIAL_COMMUNITIES);
+    const [communities, setCommunities] = useState<Community[]>(initialCommunities || INITIAL_COMMUNITIES);
+
+    // Update local state if prop changes
+    React.useEffect(() => {
+        if (initialCommunities) {
+            setCommunities(initialCommunities);
+        }
+    }, [initialCommunities]);
 
     const filtered = communities.filter(c =>
         c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

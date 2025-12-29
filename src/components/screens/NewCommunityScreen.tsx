@@ -1,3 +1,4 @@
+﻿"use client";
 import React, { useState } from 'react';
 import { Screen, ChatPreview } from '@/types';
 
@@ -204,3 +205,4 @@ const NewCommunityScreen: React.FC<Props> = ({ navigate, goBack, onCreateCommuni
 };
 
 export default NewCommunityScreen;
+

@@ -10,10 +10,8 @@ export const getPendingReports = query({
         sortBy: v.optional(v.union(v.literal('date'), v.literal('severity'))),
     },
     handler: async (ctx, args) => {
-        let reportsQuery = ctx.db.query("reports");
-
-        // Filter by status (only pending)
-        reportsQuery = reportsQuery.withIndex("by_status", (q) => q.eq("status", "pending"));
+        const reportsQuery = ctx.db.query("reports")
+            .withIndex("by_status", (q) => q.eq("status", "pending"));
 
         const reports = await reportsQuery.collect();
 
@@ -198,7 +196,7 @@ export const getReportStats = query({
         if (args.moderatorId) {
             const userActions = await ctx.db
                 .query("moderationActions")
-                .withIndex("by_moderator", (q) => q.eq("moderatorId", args.moderatorId))
+                .withIndex("by_moderator", (q) => q.eq("moderatorId", args.moderatorId!))
                 .collect();
             userResolvedCount = userActions.length;
         }
@@ -220,19 +218,21 @@ export const getReportHistory = query({
         limit: v.optional(v.number()),
     },
     handler: async (ctx, args) => {
-        let actionsQuery = ctx.db.query("moderationActions");
+        let actions;
 
         if (args.moderatorId) {
-            actionsQuery = actionsQuery.withIndex("by_moderator", (q) =>
-                q.eq("moderatorId", args.moderatorId)
-            );
+            actions = await ctx.db.query("moderationActions")
+                .withIndex("by_moderator", (q) =>
+                    q.eq("moderatorId", args.moderatorId!)
+                )
+                .order("desc")
+                .take(args.limit || 50);
         } else {
-            actionsQuery = actionsQuery.withIndex("by_timestamp");
+            actions = await ctx.db.query("moderationActions")
+                .withIndex("by_timestamp")
+                .order("desc")
+                .take(args.limit || 50);
         }
-
-        const actions = await actionsQuery
-            .order("desc")
-            .take(args.limit || 50);
 
         // Get full details for each action
         const actionsWithDetails = await Promise.all(
@@ -242,7 +242,11 @@ export const getReportHistory = query({
 
                 return {
                     ...action,
-                    report,
+                    report: report ? {
+                        id: report._id,
+                        reasons: report.reasons, // Use reasons array
+                        targetContent: report.targetContent,
+                    } : null,
                     moderator: moderator ? {
                         name: moderator.name,
                         handle: moderator.handle,

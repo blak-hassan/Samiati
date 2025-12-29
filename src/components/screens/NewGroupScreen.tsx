@@ -1,3 +1,4 @@
+﻿"use client";
 
 import React, { useState, useRef } from 'react';
 import { Screen, ChatPreview } from '@/types';
@@ -261,3 +262,4 @@ const NewGroupScreen: React.FC<Props> = ({ navigate, goBack, onCreateGroup }) =>
 };
 
 export default NewGroupScreen;
+

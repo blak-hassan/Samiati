@@ -1,6 +1,20 @@
+﻿"use client";
 import React, { useState } from 'react';
 import { Screen } from '@/types';
-import { Brain, ShieldAlert, Zap, AlertCircle, Clock } from 'lucide-react';
+import {
+  Brain,
+  ShieldAlert,
+  Clock,
+  ArrowLeft,
+  SlidersHorizontal,
+  ChevronDown,
+  Check,
+  Search,
+  X,
+  Link,
+  SearchX,
+  CheckCircle2
+} from 'lucide-react';
 
 interface Props {
   navigate: (screen: Screen) => void;
@@ -188,7 +202,9 @@ const ModerationDashboardScreen: React.FC<Props> = ({ navigate, goBack, isEmbedd
     <div className={`flex flex-col h-full bg-background-light dark:bg-background-dark relative transition-colors duration-300 ${!isEmbedded ? 'min-h-screen' : ''}`}>
       {!isEmbedded && (
         <header className="flex items-center p-4 sticky top-0 bg-background-light dark:bg-background-dark z-20 border-b border-black/5 dark:border-transparent transition-colors">
-          <button onClick={goBack} className="p-2 -ml-2 text-stone-900 dark:text-white"><span className="material-symbols-outlined">arrow_back</span></button>
+          <button onClick={goBack} className="p-2 -ml-2 text-stone-900 dark:text-white hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-colors">
+            <ArrowLeft className="w-6 h-6" />
+          </button>
           <h1 className="flex-1 text-center text-lg font-bold text-stone-900 dark:text-white pr-8">Moderation Dashboard</h1>
         </header>
       )}
@@ -214,7 +230,7 @@ const ModerationDashboardScreen: React.FC<Props> = ({ navigate, goBack, isEmbedd
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-primary/10 rounded-xl p-3 border border-primary/10">
             <div className="flex items-center gap-2 mb-1">
-              <span className="material-symbols-outlined text-primary text-lg">pending_actions</span>
+              <Clock className="size-4 text-primary" />
               <p className="text-[10px] text-primary font-black uppercase tracking-wider">Pending</p>
             </div>
             <p className="text-2xl font-black text-stone-900 dark:text-white">{reports.length}</p>
@@ -241,7 +257,7 @@ const ModerationDashboardScreen: React.FC<Props> = ({ navigate, goBack, isEmbedd
       {/* Filter / Search */}
       <div className="px-4 py-3 space-y-3">
         <div className="relative">
-          <span className="material-symbols-outlined absolute left-4 top-3.5 text-text-muted">search</span>
+          <Search className="absolute left-4 top-3.5 h-5 w-5 text-text-muted" />
           <input
             type="text"
             placeholder={`Search ${activeTab} reports...`}
@@ -258,9 +274,9 @@ const ModerationDashboardScreen: React.FC<Props> = ({ navigate, goBack, isEmbedd
               onClick={() => setShowFilterMenu(!showFilterMenu)}
               className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors bg-black/5 dark:bg-[#473324] text-stone-900 dark:text-white hover:bg-black/10 dark:hover:bg-[#5a4230]`}
             >
-              <span className="material-symbols-outlined text-lg">tune</span>
+              <SlidersHorizontal className="h-4 w-4" />
               <span>Filter & Sort</span>
-              <span className="material-symbols-outlined text-lg transition-transform duration-200" style={{ transform: showFilterMenu ? 'rotate(180deg)' : 'rotate(0deg)' }}>expand_more</span>
+              <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${showFilterMenu ? 'rotate-180' : ''}`} />
             </button>
 
             {showFilterMenu && (
@@ -279,7 +295,7 @@ const ModerationDashboardScreen: React.FC<Props> = ({ navigate, goBack, isEmbedd
                       >
                         <div className="flex justify-between items-center">
                           <span>{reason}</span>
-                          {filterReason === reason && <span className="material-symbols-outlined text-sm">check</span>}
+                          {filterReason === reason && <Check className="h-4 w-4" />}
                         </div>
                       </button>
                     ))}
@@ -299,7 +315,7 @@ const ModerationDashboardScreen: React.FC<Props> = ({ navigate, goBack, isEmbedd
                       >
                         <div className="flex justify-between items-center">
                           <span>{opt.label}</span>
-                          {sortBy === opt.id && <span className="material-symbols-outlined text-sm">check</span>}
+                          {sortBy === opt.id && <Check className="h-4 w-4" />}
                         </div>
                       </button>
                     ))}
@@ -317,7 +333,7 @@ const ModerationDashboardScreen: React.FC<Props> = ({ navigate, goBack, isEmbedd
                 onClick={() => setFilterReason('All')}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary text-xs font-bold rounded-lg border border-primary/20 whitespace-nowrap animate-in fade-in"
               >
-                {filterReason} <span className="material-symbols-outlined text-sm">close</span>
+                {filterReason} <X className="h-3 w-3" />
               </button>
             )}
             {sortBy === 'severity' && (
@@ -325,7 +341,7 @@ const ModerationDashboardScreen: React.FC<Props> = ({ navigate, goBack, isEmbedd
                 onClick={() => setSortBy('date')}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-200 dark:bg-white/10 text-stone-700 dark:text-text-muted text-xs font-bold rounded-lg whitespace-nowrap animate-in fade-in"
               >
-                Severity <span className="material-symbols-outlined text-sm">close</span>
+                Severity <X className="h-3 w-3" />
               </button>
             )}
           </div>
@@ -365,7 +381,7 @@ const ModerationDashboardScreen: React.FC<Props> = ({ navigate, goBack, isEmbedd
                     onClick={() => window.open(item.content, '_blank')}
                     className="text-primary hover:underline flex items-center gap-1 text-left"
                   >
-                    <span className="material-symbols-outlined text-sm">link</span>
+                    <Link className="h-4 w-4" />
                     {item.content}
                   </button>
                 ) : item.content}
@@ -437,7 +453,7 @@ const ModerationDashboardScreen: React.FC<Props> = ({ navigate, goBack, isEmbedd
           /* Empty / No Results */
           <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-stone-200 dark:border-white/10 rounded-xl mt-4">
             <div className="w-16 h-16 rounded-full bg-stone-100 dark:bg-white/5 flex items-center justify-center text-stone-400 dark:text-text-muted mb-4">
-              <span className="material-symbols-outlined text-3xl">search_off</span>
+              <SearchX className="h-8 w-8" />
             </div>
             <h3 className="text-lg font-bold text-stone-900 dark:text-white">No reports found</h3>
             <p className="text-stone-600 dark:text-text-muted text-center max-w-xs">
@@ -457,7 +473,7 @@ const ModerationDashboardScreen: React.FC<Props> = ({ navigate, goBack, isEmbedd
         {reports.length === 0 && (
           <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-stone-200 dark:border-white/10 rounded-xl mt-4">
             <div className="w-16 h-16 rounded-full bg-rasta-green/20 flex items-center justify-center text-rasta-green mb-4">
-              <span className="material-symbols-outlined text-3xl">check_circle</span>
+              <CheckCircle2 className="h-8 w-8" />
             </div>
             <h3 className="text-lg font-bold text-stone-900 dark:text-white">All caught up!</h3>
             <p className="text-stone-600 dark:text-text-muted">There are no items to review.</p>
@@ -468,7 +484,7 @@ const ModerationDashboardScreen: React.FC<Props> = ({ navigate, goBack, isEmbedd
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-stone-900 dark:bg-white text-white dark:text-stone-900 px-6 py-3 rounded-full shadow-xl flex items-center gap-3 transition-all duration-300 z-50 animate-in fade-in slide-in-from-bottom-4">
-          <span className="material-symbols-outlined text-rasta-green">check_circle</span>
+          <CheckCircle2 className="h-5 w-5 text-rasta-green" />
           <span className="font-medium text-sm">{toastMessage}</span>
         </div>
       )}

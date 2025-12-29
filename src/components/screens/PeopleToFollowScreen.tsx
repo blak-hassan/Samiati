@@ -1,3 +1,4 @@
+﻿"use client";
 import React, { useState, useEffect, useRef } from 'react';
 import { Screen, User, ContributionItem } from '@/types';
 import { Person, useWatuFilters } from '@/hooks/useWatuFilters';
@@ -125,7 +126,7 @@ const WATU_POSTS_DATA: ContributionItem[] = [
     id: 'f1',
     type: 'Proverb',
     title: 'Wazee hukumbuka',
-    subtitle: 'Proverb • Posted 2h ago',
+    subtitle: 'Proverb â€¢ Posted 2h ago',
     author: {
       name: 'Kwame Mensah',
       avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDuGLE0i9NWNJMGLNeeS7Y-fkwpi4GavU-5tFQGjerfZBUK9A2baVE6a0v9b6Le6AIX-Xejh_WCf4Bb8tk8yqNXUeyVehi927mNkXbnvMb3ggvQTzfMzZcJc0kPiyaqMcPlts57mpPxJLq5-lgGwTjXzXNGyasv8_llUjyNVB2m-dLngZv8en8HyHDdbU1j_Wt2xl1HDaHg_iKgKX7HviRx7y_sXmAmU_NNuzZlrcnkbqtGL8NTvNgBOFaC4sSZ5yd97zBiTylIkog',
@@ -144,7 +145,7 @@ const WATU_POSTS_DATA: ContributionItem[] = [
     id: 'f2',
     type: 'Story',
     title: 'The Lion\'s Gift',
-    subtitle: 'Story • Posted 5h ago',
+    subtitle: 'Story â€¢ Posted 5h ago',
     author: {
       name: 'Zahra Ali',
       avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCHGQCh7G1VnjuVj9331GPw-eizTILg3UcwDA4ENWzw4Y4k-YeCgWzwUxAmYXQWIcfUfbQwVHw6sT-X-LP9EspDfXqNOQnm6QUcAN3d9HAxoEJ5kesDAP6W6EUQ6odygBf2Q2-wGIcEgisM6jeCizwsbd9roCE4EDfeK74dHdCooeQh3_eioZBLFJNPfGi8Cp4ke9oJ11DKdl5pNseP-GKgaT-tyieX9Uimavj73AayhR3msq3f9Dcw-BdgSJNRK5-7MQYX9T0wH_8',
@@ -471,3 +472,4 @@ const PeopleToFollowScreen: React.FC<Props> = ({ navigate, goBack, onViewProfile
 };
 
 export default PeopleToFollowScreen;
+

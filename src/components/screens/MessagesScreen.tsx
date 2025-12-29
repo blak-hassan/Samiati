@@ -1,3 +1,4 @@
+"use client";
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Screen, Post, User } from '@/types';
@@ -167,7 +168,7 @@ const MessagesScreen: React.FC<Props> = ({ navigate, goBack, posts, onLike, onRe
         <div className="flex flex-col h-full bg-white dark:bg-background-dark transition-colors duration-300 relative">
             <div
                 ref={headerRef}
-                className="absolute top-0 left-0 right-0 z-20 transition-all duration-300 ease-in-out bg-white dark:bg-background-dark border-b border-stone-200 dark:border-white/10"
+                className="absolute top-0 left-0 right-0 z-20 transition-all duration-300 ease-in-out bg-white dark:bg-background-dark"
                 style={{ marginTop: isHeaderVisible ? 0 : -headerHeight }}
             >
                 <div className="flex items-center justify-between px-4 h-16">

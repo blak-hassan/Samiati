@@ -1,3 +1,4 @@
+﻿"use client";
 import React, { useState } from 'react';
 import { Screen } from '@/types';
 
@@ -157,3 +158,4 @@ const ResetPasswordFlow: React.FC<Props> = ({ screen, navigate }) => {
 };
 
 export default ResetPasswordFlow;
+

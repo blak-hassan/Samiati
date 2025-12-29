@@ -1,7 +1,10 @@
+﻿"use client";
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Screen, User, Message, Conversation } from '@/types';
 import { sendMessageToGemini } from '@/services/geminiService';
+import { useAction } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 import {
   Menu,
   Plus,
@@ -73,6 +76,7 @@ interface Props {
 
 interface Language {
   code: string;
+  nllbCode: string;
   name: string;
   score: number; // 0-100 used to determine level
 }
@@ -110,25 +114,24 @@ const AttachmentItem: React.FC<{ icon: React.ReactNode, label: string, onClick: 
 
 // Data with proficiency scores
 const LANGUAGES: Language[] = [
-  { code: 'sw', name: 'Swahili', score: 98 },
-  { code: 'en', name: 'English', score: 100 },
-  { code: 'ki', name: 'Kikuyu', score: 88 },
-  { code: 'lu', name: 'Luo', score: 82 },
-  { code: 'so', name: 'Somali', score: 85 },
-  { code: 'lh', name: 'Luhya', score: 75 },
-  { code: 'km', name: 'Kamba', score: 70 },
-  { code: 'ka', name: 'Kalenjin', score: 65 },
-  { code: 'gu', name: 'Gusii', score: 60 },
-  { code: 'me', name: 'Meru', score: 55 },
-  { code: 'ma', name: 'Maasai', score: 50 },
-  { code: 'yo', name: 'Yoruba', score: 80 },
-  { code: 'ig', name: 'Igbo', score: 78 },
-  { code: 'ha', name: 'Hausa', score: 85 },
-  { code: 'zu', name: 'Zulu', score: 72 },
-  { code: 'xh', name: 'Xhosa', score: 68 },
+  { code: 'sw', nllbCode: 'swh_Latn', name: 'Swahili', score: 98 },
+  { code: 'en', nllbCode: 'eng_Latn', name: 'English', score: 100 },
+  { code: 'ki', nllbCode: 'kik_Latn', name: 'Kikuyu', score: 88 },
+  { code: 'lu', nllbCode: 'lug_Latn', name: 'Luganda', score: 82 },
+  { code: 'rw', nllbCode: 'kin_Latn', name: 'Kinyarwanda', score: 88 },
+  { code: 'so', nllbCode: 'som_Latn', name: 'Somali', score: 85 },
+  { code: 'am', nllbCode: 'amh_Ethi', name: 'Amharic', score: 90 },
+  { code: 'om', nllbCode: 'orm_Latn', name: 'Oromo', score: 85 },
+  { code: 'ti', nllbCode: 'tir_Ethi', name: 'Tigrinya', score: 82 },
+  { code: 'yo', nllbCode: 'yor_Latn', name: 'Yoruba', score: 80 },
+  { code: 'ig', nllbCode: 'ibo_Latn', name: 'Igbo', score: 78 },
+  { code: 'ha', nllbCode: 'hau_Latn', name: 'Hausa', score: 85 },
+  { code: 'zu', nllbCode: 'zul_Latn', name: 'Zulu', score: 72 },
+  { code: 'xh', nllbCode: 'xho_Latn', name: 'Xhosa', score: 68 },
 ];
 
 const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notificationCounts, activeConversation, onNewChat, onSaveChat, isDarkMode, toggleTheme }) => {
+  const translate = useAction(api.translate.translateText);
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -150,6 +153,9 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
   // Cultural Context Panel State
   const [showContextPanel, setShowContextPanel] = useState(true);
   const [isContextExpanded, setIsContextExpanded] = useState(true);
+
+  // Translation Visibility State
+  const [expandedTranslations, setExpandedTranslations] = useState<{ [key: string]: boolean }>({});
 
   // Scroll Header Logic
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
@@ -279,25 +285,50 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
 
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
+    onSaveChat(newMessages);
 
     setInputText('');
     setIsTyping(true);
 
     // Pass the selected language context to the AI service
-    const contextPrompt = `[Context: User is speaking/learning ${selectedLanguage.name}] ${userMsg.text}`;
+    // IMPORTANT: Ask Gemini to respond in ENGLISH so we can translate it to the local language
+    const contextPrompt = `[Context: User is learning ${selectedLanguage.name}. Please respond in ENGLISH so the response can be translated to ${selectedLanguage.name}.] ${userMsg.text}`;
     // Pass full message objects for history context
     const aiResponseText = await sendMessageToGemini(contextPrompt, messages);
+
+    // Call translation if selected language is not English
+    let translatedText = undefined;
+    if (selectedLanguage.code !== 'en') {
+      try {
+        const result = await translate({
+          text: aiResponseText,
+          targetLanguage: selectedLanguage.nllbCode
+        });
+
+        // Check if translation is valid and different from input (avoid fallback)
+        if (result && result.trim() !== aiResponseText.trim()) {
+          translatedText = result;
+        } else {
+          console.warn("Translation returned fallback or failed");
+        }
+      } catch (error) {
+        console.error("Translation failed:", error);
+      }
+    }
 
     const aiMsg: Message = {
       id: (Date.now() + 1).toString(),
       sender: 'ai',
       text: aiResponseText,
+      translatedText,
+      targetLanguage: selectedLanguage.name,
       timestamp: new Date()
     };
 
     setIsTyping(false);
     setMessages(prev => {
       const updated = [...prev, aiMsg];
+      setTimeout(() => onSaveChat(updated), 0);
       return updated;
     });
   };
@@ -380,6 +411,13 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
     setCommentText('');
   };
 
+  const toggleTranslation = (messageId: string) => {
+    setExpandedTranslations(prev => ({
+      ...prev,
+      [messageId]: !prev[messageId]
+    }));
+  };
+
   // Handle File Selections
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'document') => {
     if (e.target.files && e.target.files[0]) {
@@ -415,7 +453,7 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
         const userMsg: Message = {
           id: Date.now().toString(),
           sender: 'user',
-          text: `📄 ${file.name}`,
+          text: `ðŸ“„ ${file.name}`,
           timestamp: new Date()
         };
         setMessages(prev => [...prev, userMsg]);
@@ -517,7 +555,7 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
 
             </nav>
 
-            <div className="p-4 border-t border-border mt-auto">
+            <div className="p-4 mt-auto">
               <DrawerItem
                 icon={<Settings className="w-5 h-5" />}
                 label="Settings"
@@ -533,7 +571,7 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
         {/* Header - Absolute Positioned for scroll effect */}
         <div
           ref={headerRef}
-          className="absolute top-0 left-0 right-0 z-20 transition-all duration-300 ease-in-out bg-background/95 backdrop-blur-md border-b border-border shadow-sm"
+          className="absolute top-0 left-0 right-0 z-20 transition-all duration-300 ease-in-out bg-background/95 backdrop-blur-md shadow-sm"
           style={{ marginTop: isHeaderVisible ? 0 : -headerHeight }}
         >
           <header className="h-16 flex items-center justify-between px-4 shrink-0 transition-colors duration-300">
@@ -551,12 +589,7 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
                 <h1 className="text-lg font-bold text-foreground truncate max-w-[200px] leading-tight tracking-tight">
                   {activeConversation ? activeConversation.title : 'Samiati'}
                 </h1>
-                {!activeConversation && (
-                  <div className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-black text-primary animate-pulse">
-                    <div className="w-1.5 h-1.5 bg-primary rounded-full" />
-                    Live AI Guide
-                  </div>
-                )}
+
               </div>
             </div>
             <div className="flex items-center gap-1">
@@ -654,8 +687,47 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
                     <img src={msg.text} alt="User upload" className="rounded-2xl max-h-72 w-full object-cover shadow-inner" />
                   ) : (
                     <p className="text-sm md:text-base leading-relaxed tracking-tight font-medium whitespace-pre-wrap">
-                      {msg.text}
+                      {/* Show translated text for AI messages if available, otherwise show original text */}
+                      {msg.sender === 'ai' && msg.translatedText ? msg.translatedText : msg.text}
                     </p>
+                  )}
+
+                  {/* Collapsible English Original - Only for AI messages with translations */}
+                  {msg.sender === 'ai' && msg.translatedText && (
+                    <div className="mt-3 pt-3 border-t border-border/50">
+                      {/* Toggle Button for English Original */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleTranslation(msg.id)}
+                        className="h-7 px-2.5 rounded-full gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-all"
+                      >
+                        {expandedTranslations[msg.id] ? (
+                          <>
+                            <ChevronUp className="w-3 h-3" />
+                            Hide English
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="w-3 h-3" />
+                            View English
+                          </>
+                        )}
+                      </Button>
+
+                      {/* English Original (Collapsible) */}
+                      {expandedTranslations[msg.id] && (
+                        <div className="mt-2 pt-2 border-t border-border/30 animate-in fade-in slide-in-from-top-2 duration-300">
+                          <div className="flex items-center gap-1.5 text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 opacity-60">
+                            <Globe className="w-3 h-3" />
+                            English Original
+                          </div>
+                          <p className="text-sm md:text-base leading-relaxed tracking-tight font-medium whitespace-pre-wrap border-l-2 border-muted-foreground/20 pl-3 py-0.5 text-muted-foreground">
+                            {msg.text}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   )}
 
                   {/* Message Timestamp (visible on hover) */}
@@ -777,7 +849,7 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
         </main>
 
         {/* Standardized Input Area */}
-        <div className="bg-background border-t border-border p-3 shrink-0 transition-colors duration-300 relative z-20">
+        <div className="bg-background p-3 shrink-0 transition-colors duration-300 relative z-20">
           <div className="max-w-4xl mx-auto bg-muted/50 border border-primary/20 rounded-[28px] px-3 py-2 flex items-end gap-2 transition-all shadow-sm focus-within:shadow-lg focus-within:ring-2 focus-within:ring-primary/10 group">
 
             {/* Language Selector Popover */}
@@ -934,3 +1006,4 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
 };
 
 export default ChatScreen;
+

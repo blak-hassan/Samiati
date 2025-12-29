@@ -1,3 +1,4 @@
+"use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Screen, User, ContributionItem, Comment } from '@/types';
@@ -10,7 +11,7 @@ import ModerationDashboardScreen from './ModerationDashboardScreen';
 interface Props {
     navigate: (screen: Screen, params?: any) => void;
     goBack: () => void;
-    initialTab?: 'My Changa' | 'Moderation' | 'Challenges' | 'Saved';
+    initialTab?: 'My Changa' | 'Moderation' | 'Challenges';
     initialTypeFilter?: string;
     onViewProfile: (user: User) => void;
     myContributions?: ContributionItem[];
@@ -24,7 +25,7 @@ const MODERATION_POSTS_DATA: ContributionItem[] = [
         id: 'f1',
         type: 'Proverb',
         title: 'Wazee hukumbuka',
-        subtitle: 'Proverb • Posted 2h ago',
+        subtitle: 'Proverb â€¢ Posted 2h ago',
         author: {
             name: 'Kwame Mensah',
             avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDuGLE0i9NWNJMGLNeeS7Y-fkwpi4GavU-5tFQGjerfZBUK9A2baVE6a0v9b6Le6AIX-Xejh_WCf4Bb8tk8yqNXUeyVehi927mNkXbnvMb3ggvQTzfMzZcJc0kPiyaqMcPlts57mpPxJLq5-lgGwTjXzXNGyasv8_llUjyNVB2m-dLngZv8en8HyHDdbU1j_Wt2xl1HDaHg_iKgKX7HviRx7y_sXmAmU_NNuzZlrcnkbqtGL8NTvNgBOFaC4sSZ5yd97zBiTylIkog',
@@ -42,7 +43,7 @@ const MODERATION_POSTS_DATA: ContributionItem[] = [
         id: 'f2',
         type: 'Story',
         title: 'The Lion\'s Gift',
-        subtitle: 'Story • Posted 5h ago',
+        subtitle: 'Story â€¢ Posted 5h ago',
         author: {
             name: 'Zahra Ali',
             avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCHGQCh7G1VnjuVj9331GPw-eizTILg3UcwDA4ENWzw4Y4k-YeCgWzwUxAmYXQWIcfUfbQwVHw6sT-X-LP9EspDfXqNOQnm6QUcAN3d9HAxoEJ5kesDAP6W6EUQ6odygBf2Q2-wGIcEgisM6jeCizwsbd9roCE4EDfeK74dHdCooeQh3_eioZBLFJNPfGi8Cp4ke9oJ11DKdl5pNseP-GKgaT-tyieX9Uimavj73AayhR3msq3f9Dcw-BdgSJNRK5-7MQYX9T0wH_8',
@@ -63,7 +64,7 @@ const SAVED_DATA: ContributionItem[] = [
         id: 's1',
         type: 'Proverb',
         title: 'Haraka haraka haina baraka',
-        subtitle: 'Proverb • Saved 2 days ago',
+        subtitle: 'Proverb â€¢ Saved 2 days ago',
         author: {
             name: 'Juma J.',
             avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA6LZtwoRZLVf_mfFqdY11OX1RDMuLNBfzg-1-JqIap60sqItIczvKLkOwTmDA2J4pvgnJj5aFZAOk2PIeB-aYBeYRowNGFP8T6NhD2DXsMXeufNtSm-w5qmkobZjLTsvLwAACWIfN9watEHLy7hX6MckJh3IpQmn_5d1cs77_r6spZ27YrpgTvwW_gUlkhejzZ15PFd6Wav0M6iz-05tnZhk6UZkd-dSx3hIpX_jHEGKs4ob8uyhELqdeumxAYPV-uJ49KGz0AbDw',
@@ -81,7 +82,7 @@ const SAVED_DATA: ContributionItem[] = [
         id: 's2',
         type: 'Word',
         title: 'Ubuntu',
-        subtitle: 'Word • Saved 1 week ago',
+        subtitle: 'Word â€¢ Saved 1 week ago',
         author: {
             name: 'Thabo Mokoena',
             avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA6LZtwoRZLVf_mfFqdY11OX1RDMuLNBfzg-1-JqIap60sqItIczvKLkOwTmDA2J4pvgnJj5aFZAOk2PIeB-aYBeYRowNGFP8T6NhD2DXsMXeufNtSm-w5qmkobZjLTsvLwAACWIfN9watEHLy7hX6MckJh3IpQmn_5d1cs77_r6spZ27YrpgTvwW_gUlkhejzZ15PFd6Wav0M6iz-05tnZhk6UZkd-dSx3hIpX_jHEGKs4ob8uyhELqdeumxAYPV-uJ49KGz0AbDw',
@@ -99,7 +100,7 @@ const SAVED_DATA: ContributionItem[] = [
         id: 's3',
         type: 'Story',
         title: 'The Hare and the Hyena',
-        subtitle: 'Folklore • Saved 3 weeks ago',
+        subtitle: 'Folklore â€¢ Saved 3 weeks ago',
         author: {
             name: 'Amina Diallo',
             avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDTCkmqfVuPlLQ4IRyL2yV9d82xXGhUn6PZJQuyR-wOR0cvIaU2RmXVEYxrDKRF8LwvPO8ui_vLey4StEqf8CTMHBir5NqJ8BI6X6gXKzW2e5jtCmaOROPdLEoAJCmmFm51ht9zq7QwPnSBQC8TAqlJfRa5M4kLarJ9LqR6i2YIFBkKl3YmSCiPo77SFPw336bJQN6weNdBrPdUlu-Ta6wtwbzNsRkfyTwRr05-OJF-2JEsH1EwbuwH-dLxzpESsJxfK0fBRGIneoQ',
@@ -313,7 +314,7 @@ const PAST_CHALLENGES = [
 ];
 
 const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = 'My Changa', initialTypeFilter, onViewProfile, myContributions = [], setMyContributions }) => {
-    const [activeTab, setActiveTab] = useState<'My Changa' | 'Moderation' | 'Challenges' | 'Saved'>(initialTab);
+    const [activeTab, setActiveTab] = useState<'My Changa' | 'Moderation' | 'Challenges'>(initialTab);
 
     // Filters for My Contributions
     const [myStatusFilter, setMyStatusFilter] = useState('All');
@@ -383,7 +384,7 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
     };
 
     // Data States
-    const [savedContributions, setSavedContributions] = useState<ContributionItem[]>(SAVED_DATA);
+
     const [moderationPosts, setModerationPosts] = useState<ContributionItem[]>(MODERATION_POSTS_DATA);
 
     // Challenges State
@@ -654,7 +655,7 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
         setReplyTexts(prev => ({ ...prev, [parentId]: '' }));
     };
 
-    const renderComments = (comments: Comment[], contributionId: string, listType: 'my' | 'saved' | 'moderation', depth = 0) => {
+    const renderComments = (comments: Comment[], contributionId: string, listType: 'my' | 'moderation', depth = 0) => {
         return comments.map(comment => (
             <div key={comment.id} className={`flex gap-3 mt-4 ${depth > 0 ? 'ml-8 border-l-2 border-stone-100 dark:border-white/5 pl-4' : ''}`}>
                 <img src={comment.avatar} alt={comment.author} className="w-8 h-8 rounded-full object-cover object-center shrink-0" />
@@ -730,7 +731,7 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                                     >
                                         {item.author.name}
                                     </h3>
-                                    <span className="text-xs text-stone-500 dark:text-text-muted">•</span>
+                                    <span className="text-xs text-stone-500 dark:text-text-muted">â€¢</span>
                                     <span className="text-xs text-stone-500 dark:text-text-muted">{item.type}</span>
                                 </div>
                             ) : (
@@ -809,7 +810,7 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                 {/* Main Tabs */}
                 <div className="flex p-2 bg-stone-50 dark:bg-[#2B1F1C] transition-colors shrink-0">
                     <div className="flex w-full bg-stone-200 dark:bg-white/5 rounded-xl p-1 overflow-x-auto no-scrollbar">
-                        {['My Changa', 'Moderation', 'Challenges', 'Saved'].map(tab => (
+                        {['My Changa', 'Moderation', 'Challenges'].map(tab => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab as any)}
@@ -1098,3 +1099,4 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
 };
 
 export default ContributionsScreen;
+

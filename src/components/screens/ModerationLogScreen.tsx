@@ -1,8 +1,16 @@
-'use client';
+﻿"use client";
 
 import React, { useState } from 'react';
 import { Screen } from '@/types';
-import { FileText, Filter, Download } from 'lucide-react';
+import {
+    FileText,
+    Filter,
+    Download,
+    ArrowLeft,
+    ChevronDown,
+    StickyNote,
+    SearchX
+} from 'lucide-react';
 
 interface Props {
     navigate: (screen: Screen) => void;
@@ -120,8 +128,8 @@ const ModerationLogScreen: React.FC<Props> = ({ navigate, goBack }) => {
     return (
         <div className="flex flex-col min-h-screen bg-background-light dark:bg-background-dark transition-colors duration-300">
             <header className="flex items-center p-4 sticky top-0 bg-background-light dark:bg-background-dark z-10 border-b border-black/5 dark:border-transparent">
-                <button onClick={goBack} className="p-2 -ml-2 text-stone-900 dark:text-white">
-                    <span className="material-symbols-outlined">arrow_back</span>
+                <button onClick={goBack} className="p-2 -ml-2 text-stone-900 dark:text-white hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-colors">
+                    <ArrowLeft className="w-6 h-6" />
                 </button>
                 <h1 className="flex-1 text-center text-lg font-bold text-stone-900 dark:text-white pr-8">
                     Moderation History
@@ -159,20 +167,20 @@ const ModerationLogScreen: React.FC<Props> = ({ navigate, goBack }) => {
                     >
                         <Filter className="w-4 h-4" />
                         <span className="flex-1 text-left">{filterAction === 'All' ? 'All Actions' : filterAction}</span>
-                        <span className="material-symbols-outlined text-lg">expand_more</span>
+                        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showFilterMenu ? 'rotate-180' : ''}`} />
                     </button>
 
                     {showFilterMenu && (
                         <>
                             <div className="fixed inset-0 z-20" onClick={() => setShowFilterMenu(false)}></div>
-                            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-[#32241a] shadow-xl rounded-xl z-30 border border-stone-200 dark:border-white/10 overflow-hidden">
+                            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-[#32241a] shadow-xl rounded-xl z-30 border border-stone-200 dark:border-white/10 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
                                 {['All', 'Delete', 'Hide', 'Approve', 'Warn User'].map(action => (
                                     <button
                                         key={action}
                                         onClick={() => { setFilterAction(action); setShowFilterMenu(false); }}
                                         className={`w-full text-left px-4 py-3 text-sm transition-colors ${filterAction === action
-                                                ? 'bg-primary text-white font-bold'
-                                                : 'hover:bg-black/5 dark:hover:bg-white/5 text-stone-800 dark:text-white'
+                                            ? 'bg-primary text-white font-bold'
+                                            : 'hover:bg-black/5 dark:hover:bg-white/5 text-stone-800 dark:text-white'
                                             }`}
                                     >
                                         {action}
@@ -194,7 +202,7 @@ const ModerationLogScreen: React.FC<Props> = ({ navigate, goBack }) => {
                     filteredActions.map((action) => (
                         <div
                             key={action.id}
-                            className="bg-white dark:bg-[#32241a] rounded-xl p-4 shadow-sm space-y-3 transition-colors"
+                            className="bg-white dark:bg-[#32241a] rounded-xl p-4 shadow-sm space-y-3 transition-colors animate-in fade-in slide-in-from-bottom-2"
                         >
                             {/* Header */}
                             <div className="flex items-start justify-between gap-3">
@@ -236,7 +244,7 @@ const ModerationLogScreen: React.FC<Props> = ({ navigate, goBack }) => {
                             {/* Notes */}
                             {action.notes && (
                                 <div className="flex items-start gap-2 text-xs text-stone-600 dark:text-text-muted">
-                                    <span className="material-symbols-outlined text-sm">note</span>
+                                    <StickyNote className="w-4 h-4 mt-0.5" />
                                     <p className="flex-1">{action.notes}</p>
                                 </div>
                             )}
@@ -244,7 +252,7 @@ const ModerationLogScreen: React.FC<Props> = ({ navigate, goBack }) => {
                     ))
                 ) : (
                     <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-stone-200 dark:border-white/10 rounded-xl mt-4">
-                        <FileText className="w-16 h-16 text-stone-300 dark:text-white/10 mb-4" />
+                        <SearchX className="w-16 h-16 text-stone-300 dark:text-white/10 mb-4" />
                         <h3 className="text-lg font-bold text-stone-900 dark:text-white">No actions found</h3>
                         <p className="text-stone-600 dark:text-text-muted text-center">
                             No moderation actions match the selected filter

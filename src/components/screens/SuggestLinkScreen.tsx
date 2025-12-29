@@ -1,3 +1,4 @@
+﻿"use client";
 import React, { useState } from 'react';
 import { Screen } from '@/types';
 
@@ -45,3 +46,4 @@ const SuggestLinkScreen: React.FC<Props> = ({ goBack }) => {
 };
 
 export default SuggestLinkScreen;
+

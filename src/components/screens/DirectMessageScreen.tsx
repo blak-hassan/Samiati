@@ -1,6 +1,7 @@
+﻿"use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Screen } from '@/types';
+import { Screen, Message } from '@/types';
 import { dmService, DMMessage } from '@/services/mockDmService';
 import { cn } from "@/lib/utils";
 import {
@@ -27,14 +28,13 @@ interface Props {
     avatar: string;
     isOnline: boolean;
   };
+  initialMessages?: Message[]; // New prop
+  onSendMessage?: (text: string) => Promise<void>; // New prop
 }
 
-const DirectMessageScreen: React.FC<Props> = ({ navigate, goBack, chatId, chatUser }) => {
-  // If chatId is provided, load from service. If not, maybe create on fly or use limited mode.
-  // For this impl, assume we find or create based on props.
-
+const DirectMessageScreen: React.FC<Props> = ({ navigate, goBack, chatId, chatUser, initialMessages, onSendMessage }) => {
   const [activeChatId, setActiveChatId] = useState<string | null>(chatId || null);
-  const [messages, setMessages] = useState<DMMessage[]>([]);
+  const [messages, setMessages] = useState<any[]>(initialMessages || []); // Use prop
   const [inputText, setInputText] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAttachmentOpen, setIsAttachmentOpen] = useState(false);
@@ -49,21 +49,19 @@ const DirectMessageScreen: React.FC<Props> = ({ navigate, goBack, chatId, chatUs
   const attachmentRef = useRef<HTMLDivElement>(null);
   const recordingInterval = useRef<NodeJS.Timeout | null>(null);
 
-  // Initialize Chat
+  // Sync with prop updates (streaming)
   useEffect(() => {
-    let id = activeChatId;
-
-    if (!id && chatUser) {
-      // Try to find existing chat or create new
-      id = dmService.createChat(chatUser);
-      setActiveChatId(id);
+    if (initialMessages) {
+      setMessages(initialMessages);
     }
+  }, [initialMessages]);
 
-    if (id) {
-      dmService.markAsRead(id);
-      setMessages(dmService.getChatMessages(id));
-    }
+  /* Mock Init logic removed - reliance on parent for data */
+  /*
+  useEffect(() => {
+    // ...
   }, [chatId, chatUser, activeChatId]);
+  */
 
   // Scroll to bottom
   useEffect(() => {
@@ -86,28 +84,27 @@ const DirectMessageScreen: React.FC<Props> = ({ navigate, goBack, chatId, chatUs
   }, []);
 
   const handleSend = async (type: 'text' | 'image' | 'voice' = 'text', content: string = inputText, duration?: string) => {
-    if (!activeChatId) return;
     if (type === 'text' && !content.trim()) return;
 
-    // Optimistic Update
-    const newMsg = dmService.sendMessage(activeChatId, content, type, undefined, duration);
-    setMessages(prev => [...prev, newMsg]);
-    setInputText('');
+    if (onSendMessage && type === 'text') {
+      await onSendMessage(content);
+      setInputText('');
+    } else {
+      // Fallback or handle other types
+      console.log("Media/Voice sending not fully wired yet", type, content);
+      // Add optimistic
+      setMessages(prev => [...prev, {
+        id: 'optimistic-' + Date.now(),
+        text: content,
+        sender: 'user', // or 'me' based on mapping
+        senderId: 'me', // Screen internal check
+        timestamp: new Date(),
+        type: type
+      }]);
+      setInputText('');
+    }
+
     setIsAttachmentOpen(false);
-
-    // Simulate Status Updates (in a real app, this would be via subscription)
-    setTimeout(() => {
-      setMessages(prev => prev.map(m => m.id === newMsg.id ? { ...m, status: 'delivered' } : m));
-    }, 1000);
-    setTimeout(() => {
-      setMessages(prev => prev.map(m => m.id === newMsg.id ? { ...m, status: 'read' } : m));
-    }, 2500);
-
-    // Simulate Reply
-    setIsTyping(true);
-    await dmService.simulateReply(activeChatId);
-    setMessages(dmService.getChatMessages(activeChatId)); // Refresh to get reply
-    setIsTyping(false);
   };
 
   const handleRecordToggle = () => {
@@ -344,3 +341,4 @@ const DirectMessageScreen: React.FC<Props> = ({ navigate, goBack, chatId, chatUs
 };
 
 export default DirectMessageScreen;
+

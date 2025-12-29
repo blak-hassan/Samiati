@@ -1,3 +1,4 @@
+﻿"use client";
 import React from 'react';
 import { Screen, User as UserType } from '@/types';
 import {
@@ -33,25 +34,11 @@ interface Props {
 }
 
 const SettingsScreen: React.FC<Props> = ({ navigate, goBack, onSignOut, isDarkMode, toggleTheme, user }) => {
-    const [accentColor, setAccentColor] = useState<'brown' | 'red' | 'gold' | 'green'>('brown');
 
-    useEffect(() => {
-        const root = document.documentElement;
-        const colors = {
-            brown: { primary: '#8B4513', hover: '#6B3410' },
-            red: { primary: '#C8102E', hover: '#A00D25' },
-            gold: { primary: '#FFD700', hover: '#E6C200' },
-            green: { primary: '#009B3A', hover: '#007C2E' },
-        };
-
-        const selected = colors[accentColor];
-        root.style.setProperty('--active-accent', selected.primary);
-        root.style.setProperty('--active-accent-hover', selected.hover);
-    }, [accentColor]);
 
     return (
         <div className="flex flex-col min-h-screen bg-background transition-colors duration-300">
-            <header className="flex items-center px-4 h-16 sticky top-0 bg-background/95 backdrop-blur-md border-b border-border z-30">
+            <header className="flex items-center px-4 h-16 sticky top-0 bg-background/95 backdrop-blur-md z-30">
                 <Button variant="ghost" size="icon" onClick={goBack} className="rounded-full">
                     <ArrowLeft className="w-6 h-6" />
                 </Button>
@@ -147,40 +134,7 @@ const SettingsScreen: React.FC<Props> = ({ navigate, goBack, onSignOut, isDarkMo
                             </div>
                             <Switch checked={isDarkMode} onCheckedChange={toggleTheme} className="data-[state=checked]:bg-primary" />
                         </div>
-                        <div className="p-5 border-b border-border/30 last:border-0">
-                            <div className="flex items-center gap-4 mb-4">
-                                <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
-                                    <span className="material-symbols-outlined">palette</span>
-                                </div>
-                                <div className="flex-1">
-                                    <p className="text-sm font-black text-foreground tracking-tight">Accent Color</p>
-                                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest opacity-60">Personalize your interface</p>
-                                </div>
-                            </div>
-                            <div className="flex gap-3 px-2">
-                                {[
-                                    { id: 'brown', color: '#8B4513', name: 'Brown' },
-                                    { id: 'red', color: '#C8102E', name: 'Red' },
-                                    { id: 'gold', color: '#FFD700', name: 'Gold' },
-                                    { id: 'green', color: '#009B3A', name: 'Green' }
-                                ].map((choice) => (
-                                    <button
-                                        key={choice.id}
-                                        onClick={() => setAccentColor(choice.id as any)}
-                                        className={cn(
-                                            "w-12 h-12 rounded-2xl flex items-center justify-center transition-all relative group",
-                                            accentColor === choice.id ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "hover:scale-105"
-                                        )}
-                                        style={{ backgroundColor: choice.color }}
-                                        title={choice.name}
-                                    >
-                                        {accentColor === choice.id && (
-                                            <div className="w-2 h-2 bg-white rounded-full shadow-lg" />
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
+
                         <button onClick={() => navigate(Screen.MANAGE_LANGUAGES)} className="w-full flex items-center gap-4 p-5 hover:bg-muted/30 transition-all border-b border-border/30 last:border-0 group">
                             <div className="w-10 h-10 rounded-2xl bg-rasta-gold/10 text-rasta-gold flex items-center justify-center group-hover:scale-110 transition-transform">
                                 <Languages className="w-5 h-5" />
@@ -278,10 +232,11 @@ const SettingsScreen: React.FC<Props> = ({ navigate, goBack, onSignOut, isDarkMo
                     </Button>
                 </div>
 
-                <p className="text-center text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/40 py-6">Samiati v1.0.0 • Build 240</p>
+                <p className="text-center text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/40 py-6">Samiati v1.0.0 â€¢ Build 240</p>
             </main>
         </div>
     );
 };
 
 export default SettingsScreen;
+

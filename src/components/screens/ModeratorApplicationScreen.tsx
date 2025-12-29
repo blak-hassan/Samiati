@@ -1,8 +1,19 @@
-'use client';
+﻿"use client";
 
 import React, { useState } from 'react';
 import { Screen } from '@/types';
-import { Shield, CheckCircle, AlertCircle } from 'lucide-react';
+import {
+    Shield,
+    CheckCircle,
+    AlertCircle,
+    ArrowLeft,
+    ClipboardList,
+    ShieldCheck,
+    Star,
+    Medal,
+    Trophy,
+    Loader2
+} from 'lucide-react';
 
 interface Props {
     navigate: (screen: Screen) => void;
@@ -43,8 +54,8 @@ const ModeratorApplicationScreen: React.FC<Props> = ({ navigate, goBack, userId 
         return (
             <div className="flex flex-col min-h-screen bg-background-light dark:bg-background-dark">
                 <header className="flex items-center p-4 border-b border-black/5 dark:border-transparent">
-                    <button onClick={goBack} className="p-2 -ml-2 text-stone-900 dark:text-white">
-                        <span className="material-symbols-outlined">arrow_back</span>
+                    <button onClick={goBack} className="p-2 -ml-2 text-stone-900 dark:text-white hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-colors">
+                        <ArrowLeft className="w-6 h-6" />
                     </button>
                     <h1 className="flex-1 text-center text-lg font-bold text-stone-900 dark:text-white pr-8">
                         Application Submitted
@@ -79,8 +90,8 @@ const ModeratorApplicationScreen: React.FC<Props> = ({ navigate, goBack, userId 
     return (
         <div className="flex flex-col min-h-screen bg-background-light dark:bg-background-dark">
             <header className="flex items-center p-4 border-b border-black/5 dark:border-transparent">
-                <button onClick={goBack} className="p-2 -ml-2 text-stone-900 dark:text-white">
-                    <span className="material-symbols-outlined">arrow_back</span>
+                <button onClick={goBack} className="p-2 -ml-2 text-stone-900 dark:text-white hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-colors">
+                    <ArrowLeft className="w-6 h-6" />
                 </button>
                 <h1 className="flex-1 text-center text-lg font-bold text-stone-900 dark:text-white pr-8">
                     Become a Moderator
@@ -107,7 +118,7 @@ const ModeratorApplicationScreen: React.FC<Props> = ({ navigate, goBack, userId 
                 {/* Responsibilities */}
                 <div className="bg-white dark:bg-[#32241a] rounded-xl p-6 space-y-4">
                     <h3 className="text-lg font-bold text-stone-900 dark:text-white flex items-center gap-2">
-                        <span className="material-symbols-outlined text-primary">task_alt</span>
+                        <ClipboardList className="w-5 h-5 text-primary" />
                         Moderator Responsibilities
                     </h3>
 
@@ -120,7 +131,7 @@ const ModeratorApplicationScreen: React.FC<Props> = ({ navigate, goBack, userId 
                             'Maintain confidentiality of moderation decisions'
                         ].map((item, index) => (
                             <li key={index} className="flex items-start gap-3 text-stone-700 dark:text-text-muted">
-                                <span className="material-symbols-outlined text-success text-xl mt-0.5">check_circle</span>
+                                <CheckCircle className="w-5 h-5 text-success mt-0.5 flex-shrink-0" />
                                 <span>{item}</span>
                             </li>
                         ))}
@@ -130,7 +141,7 @@ const ModeratorApplicationScreen: React.FC<Props> = ({ navigate, goBack, userId 
                 {/* Requirements */}
                 <div className="bg-white dark:bg-[#32241a] rounded-xl p-6 space-y-4">
                     <h3 className="text-lg font-bold text-stone-900 dark:text-white flex items-center gap-2">
-                        <span className="material-symbols-outlined text-primary">verified_user</span>
+                        <ShieldCheck className="w-5 h-5 text-primary" />
                         What We Look For
                     </h3>
 
@@ -143,7 +154,7 @@ const ModeratorApplicationScreen: React.FC<Props> = ({ navigate, goBack, userId 
                             'Strong communication skills'
                         ].map((item, index) => (
                             <li key={index} className="flex items-start gap-3 text-stone-700 dark:text-text-muted">
-                                <span className="material-symbols-outlined text-primary text-xl mt-0.5">star</span>
+                                <Star className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
                                 <span>{item}</span>
                             </li>
                         ))}
@@ -153,7 +164,7 @@ const ModeratorApplicationScreen: React.FC<Props> = ({ navigate, goBack, userId 
                 {/* Benefits */}
                 <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl p-6 space-y-4">
                     <h3 className="text-lg font-bold text-stone-900 dark:text-white flex items-center gap-2">
-                        <span className="material-symbols-outlined text-primary">workspace_premium</span>
+                        <Medal className="w-5 h-5 text-primary" />
                         Moderator Benefits
                     </h3>
 
@@ -166,7 +177,7 @@ const ModeratorApplicationScreen: React.FC<Props> = ({ navigate, goBack, userId 
                             'Contribute to cultural preservation'
                         ].map((item, index) => (
                             <li key={index} className="flex items-start gap-3 text-stone-700 dark:text-text-muted">
-                                <span className="material-symbols-outlined text-warning text-xl mt-0.5">emoji_events</span>
+                                <Trophy className="w-5 h-5 text-warning mt-0.5 flex-shrink-0" />
                                 <span>{item}</span>
                             </li>
                         ))}
@@ -189,7 +200,7 @@ const ModeratorApplicationScreen: React.FC<Props> = ({ navigate, goBack, userId 
                 >
                     {isSubmitting ? (
                         <>
-                            <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                            <Loader2 className="w-5 h-5 animate-spin" />
                             Submitting...
                         </>
                     ) : (

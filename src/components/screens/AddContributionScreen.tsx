@@ -1,3 +1,4 @@
+﻿"use client";
 import React, { useState } from 'react';
 import { Screen, ContributionItem } from '@/types';
 import { Button } from "@/components/ui/button";
@@ -40,8 +41,8 @@ const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave }) =>
     }
     return {
       label1: "Local Language",
-      placeholder1: "e.g., Sɛ woteetee o-pɔnkɔ a, na ɔyɛ mmerɛw.",
-      defaultText1: selectedType === 'Proverb' && !input1 ? "Sɛ woteetee o-pɔnkɔ a, na ɔyɛ mmerɛw." : "",
+      placeholder1: "e.g., SÉ› woteetee o-pÉ”nkÉ” a, na É”yÉ› mmerÉ›w.",
+      defaultText1: selectedType === 'Proverb' && !input1 ? "SÉ› woteetee o-pÉ”nkÉ” a, na É”yÉ› mmerÉ›w." : "",
       label2: "English Translation",
       placeholder2: "e.g., If you train a horse well, it becomes gentle.",
       defaultText2: selectedType === 'Proverb' && !input2 ? "If you train a horse well, it becomes gentle." : "",
@@ -53,7 +54,7 @@ const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave }) =>
 
   // Initialize defaults if empty and specific type selected (for demo UX)
   React.useEffect(() => {
-    if (selectedType === 'Proverb' && !input1) setInput1("Sɛ woteetee o-pɔnkɔ a, na ɔyɛ mmerɛw.");
+    if (selectedType === 'Proverb' && !input1) setInput1("SÉ› woteetee o-pÉ”nkÉ” a, na É”yÉ› mmerÉ›w.");
     if (selectedType === 'Proverb' && !input2) setInput2("If you train a horse well, it becomes gentle.");
     if (isTranslationMode && !input1) setInput1(config.defaultText1 || "");
   }, [selectedType, isTranslationMode]);
@@ -71,8 +72,8 @@ const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave }) =>
       const newItem: ContributionItem = {
         id: Date.now().toString(),
         type: selectedType,
-        title: input1 || (selectedType === 'Proverb' ? "Sɛ woteetee o-pɔnkɔ a, na ɔyɛ mmerɛw." : "New Changa"),
-        subtitle: `${selectedType} • Submitted on ${new Date().toLocaleDateString()}`,
+        title: input1 || (selectedType === 'Proverb' ? "SÉ› woteetee o-pÉ”nkÉ” a, na É”yÉ› mmerÉ›w." : "New Changa"),
+        subtitle: `${selectedType} â€¢ Submitted on ${new Date().toLocaleDateString()}`,
         status: 'Under Review',
         statusColor: 'text-warning',
         dotColor: 'bg-warning',
@@ -321,3 +322,4 @@ const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave }) =>
 };
 
 export default AddContributionScreen;
+

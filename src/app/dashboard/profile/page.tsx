@@ -1,27 +1,34 @@
-"use client";
-
+﻿"use client";
 import ProfileScreen from "@/components/screens/ProfileScreen";
 import { useNavigation } from "@/hooks/useNavigation";
-import { useUser } from "../../MockProviders";
+import { useQuery } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
 import { User } from "@/types";
 import { INITIAL_LANGUAGES_STATE } from "@/data/mock";
 
 export default function ProfilePage() {
     const { navigate, goBack } = useNavigation();
-    const { user: clerkUser } = useUser();
+    const profile = useQuery(api.users.queries.getProfile, {});
 
-    // Transform Clerk User to App User
-    const appUser: User = clerkUser ? {
-        name: clerkUser.fullName || "User",
-        handle: "@" + (clerkUser.username || "user"),
-        avatar: clerkUser.imageUrl,
-        isGuest: false,
-        bio: "Digital Storyteller", // placeholder
-    } : {
-        name: "Guest",
-        handle: "@guest",
-        avatar: "https://lh3.googleusercontent.com/aida-public/AB6AXuDKkfM9WqTPsqCfuM1KQIQ1QzsbiAaq2rab_EQ2MwL_8b9sbJ3-mIl3CjDCR888PPrsBNhkpl7tkden40rCqo3pJe3Sepe18k46KUvejTidyoAK941vcqejBnqRrcfC5hPZop_XFQ7S9jkteso1RvDSjv8s1JfGwGhOYE1uQ1M1J93quDxOniTqTNGD-1WZq2GOu_Z1EpzGjMzNeyvhYbuIwiqYK1TDLfGX5mpdg--_df6DoewiFO-RhrraeKpwY7MetQ94avb6spo",
-        isGuest: true
+    if (!profile) {
+        // Loading state
+        return null; // Or a spinner
+    }
+
+    // Transform database user to App User Type
+    const appUser: User = {
+        name: profile.name,
+        handle: profile.handle, // Should include @ if needed, logic check
+        avatar: profile.avatar,
+        isGuest: profile.isGuest,
+        bio: profile.bio || "",
+        xp: profile.xp,
+        level: profile.level,
+        badges: profile.badges,
+        followerCount: profile.followerCount,
+        followingCount: profile.followingCount,
+        languages: profile.languages as any, // Type mismatch needs check
+        role: profile.role,
     };
 
     return (
@@ -30,7 +37,8 @@ export default function ProfilePage() {
             navigate={navigate}
             goBack={goBack}
             isOwnProfile={true}
-            languages={INITIAL_LANGUAGES_STATE}
+            languages={INITIAL_LANGUAGES_STATE} // TODO: Use profile.languages
         />
     );
 }
+

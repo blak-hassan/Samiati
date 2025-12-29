@@ -1,3 +1,4 @@
+﻿"use client";
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Screen, LanguageSkill } from '@/types';
@@ -259,3 +260,4 @@ const ManageLanguagesScreen: React.FC<Props> = ({ navigate, goBack, languages, o
 };
 
 export default ManageLanguagesScreen;
+

@@ -1,3 +1,4 @@
+"use client";
 
 import React, { useState, useEffect } from 'react';
 import { Screen, ChatPreview } from '@/types';
@@ -50,6 +51,12 @@ const DMListScreen: React.FC<Props> = ({ navigate, goBack, chats: initialChats }
     navigate(Screen.DIRECT_MESSAGE, {
       chatId: chat.id,
       chatUser: {
+        id: chat.id, // This is conversation ID effectively if chat.id is conv ID? 
+        // Wait, if chat.id is Conversation ID, we can't use it as User ID.
+        // But DirectMessagePage needs Target User ID to CREATE new chat if conversation doesn't exist?
+        // Or if conversation exists, we just need Conversation ID.
+        // The logic in DirectMessagePage uses `chatId` as ConversationID.
+        // So we are safe passing chat.id as chatId.
         name: chat.name,
         avatar: chat.avatar,
         isOnline: chat.isOnline
@@ -68,7 +75,7 @@ const DMListScreen: React.FC<Props> = ({ navigate, goBack, chats: initialChats }
 
   return (
     <div className="flex flex-col min-h-screen bg-background transition-colors duration-300">
-      <header className="flex items-center p-4 bg-background/95 backdrop-blur-md sticky top-0 z-10 border-b border-border">
+      <header className="flex items-center p-4 bg-background/95 backdrop-blur-md sticky top-0 z-10">
         <Button variant="ghost" size="icon" onClick={goBack} className="-ml-2 rounded-full">
           <ArrowLeft className="w-6 h-6" />
         </Button>

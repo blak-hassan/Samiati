@@ -5,6 +5,7 @@ import ChatScreen from "@/components/screens/ChatScreen";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useUser } from "../MockProviders";
 import { User, Screen, Conversation } from "@/types";
+import { localConversationService } from "@/services/localConversationService";
 import { INITIAL_CONVERSATIONS } from "@/data/mock";
 
 export default function DashboardPage({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
@@ -15,26 +16,51 @@ export default function DashboardPage({ searchParams }: { searchParams: Promise<
     const resolvedSearchParams = use(searchParams);
     const chatId = typeof resolvedSearchParams.chatId === 'string' ? resolvedSearchParams.chatId : null;
 
-    // We use allConversations to find the active one
-    const [allConversations, setAllConversations] = useState<Conversation[]>([]);
+    const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
 
+    // Load conversation on mount or when chatId changes
     useEffect(() => {
-        setAllConversations(INITIAL_CONVERSATIONS);
-    }, []);
+        if (chatId) {
+            const conversation = localConversationService.getConversation(chatId);
+            setActiveConversation(conversation || null);
+        } else {
+            setActiveConversation(null); // Reset for new chat
+        }
+    }, [chatId]);
 
-    const activeConversation = chatId ? allConversations.find(c => c.id === chatId) || null : null;
+    const handleSaveConversation = (messages: any[]) => {
+        if (activeConversation) {
+            const updated = {
+                ...activeConversation,
+                messages: messages,
+                lastActive: Date.now(),
+                messageCount: messages.length,
+                // Update preview snippet if needed
+            };
+            localConversationService.saveConversation(updated);
+            setActiveConversation(updated);
+        } else {
+            // New conversation
+            const newConv = localConversationService.createNewConversation();
+            newConv.messages = messages;
+            newConv.messageCount = messages.length;
 
+            // Try to set title from first message
+            if (messages.length > 0) {
+                const firstMsg = messages[0].text;
+                newConv.title = firstMsg.length > 30 ? firstMsg.substring(0, 30) + "..." : firstMsg;
+            }
+
+            localConversationService.saveConversation(newConv);
+            setActiveConversation(newConv);
+            // Optional: navigate to the new ID to persist URL
+            // navigate(Screen.HOME_CHAT, { chatId: newConv.id });
+        }
+    };
 
     // Local state for theme (could be moved to context)
     const [isDarkMode, setIsDarkMode] = useState(true);
     const toggleTheme = () => setIsDarkMode(!isDarkMode);
-
-    // Sync User on load
-    useEffect(() => {
-        if (clerkUser) {
-            // storeUser logic...
-        }
-    }, [clerkUser]);
 
     // Transform Clerk User to App User
     const appUser: User = clerkUser ? {
@@ -58,7 +84,7 @@ export default function DashboardPage({ searchParams }: { searchParams: Promise<
             toggleTheme={toggleTheme}
             activeConversation={activeConversation}
             onNewChat={() => navigate(Screen.HOME_CHAT)}
-            onSaveChat={() => { }}
+            onSaveChat={handleSaveConversation}
         />
     );
 }

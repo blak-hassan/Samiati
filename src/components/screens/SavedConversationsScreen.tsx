@@ -1,3 +1,4 @@
+﻿"use client";
 import React, { useState } from 'react';
 import { Screen, Conversation } from '@/types';
 import {
@@ -12,11 +13,22 @@ import {
     Music,
     Scroll,
     History,
-    Type
+    Type,
+    Pencil,
+    Check,
+    X,
+    MoreVertical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Props {
     navigate: (screen: Screen) => void;
@@ -24,6 +36,7 @@ interface Props {
     conversations: Conversation[];
     setConversations: (conversations: Conversation[]) => void;
     onChatSelect: (id: string) => void;
+    onRename?: (id: string, newTitle: string) => void;
 }
 
 const SavedConversationsScreen: React.FC<Props> = ({
@@ -31,7 +44,8 @@ const SavedConversationsScreen: React.FC<Props> = ({
     goBack,
     conversations,
     setConversations,
-    onChatSelect
+    onChatSelect,
+    onRename
 }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState<'All' | 'Pinned' | 'Recent'>('All');
@@ -62,8 +76,6 @@ const SavedConversationsScreen: React.FC<Props> = ({
         ));
     };
 
-
-
     const handleShareStory = () => {
         navigate(Screen.ADD_CONTRIBUTION);
     };
@@ -75,7 +87,7 @@ const SavedConversationsScreen: React.FC<Props> = ({
             <div className="absolute bottom-[-5%] right-[-5%] w-[50%] h-[30%] bg-primary/10 blur-[100px] rounded-full pointer-events-none" />
 
             {/* Header */}
-            <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-lg border-b border-border/50 px-4 py-4 flex items-center justify-between">
+            <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-lg px-4 py-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <Button
                         variant="ghost"
@@ -94,10 +106,6 @@ const SavedConversationsScreen: React.FC<Props> = ({
 
             {/* Main Content */}
             <main className="flex-1 relative z-10 p-4 max-w-2xl mx-auto w-full space-y-6 overflow-y-auto no-scrollbar pb-24">
-
-
-
-
 
                 {/* Search Bar */}
                 <div className="relative group animate-in fade-in slide-in-from-top-4 duration-500 delay-400">
@@ -145,6 +153,7 @@ const SavedConversationsScreen: React.FC<Props> = ({
                                     onClick={() => onChatSelect(c.id)}
                                     onTogglePin={(e) => handleTogglePin(e, c.id)}
                                     onDelete={(e) => handleDelete(e, c.id)}
+                                    onRename={onRename}
                                     index={idx}
                                 />
                             ))}
@@ -168,6 +177,7 @@ const SavedConversationsScreen: React.FC<Props> = ({
                                         onClick={() => onChatSelect(c.id)}
                                         onTogglePin={(e) => handleTogglePin(e, c.id)}
                                         onDelete={(e) => handleDelete(e, c.id)}
+                                        onRename={onRename}
                                         index={idx}
                                     />
                                 ))}
@@ -205,6 +215,7 @@ interface CardProps {
     onClick: () => void;
     onTogglePin: (e: React.MouseEvent) => void;
     onDelete: (e: React.MouseEvent) => void;
+    onRename?: (id: string, newTitle: string) => void;
     index: number;
 }
 
@@ -213,36 +224,73 @@ const ConversationCard: React.FC<CardProps> = ({
     onClick,
     onTogglePin,
     onDelete,
+    onRename,
     index
 }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [editTitle, setEditTitle] = useState(conversation.title);
+    const inputRef = React.useRef<HTMLInputElement>(null);
+
+    React.useEffect(() => {
+        if (isEditing && inputRef.current) {
+            inputRef.current.focus();
+        }
+    }, [isEditing]);
+
+    const handleSaveRename = (e: React.MouseEvent | React.KeyboardEvent) => {
+        e.stopPropagation();
+        if (editTitle.trim() && onRename) {
+            onRename(conversation.id, editTitle.trim());
+            setIsEditing(false);
+        }
+    };
+
+    const handleCancelRename = (e: React.MouseEvent | React.KeyboardEvent) => {
+        e.stopPropagation();
+        setEditTitle(conversation.title);
+        setIsEditing(false);
+    };
+
     const getCategoryIcon = (category?: string) => {
-        switch (category) {
-            case 'proverb': return <Scroll className="w-6 h-6" />;
-            case 'story': return <BookOpen className="w-6 h-6" />;
-            case 'song': return <Music className="w-6 h-6" />;
-            case 'history': return <History className="w-6 h-6" />;
-            case 'word': return <Type className="w-6 h-6" />;
-            default: return <MessageSquare className="w-6 h-6" />;
+        switch (category?.toLowerCase()) {
+            case 'history':
+                return <History className="w-6 h-6" />;
+            case 'music':
+            case 'song':
+                return <Music className="w-6 h-6" />;
+            case 'literature':
+            case 'story':
+                return <BookOpen className="w-6 h-6" />;
+            case 'stories':
+            case 'proverb':
+                return <Scroll className="w-6 h-6" />;
+            default:
+                return <MessageSquare className="w-6 h-6" />;
         }
     };
 
     const getCategoryColor = (category?: string) => {
-        switch (category) {
-            case 'proverb': return 'bg-rasta-red/10 text-rasta-red'; // Rasta Red
-            case 'story': return 'bg-rasta-gold/10 text-amber-600 dark:text-rasta-gold'; // Rasta Gold
-            case 'song': return 'bg-rasta-gold/20 text-amber-700 dark:text-rasta-gold/80'; // Rasta Gold (darker)
-            case 'history': return 'bg-rasta-red/20 text-red-800 dark:text-rasta-red/80'; // Rasta Red (darker)
-            case 'word': return 'bg-rasta-green/10 text-rasta-green'; // Rasta Green
+        switch (category?.toLowerCase()) {
+            case 'proverb': return 'bg-rasta-red/10 text-rasta-red';
+            case 'story': return 'bg-rasta-gold/10 text-amber-600 dark:text-rasta-gold';
+            case 'song': return 'bg-rasta-gold/20 text-amber-700 dark:text-rasta-gold/80';
+            case 'history': return 'bg-rasta-red/20 text-red-800 dark:text-rasta-red/80';
+            case 'word': return 'bg-rasta-green/10 text-rasta-green';
             default: return 'bg-primary/10 text-primary';
         }
     };
 
+    // Safely get last message
+    const lastMessage = conversation.messages && conversation.messages.length > 0
+        ? conversation.messages[conversation.messages.length - 1].text
+        : "No messages yet";
+
     return (
         <div
-            onClick={onClick}
+            onClick={!isEditing ? onClick : undefined}
             className={cn(
                 "group relative bg-card/40 backdrop-blur-xl border border-border/50 rounded-2xl p-4 transition-all duration-300",
-                "hover:bg-card/70 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 active:scale-[0.99] cursor-pointer",
+                !isEditing && "hover:bg-card/70 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 active:scale-[0.99] cursor-pointer",
                 "animate-in fade-in slide-in-from-bottom-4 duration-500"
             )}
             style={{ animationDelay: `${index * 50}ms` }}
@@ -250,7 +298,8 @@ const ConversationCard: React.FC<CardProps> = ({
             <div className="flex items-center gap-4">
                 {/* Avatar / Icon */}
                 <div className={cn(
-                    "w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300",
+                    "w-12 h-12 rounded-xl flex items-center justify-center transition-transform duration-300",
+                    !isEditing && "group-hover:scale-110",
                     getCategoryColor(conversation.category)
                 )}>
                     {getCategoryIcon(conversation.category)}
@@ -259,59 +308,103 @@ const ConversationCard: React.FC<CardProps> = ({
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-base font-bold text-foreground truncate group-hover:text-primary transition-colors">
-                            {conversation.title}
-                        </h3>
-                        {conversation.language && (
-                            <span className="text-[9px] font-black uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-md shrink-0">
-                                {conversation.language}
-                            </span>
+                        {isEditing ? (
+                            <div className="flex items-center gap-1 w-full" onClick={e => e.stopPropagation()}>
+                                <Input
+                                    ref={inputRef}
+                                    value={editTitle}
+                                    onChange={e => setEditTitle(e.target.value)}
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter') handleSaveRename(e);
+                                        if (e.key === 'Escape') handleCancelRename(e);
+                                        e.stopPropagation();
+                                    }}
+                                    className="h-7 text-base font-bold px-2 py-0 bg-background border-primary/50 focus-visible:ring-1 focus-visible:ring-primary"
+                                />
+                            </div>
+                        ) : (
+                            <>
+                                <h3 className="text-base font-bold text-foreground truncate group-hover:text-primary transition-colors">
+                                    {conversation.title}
+                                </h3>
+                                {conversation.language && (
+                                    <span className="text-[9px] font-black uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-md shrink-0">
+                                        {conversation.language}
+                                    </span>
+                                )}
+                            </>
                         )}
                     </div>
-                    <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                    <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-1">
                         <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
                             {conversation.messageCount} Messages
                         </span>
-                        {conversation.viewCount && conversation.viewCount > 0 && (
-                            <>
-                                <span className="w-1 h-1 bg-border rounded-full" />
-                                <span>{conversation.viewCount} views</span>
-                            </>
-                        )}
+
                         <span className="w-1 h-1 bg-border rounded-full" />
                         <span className="text-[10px]">{conversation.date}</span>
                     </div>
+                    <p className="text-xs text-muted-foreground truncate opacity-70">
+                        {lastMessage}
+                    </p>
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-1 ml-2 relative z-30">
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            onTogglePin(e);
-                        }}
-                        className={cn(
-                            "w-9 h-9 rounded-xl inline-flex items-center justify-center hover:bg-primary/10 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20",
-                            conversation.isPinned ? "text-primary" : "text-muted-foreground"
-                        )}
-                        aria-label={conversation.isPinned ? "Unpin" : "Pin"}
-                    >
-                        <Pin className={cn("w-4 h-4", conversation.isPinned && "fill-primary")} />
-                    </button>
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            onDelete(e);
-                        }}
-                        className="w-9 h-9 rounded-xl inline-flex items-center justify-center hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-destructive/20"
-                        aria-label="Delete"
-                    >
-                        <Trash2 className="w-4 h-4" />
-                    </button>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground/30 group-hover:text-primary transition-colors ml-1" />
+                <div className="flex items-center gap-1 ml-2 relative z-30" onClick={e => e.stopPropagation()}>
+                    {isEditing ? (
+                        <>
+                            <button
+                                onClick={handleSaveRename}
+                                className="w-8 h-8 rounded-lg inline-flex items-center justify-center bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors"
+                            >
+                                <Check className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={handleCancelRename}
+                                className="w-8 h-8 rounded-lg inline-flex items-center justify-center hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-colors"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </>
+                    ) : (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <button
+                                    className="w-8 h-8 rounded-full inline-flex items-center justify-center text-muted-foreground/50 hover:text-foreground hover:bg-muted/50 transition-colors focus:outline-none"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <MoreVertical className="w-4 h-4" />
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsEditing(true);
+                                }}>
+                                    <Pencil className="mr-2 h-4 w-4" />
+                                    <span>Rename</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={(e) => {
+                                    e.stopPropagation();
+                                    onTogglePin(e);
+                                }}>
+                                    <Pin className={cn("mr-2 h-4 w-4", conversation.isPinned && "fill-primary text-primary")} />
+                                    <span>{conversation.isPinned ? "Unpin" : "Pin"}</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onDelete(e);
+                                    }}
+                                    className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    <span>Delete</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    )}
                 </div>
             </div>
         </div>

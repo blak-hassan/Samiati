@@ -1,3 +1,4 @@
+﻿"use client";
 import React, { useState, useEffect } from 'react';
 import { Screen } from '@/types';
 import {
@@ -126,3 +127,4 @@ const VoiceCallScreen: React.FC<Props> = ({ goBack, chatUser }) => {
 };
 
 export default VoiceCallScreen;
+

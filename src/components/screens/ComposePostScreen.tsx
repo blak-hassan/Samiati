@@ -1,3 +1,4 @@
+﻿"use client";
 import React, { useState, useRef, useEffect } from 'react';
 import { Screen, User } from '@/types';
 import {
@@ -368,3 +369,4 @@ const ComposePostScreen: React.FC<Props> = ({ navigate, goBack, onPost, user }) 
 };
 
 export default ComposePostScreen;
+

@@ -1,3 +1,4 @@
+﻿"use client";
 import React, { useState, useEffect, useRef } from 'react';
 import { Screen, User } from '@/types';
 import {
@@ -60,7 +61,7 @@ const DEFAULT_STORY: StoryParam = {
   title: "The Spider's Web",
   author: "Amina Diallo",
   img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDTCkmqfVuPlLQ4IRyL2yV9d82xXGhUn6PZJQuyR-wOR0cvIaU2RmXVEYxrDKRF8LwvPO8ui_vLey4StEqf8CTMHBir5NqJ8BI6X6gXKzW2e5jtCmaOROPdLEoAJCmmFm51ht9zq7QwPnSBQC8TAqlJfRa5M4kLarJ9LqR6i2YIFBkKl3YmSCiPo77SFPw336bJQN6weNdBrPdUlu-Ta6wtwbzNsRkfyTwRr05-OJF-2JEsH1EwbuwH-dLxzpESsJxfK0fBRGIneoQ',
-  type: "Folklore • Akan Tradition",
+  type: "Folklore â€¢ Akan Tradition",
   avatar: "https://lh3.googleusercontent.com/aida-public/AB6AXuCHGQCh7G1VnjuVj9331GPw-eizTILg3UcwDA4ENWzw4Y4k-YeCgWzwUxAmYXQWIcfUfbQwVHw6sT-X-LP9EspDfXqNOQnm6QUcAN3d9HAxoEJ5kesDAP6W6EUQ6odygBf2Q2-wGIcEgisM6jeCizwsbd9roCE4EDfeK74dHdCooeQh3_eioZBLFJNPfGi8Cp4ke9oJ11DKdl5pNseP-GKgaT-tyieX9Uimavj73AayhR3msq3f9Dcw-BdgSJNRK5-7MQYX9T0wH_8",
   date: "Dec 15, 2023",
   readTime: "5 min read"
@@ -145,8 +146,8 @@ const StoryDetailScreen: React.FC<Props> = ({ navigate, goBack, story, onViewPro
       handle: activeStory.author.toLowerCase().replace(/\s+/g, '_'),
       avatar: activeStory.avatar || "https://lh3.googleusercontent.com/aida-public/AB6AXuDTCkmqfVuPlLQ4IRyL2yV9d82xXGhUn6PZJQuyR-wOR0cvIaU2RmXVEYxrDKRF8LwvPO8ui_vLey4StEqf8CTMHBir5NqJ8BI6X6gXKzW2e5jtCmaOROPdLEoAJCmmFm51ht9zq7QwPnSBQC8TAqlJfRa5M4kLarJ9LqR6i2YIFBkKl3YmSCiPo77SFPw336bJQN6weNdBrPdUlu-Ta6wtwbzNsRkfyTwRr05-OJF-2JEsH1EwbuwH-dLxzpESsJxfK0fBRGIneoQ",
       isGuest: false,
-      bio: `Passionately sharing stories from ${activeStory.type.split('•')[1]?.trim() || 'my culture'}.`,
-      culturalBackground: activeStory.type.split('•')[1]?.trim() || 'Global',
+      bio: `Passionately sharing stories from ${activeStory.type.split('â€¢')[1]?.trim() || 'my culture'}.`,
+      culturalBackground: activeStory.type.split('â€¢')[1]?.trim() || 'Global',
       location: 'Samiati Community'
     });
   };
@@ -231,7 +232,7 @@ const StoryDetailScreen: React.FC<Props> = ({ navigate, goBack, story, onViewPro
             <div className="flex flex-col">
               <span className="font-black text-sm text-white tracking-tight group-hover:text-primary transition-colors">{activeStory.author}</span>
               <div className="flex items-center gap-2 text-[10px] font-bold text-white/60 uppercase tracking-widest font-sans">
-                <Calendar className="w-3 h-3" /> {activeStory.date || "Just now"} • <Clock className="w-3 h-3" /> {activeStory.readTime || "5 min read"}
+                <Calendar className="w-3 h-3" /> {activeStory.date || "Just now"} â€¢ <Clock className="w-3 h-3" /> {activeStory.readTime || "5 min read"}
               </div>
             </div>
           </div>
@@ -451,3 +452,4 @@ const StoryDetailScreen: React.FC<Props> = ({ navigate, goBack, story, onViewPro
 };
 
 export default StoryDetailScreen;
+

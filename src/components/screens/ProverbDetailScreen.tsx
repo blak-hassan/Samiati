@@ -1,3 +1,4 @@
+﻿"use client";
 
 import React, { useState, useEffect, useRef, memo } from 'react';
 import { Screen } from '@/types';
@@ -643,3 +644,4 @@ const ProverbDetailScreen: React.FC<Props> = ({ goBack, navigate }) => {
 };
 
 export default ProverbDetailScreen;
+

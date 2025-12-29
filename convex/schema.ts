@@ -30,6 +30,12 @@ export default defineSchema({
             approvedBy: v.optional(v.id("users")),
             isActive: v.boolean(),
         })),
+        // Gamification & Social
+        xp: v.optional(v.number()),
+        level: v.optional(v.number()),
+        badges: v.optional(v.array(v.string())),
+        followerCount: v.optional(v.number()),
+        followingCount: v.optional(v.number()),
     })
         .index("by_clerkId", ["clerkId"])
         .index("by_handle", ["handle"])
@@ -49,6 +55,8 @@ export default defineSchema({
         conversationId: v.id("conversations"),
         sender: v.string(), // 'user' | 'ai' | other userId
         text: v.string(),
+        translatedText: v.optional(v.string()),
+        targetLanguage: v.optional(v.string()),
         timestamp: v.number(),
         feedback: v.optional(v.union(v.literal("up"), v.literal("down"))),
         comments: v.optional(v.array(v.string())),
@@ -58,6 +66,7 @@ export default defineSchema({
     posts: defineTable({
         type: v.string(), // 'fireplace' | 'proverb' | 'standard' | 'question'
         authorId: v.id("users"),
+        communityId: v.optional(v.id("communities")),
         content: v.string(),
         image: v.optional(v.string()), // URL
         altText: v.optional(v.string()),
@@ -152,4 +161,95 @@ export default defineSchema({
         .index("by_report", ["reportId"])
         .index("by_moderator", ["moderatorId"])
         .index("by_timestamp", ["timestamp"]),
+
+    followers: defineTable({
+        followerId: v.id("users"),
+        followingId: v.id("users"),
+        createdAt: v.number(),
+    })
+        .index("by_follower", ["followerId"])
+        .index("by_following", ["followingId"]),
+
+    communities: defineTable({
+        name: v.string(),
+        description: v.string(),
+        avatar: v.optional(v.string()),
+        coverImage: v.optional(v.string()),
+        memberCount: v.number(),
+        isPrivate: v.boolean(),
+        category: v.string(),
+        createdBy: v.id("users"),
+        createdAt: v.number(),
+    }).index("by_category", ["category"]),
+
+    communityMembers: defineTable({
+        communityId: v.id("communities"),
+        userId: v.id("users"),
+        role: v.union(v.literal('admin'), v.literal('moderator'), v.literal('member')),
+        joinedAt: v.number(),
+    })
+        .index("by_community", ["communityId"])
+        .index("by_user", ["userId"]),
+
+    dmConversations: defineTable({
+        participant1: v.id("users"),
+        participant2: v.id("users"),
+        lastMessage: v.string(), // Preview
+        lastMessageTime: v.number(),
+        unreadCountP1: v.number(),
+        unreadCountP2: v.number(),
+    })
+        .index("by_participant1", ["participant1"])
+        .index("by_participant2", ["participant2"])
+        .index("by_lastMessage", ["lastMessageTime"]),
+
+    dmMessages: defineTable({
+        conversationId: v.id("dmConversations"),
+        senderId: v.id("users"),
+        content: v.string(),
+        image: v.optional(v.string()),
+        isRead: v.boolean(),
+        timestamp: v.number(),
+    })
+        .index("by_conversation", ["conversationId"])
+        .index("by_timestamp", ["timestamp"]),
+
+    challenges: defineTable({
+        title: v.string(),
+        description: v.string(),
+        type: v.string(),
+        xpReward: v.number(),
+        deadline: v.number(),
+        createdBy: v.id("users"),
+        status: v.union(v.literal('active'), v.literal('ended'), v.literal('upcoming')),
+    }).index("by_status", ["status"]),
+
+    challengeEntries: defineTable({
+        challengeId: v.id("challenges"),
+        userId: v.id("users"),
+        content: v.string(),
+        submittedAt: v.number(),
+        status: v.union(v.literal('pending'), v.literal('winner'), v.literal('rejected')),
+    })
+        .index("by_challenge", ["challengeId"])
+        .index("by_user", ["userId"]),
+
+    comments: defineTable({
+        targetType: v.union(v.literal('post'), v.literal('contribution')),
+        targetId: v.string(),
+        authorId: v.id("users"),
+        content: v.string(),
+        parentId: v.optional(v.id("comments")), // For nested replies
+        likes: v.number(),
+        dislikes: v.number(),
+        timestamp: v.number(),
+    })
+        .index("by_target", ["targetType", "targetId"])
+        .index("by_author", ["authorId"]),
+
+    commentVotes: defineTable({
+        commentId: v.id("comments"),
+        userId: v.id("users"),
+        vote: v.union(v.literal('up'), v.literal('down')),
+    }).index("by_comment", ["commentId", "userId"]),
 });
