@@ -65,7 +65,7 @@ import PrivacyPolicyScreen from '@/components/screens/PrivacyPolicyScreen';
 
 export default function DashboardCatchAllPage({ params, searchParams }: { params: Promise<{ slug: string }>, searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
     const { navigate, goBack } = useNavigation();
-    const { user: clerkUser } = useUser();
+    const { user: clerkUser, languages, setLanguages } = useUser();
 
     // Unwrap params synchronously using React.use() where needed, but params/searchParams are Promises in Next.js 15
     const resolvedParams = use(params);
@@ -97,8 +97,7 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
     };
 
     // Derived State placeholders
-    const [userLanguages, setUserLanguages] = useState<LanguageSkill[]>([]);
-    const [myContributions, setMyContributions] = useState<ContributionItem[]>([]);
+    const { myContributions, setMyContributions } = useUser();
     const [socialPosts, setSocialPosts] = useState<Post[]>([]);
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -106,8 +105,6 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
 
     useEffect(() => {
         // Initialize state on client side to avoid hydration mismatch
-        setUserLanguages(INITIAL_LANGUAGES_STATE);
-        setMyContributions(INITIAL_CONTRIBUTIONS);
         setSocialPosts(INITIAL_SOCIAL_POSTS);
         setConversations(INITIAL_CONVERSATIONS);
         setNotifications(INITIAL_NOTIFICATIONS);
@@ -119,7 +116,7 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
     }
 
     // Helper handlers
-    const handleViewProfile = (u: User) => console.log('View profile', u);
+    const handleViewProfile = (u: User) => { };
     const handleLikePost = (postId: string) => { }; // Mock
     const handleRepost = (postId: string) => { }; // Mock
     const handleNewChat = () => navigate(Screen.HOME_CHAT);
@@ -139,7 +136,7 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
         case Screen.SUGGEST_CHALLENGE: return <SuggestChallengeScreen navigate={navigate} goBack={goBack} />;
 
         // Profile is handled by specific route, but fallback here if needed
-        case Screen.PROFILE: return <ProfileScreen user={appUser} navigate={navigate} goBack={goBack} isOwnProfile={true} languages={userLanguages} />;
+        case Screen.PROFILE: return <ProfileScreen user={appUser} navigate={navigate} goBack={goBack} isOwnProfile={true} languages={languages} />;
         case Screen.GUEST_PROFILE: return <ProfileScreen user={appUser} navigate={navigate} goBack={goBack} isOwnProfile={false} languages={INITIAL_LANGUAGES_STATE} />; // Should pass actual other user
         case Screen.EDIT_PROFILE: return <EditProfileScreen navigate={navigate} goBack={goBack} />;
 
@@ -152,6 +149,16 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
         case Screen.SETTINGS_DATA: return <SettingsDataScreen goBack={goBack} />;
         case Screen.SETTINGS_ABOUT: return <SettingsAboutScreen navigate={navigate} goBack={goBack} />;
         case Screen.SETTINGS_HELP: return <SettingsHelpScreen navigate={navigate} goBack={goBack} />;
+
+        case Screen.CONTRIBUTIONS:
+            return <ContributionsScreen
+                navigate={navigate}
+                goBack={goBack}
+                myContributions={myContributions}
+                setMyContributions={setMyContributions}
+                languages={languages}
+                onViewProfile={handleViewProfile}
+            />;
 
         case Screen.NOTIFICATIONS:
             return <NotificationsScreen navigate={navigate} goBack={goBack} notifications={notifications} onMarkAllRead={handleMarkAllRead} onNotificationClick={handleNotificationClick} />;
@@ -170,7 +177,7 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
         case Screen.SUGGEST_LINK: return <SuggestLinkScreen navigate={navigate} goBack={goBack} />;
         case Screen.CHANGE_PASSWORD: return <ChangePasswordScreen navigate={navigate} goBack={goBack} />;
         case Screen.ALL_ACHIEVEMENTS: return <AllAchievementsScreen goBack={goBack} />;
-        case Screen.MANAGE_LANGUAGES: return <ManageLanguagesScreen navigate={navigate} goBack={goBack} languages={userLanguages} onUpdateLanguages={setUserLanguages} />;
+        case Screen.MANAGE_LANGUAGES: return <ManageLanguagesScreen navigate={navigate} goBack={goBack} languages={languages} onUpdateLanguages={setLanguages} />;
 
         case Screen.POST_THREAD: return <PostThreadScreen navigate={navigate} goBack={goBack} post={resolvedSearchParams?.post ? JSON.parse(resolvedSearchParams.post as string) : undefined} onLike={handleLikePost} onRepost={handleRepost} autoFocusReply={resolvedSearchParams?.autoFocusReply === 'true'} />;
         case Screen.DIRECT_MESSAGE: return <DirectMessageScreen navigate={navigate} goBack={goBack} chatUser={resolvedSearchParams?.chatUser ? JSON.parse(resolvedSearchParams.chatUser as string) : undefined} />;

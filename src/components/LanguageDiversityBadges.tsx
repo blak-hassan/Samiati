@@ -6,6 +6,7 @@ interface LanguageDiversityBadgesProps {
         name: string;
         code: string;
         contributionCount: number;
+        proficiency?: string;
     }>;
     className?: string;
 }
@@ -29,7 +30,7 @@ export const LanguageDiversityBadges: React.FC<LanguageDiversityBadgesProps> = (
             <div className="flex flex-wrap gap-2">
                 {languages.map((lang, idx) => (
                     <LanguageBadge
-                        key={lang.code}
+                        key={lang.code || lang.name}
                         language={lang}
                         index={idx}
                     />
@@ -53,6 +54,7 @@ interface LanguageBadgeProps {
         name: string;
         code: string;
         contributionCount: number;
+        proficiency?: string;
     };
     index: number;
 }
@@ -78,7 +80,14 @@ const LanguageBadge: React.FC<LanguageBadgeProps> = ({ language, index }) => {
         >
             <span className="material-symbols-outlined text-sm fill-active">star</span>
             <div>
-                <div className="text-xs font-black leading-tight">{language.name}</div>
+                <div className="flex items-baseline gap-1.5">
+                    <div className="text-xs font-black leading-tight">{language.name}</div>
+                    {language.proficiency && (
+                        <div className="text-[8px] font-bold uppercase opacity-60 px-1 border border-current rounded-sm">
+                            {language.proficiency}
+                        </div>
+                    )}
+                </div>
                 <div className="text-[10px] font-bold opacity-70">{language.contributionCount} contributions</div>
             </div>
         </div>

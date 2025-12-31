@@ -1,5 +1,6 @@
 import React from 'react';
 import { Comment } from '@/types';
+import { ThumbsUp, ThumbsDown, Send } from 'lucide-react';
 
 interface WatuCommentSectionProps {
     comments: Comment[];
@@ -42,7 +43,7 @@ const CommentItem: React.FC<{
                         className={`flex items-center gap-1 text-xs font-medium ${comment.userVote === 'up' ? 'text-primary' : 'text-stone-500 dark:text-text-muted hover:text-stone-900 dark:hover:text-white'}`}
                         aria-label="Like comment"
                     >
-                        <span className={`material-symbols-outlined text-sm ${comment.userVote === 'up' ? 'fill-active' : ''}`}>thumb_up</span>
+                        <ThumbsUp className={`w-4 h-4 ${comment.userVote === 'up' ? 'fill-current' : ''}`} />
                         {comment.likes > 0 && <span>{comment.likes}</span>}
                     </button>
                     <button
@@ -50,7 +51,7 @@ const CommentItem: React.FC<{
                         className={`flex items-center gap-1 text-xs font-medium ${comment.userVote === 'down' ? 'text-error' : 'text-stone-500 dark:text-text-muted hover:text-stone-900 dark:hover:text-white'}`}
                         aria-label="Dislike comment"
                     >
-                        <span className={`material-symbols-outlined text-sm ${comment.userVote === 'down' ? 'fill-active' : ''}`}>thumb_down</span>
+                        <ThumbsDown className={`w-4 h-4 ${comment.userVote === 'down' ? 'fill-current' : ''}`} />
                     </button>
                     <button
                         onClick={(e) => onToggleReply(e, comment.id)}
@@ -78,7 +79,7 @@ const CommentItem: React.FC<{
                             className="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-primary-hover"
                             aria-label="Send reply"
                         >
-                            <span className="material-symbols-outlined text-lg">send</span>
+                            <Send className="w-4 h-4" />
                         </button>
                     </div>
                 )}
@@ -133,7 +134,7 @@ export const WatuCommentSection: React.FC<WatuCommentSectionProps> = ({
                         className="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-primary-hover shadow-sm"
                         aria-label="Post comment"
                     >
-                        <span className="material-symbols-outlined text-lg">send</span>
+                        <Send className="w-4 h-4" />
                     </button>
                 </div>
             </div>

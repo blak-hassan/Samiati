@@ -239,6 +239,10 @@ export interface ContributionItem {
   comments: Comment[];
   showComments: boolean;
   tags?: string[];
+  attachments?: { id: string; type: string; url: string; name: string }[];
+  content?: string;
+  translation?: string;
+  context?: string;
 }
 
 export interface Community {

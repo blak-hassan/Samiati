@@ -76,7 +76,7 @@ const GroupScreen: React.FC<Props> = ({ navigate, goBack, community }) => {
                 <h1 className="text-2xl font-bold text-foreground mb-1">{community.name}</h1>
                 <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium mb-3">
                     <span className="text-primary">{community.category}</span>
-                    <span>â€¢</span>
+                    <span>•</span>
                     <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {community.memberCount.toLocaleString()} members</span>
                 </div>
                 <p className="text-sm text-foreground/80 leading-relaxed max-w-2xl">

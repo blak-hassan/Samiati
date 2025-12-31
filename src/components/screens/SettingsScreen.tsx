@@ -232,7 +232,7 @@ const SettingsScreen: React.FC<Props> = ({ navigate, goBack, onSignOut, isDarkMo
                     </Button>
                 </div>
 
-                <p className="text-center text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/40 py-6">Samiati v1.0.0 â€¢ Build 240</p>
+                <p className="text-center text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/40 py-6">Samiati v1.0.0 • Build 240</p>
             </main>
         </div>
     );

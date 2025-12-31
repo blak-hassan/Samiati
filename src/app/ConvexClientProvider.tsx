@@ -37,11 +37,9 @@ export default function ConvexClientProvider({
 }: {
     children: ReactNode;
 }) {
-    if (!convexUrl || !convex) {
-        return <Mock.MockProviders>{children}</Mock.MockProviders>;
-    }
-
-    return (
+    const content = !convexUrl || !convex ? (
+        children
+    ) : (
         <ClerkProvider>
             <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
                 <UserSync />
@@ -49,4 +47,6 @@ export default function ConvexClientProvider({
             </ConvexProviderWithClerk>
         </ClerkProvider>
     );
+
+    return <Mock.MockProviders>{content}</Mock.MockProviders>;
 }

@@ -107,7 +107,7 @@ const PollComponent = ({ poll }: { poll: Post['poll'] }) => {
             })}
             <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2 mt-1 px-1">
                 <Users className="w-3 h-3" />
-                {localPoll.totalVotes} votes â€¢ Ends in {localPoll.endsAt}
+                {localPoll.totalVotes} votes • Ends in {localPoll.endsAt}
             </div>
         </div>
     );

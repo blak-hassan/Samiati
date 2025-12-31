@@ -1,11 +1,40 @@
 "use client";
 
-import React, { createContext, useContext, ReactNode } from "react";
+import React, { createContext, useContext, ReactNode, useState } from "react";
+import { LanguageSkill, ContributionItem } from "@/types";
+import { INITIAL_LANGUAGES_STATE, INITIAL_CONTRIBUTIONS } from "@/data/mock";
 
 // --- Mock Clerk ---
-const MockUserContext = createContext<any>(null);
+interface UserContextType {
+  user: any;
+  isLoaded: boolean;
+  isSignedIn: boolean;
+  languages: LanguageSkill[];
+  setLanguages: React.Dispatch<React.SetStateAction<LanguageSkill[]>>;
+  myContributions: ContributionItem[];
+  setMyContributions: React.Dispatch<React.SetStateAction<ContributionItem[]>>;
+}
+
+const MockUserContext = createContext<UserContextType | null>(null);
+
+// --- Mock Global State (Singleton pattern for persistence across remounts) ---
+let globalMyContributions: ContributionItem[] = [...INITIAL_CONTRIBUTIONS];
 
 export const ClerkProvider = ({ children }: { children: ReactNode }) => {
+  const [languages, setLanguages] = useState<LanguageSkill[]>(INITIAL_LANGUAGES_STATE);
+  const [myContributions, setMyContributionsInternal] = useState<ContributionItem[]>(globalMyContributions);
+
+  // Sync internal state with global singleton
+  const setMyContributions = (val: React.SetStateAction<ContributionItem[]>) => {
+    if (typeof val === 'function') {
+      globalMyContributions = val(globalMyContributions);
+    } else {
+      globalMyContributions = val;
+    }
+    setMyContributionsInternal(globalMyContributions);
+  };
+
+
   const mockUser = {
     id: "user_2mock",
     fullName: "Mock User",
@@ -15,7 +44,15 @@ export const ClerkProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <MockUserContext.Provider value={{ user: mockUser, isLoaded: true, isSignedIn: true }}>
+    <MockUserContext.Provider value={{
+      user: mockUser,
+      isLoaded: true,
+      isSignedIn: true,
+      languages,
+      setLanguages,
+      myContributions,
+      setMyContributions
+    }}>
       {children}
     </MockUserContext.Provider>
   );
@@ -23,7 +60,15 @@ export const ClerkProvider = ({ children }: { children: ReactNode }) => {
 
 export const useUser = () => {
   const context = useContext(MockUserContext);
-  return context || { user: null, isLoaded: true, isSignedIn: false };
+  return context || {
+    user: null,
+    isLoaded: true,
+    isSignedIn: false,
+    languages: [],
+    setLanguages: () => { },
+    myContributions: [],
+    setMyContributions: () => { }
+  };
 };
 
 export const useAuth = () => ({
@@ -49,7 +94,7 @@ export const useQuery = (name: string, args?: any) => {
 
 export const useMutation = (name: string) => {
   return async (args?: any) => {
-    console.log(`Mock mutation ${name} called with`, args);
+    // Mock mutation call
     return null;
   };
 };

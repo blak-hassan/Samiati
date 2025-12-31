@@ -1,13 +1,14 @@
 ﻿"use client";
 import ProfileScreen from "@/components/screens/ProfileScreen";
 import { useNavigation } from "@/hooks/useNavigation";
+import { useUser } from "../../MockProviders";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { User } from "@/types";
-import { INITIAL_LANGUAGES_STATE } from "@/data/mock";
 
 export default function ProfilePage() {
     const { navigate, goBack } = useNavigation();
+    const { languages } = useUser();
     const profile = useQuery(api.users.queries.getProfile, {});
 
     if (!profile) {
@@ -37,8 +38,7 @@ export default function ProfilePage() {
             navigate={navigate}
             goBack={goBack}
             isOwnProfile={true}
-            languages={INITIAL_LANGUAGES_STATE} // TODO: Use profile.languages
+            languages={languages}
         />
     );
 }
-

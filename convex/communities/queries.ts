@@ -8,7 +8,7 @@ export const list = query({
         category: v.optional(v.string()), // 'Language', 'Culture', etc
     },
     handler: async (ctx, args) => {
-        let communitiesQuery = ctx.db.query("communities");
+        const communitiesQuery = ctx.db.query("communities");
 
         if (args.category && args.category !== 'All') {
             const categoryQuery = communitiesQuery.withIndex("by_category", (q) => q.eq("category", args.category!));

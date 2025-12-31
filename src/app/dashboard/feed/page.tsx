@@ -48,7 +48,7 @@ export default function FeedPage() {
     };
 
     const handleRepost = (postId: string) => {
-        console.log("Repost not implemented yet via mutation");
+        // Repost not implemented yet via mutation
     };
 
     const handleLoadMore = () => {
@@ -72,9 +72,9 @@ export default function FeedPage() {
             posts={posts}
             onLike={handleLike}
             onRepost={handleRepost}
-            onViewProfile={(u) => console.log('View profile', u)}
+            onViewProfile={(u) => { }}
             unreadDmCount={0}
-            onJoinFireplace={(p) => console.log('Join fireplace', p)}
+            onJoinFireplace={(p) => { }}
         />
     );
 }

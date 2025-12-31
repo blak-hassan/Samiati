@@ -1,21 +1,53 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Screen, User, ContributionItem, Comment } from '@/types';
+import { Screen, User, ContributionItem, Comment, LanguageSkill } from '@/types';
 import { CulturalImpactCard } from '@/components/CulturalImpactCard';
 import { ContributionStreakBadge } from '@/components/ContributionStreakBadge';
 import { LanguageDiversityBadges } from '@/components/LanguageDiversityBadges';
 import { ShareStoryPrompt } from '@/components/ShareStoryPrompt';
+import { CONTRIBUTION_TYPES, CATEGORY_COLORS } from '@/lib/constants';
 import ModerationDashboardScreen from './ModerationDashboardScreen';
+import { ContributionCard } from '@/components/contributions/ContributionCard';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+import {
+    ArrowLeft,
+    Plus,
+    ThumbsUp,
+    ThumbsDown,
+    MessageCircle,
+    Share2,
+    Send,
+    Bookmark,
+    Edit3,
+    Paperclip,
+    Eye,
+    X,
+    Link,
+    CheckCircle,
+    GraduationCap,
+    Mic,
+    Trophy,
+    Search,
+    Bookmark as BookmarkOutline,
+    Quote,
+    Languages,
+    FileSearch,
+    BookOpen
+} from 'lucide-react';
+import { IconRenderer } from '@/components/shared/IconRenderer';
 
 interface Props {
     navigate: (screen: Screen, params?: any) => void;
     goBack: () => void;
-    initialTab?: 'My Changa' | 'Moderation' | 'Challenges';
+    initialTab?: 'My Changa' | 'Moderation' | 'Challenges' | 'Saved';
     initialTypeFilter?: string;
     onViewProfile: (user: User) => void;
     myContributions?: ContributionItem[];
     setMyContributions?: React.Dispatch<React.SetStateAction<ContributionItem[]>>;
+    languages?: LanguageSkill[];
 }
 
 const CURRENT_USER_AVATAR = "https://lh3.googleusercontent.com/aida-public/AB6AXuBeLXbWz4AzkUBDUb3vYkhuHrvvC9EFxb7YuDTFXSRV6e6T547HBjftD2_M3MWQ23u8DdygDU3-kcrmReHHcg1xuI2vz_fBK_UAfIaTV6tCpEh1xW7vkPs6qjbSwVjkqUkPXcPuBDRL_I0E_dA3ckyiMN2POsZ3M2E57RwaQqNiSED1NzWUTMmbbesb_Ko-z2BYoXtkkWP0lVOyL0aKlkzlpsNevnW1dPGKRZ5SxqpNtu6pvvjeFLtIUcElhd54x2R98mDwi_k8K4w";
@@ -25,7 +57,7 @@ const MODERATION_POSTS_DATA: ContributionItem[] = [
         id: 'f1',
         type: 'Proverb',
         title: 'Wazee hukumbuka',
-        subtitle: 'Proverb â€¢ Posted 2h ago',
+        subtitle: 'Proverb • Posted 2h ago',
         author: {
             name: 'Kwame Mensah',
             avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDuGLE0i9NWNJMGLNeeS7Y-fkwpi4GavU-5tFQGjerfZBUK9A2baVE6a0v9b6Le6AIX-Xejh_WCf4Bb8tk8yqNXUeyVehi927mNkXbnvMb3ggvQTzfMzZcJc0kPiyaqMcPlts57mpPxJLq5-lgGwTjXzXNGyasv8_llUjyNVB2m-dLngZv8en8HyHDdbU1j_Wt2xl1HDaHg_iKgKX7HviRx7y_sXmAmU_NNuzZlrcnkbqtGL8NTvNgBOFaC4sSZ5yd97zBiTylIkog',
@@ -43,7 +75,7 @@ const MODERATION_POSTS_DATA: ContributionItem[] = [
         id: 'f2',
         type: 'Story',
         title: 'The Lion\'s Gift',
-        subtitle: 'Story â€¢ Posted 5h ago',
+        subtitle: 'Story • Posted 5h ago',
         author: {
             name: 'Zahra Ali',
             avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCHGQCh7G1VnjuVj9331GPw-eizTILg3UcwDA4ENWzw4Y4k-YeCgWzwUxAmYXQWIcfUfbQwVHw6sT-X-LP9EspDfXqNOQnm6QUcAN3d9HAxoEJ5kesDAP6W6EUQ6odygBf2Q2-wGIcEgisM6jeCizwsbd9roCE4EDfeK74dHdCooeQh3_eioZBLFJNPfGi8Cp4ke9oJ11DKdl5pNseP-GKgaT-tyieX9Uimavj73AayhR3msq3f9Dcw-BdgSJNRK5-7MQYX9T0wH_8',
@@ -64,7 +96,7 @@ const SAVED_DATA: ContributionItem[] = [
         id: 's1',
         type: 'Proverb',
         title: 'Haraka haraka haina baraka',
-        subtitle: 'Proverb â€¢ Saved 2 days ago',
+        subtitle: 'Proverb • Saved 2 days ago',
         author: {
             name: 'Juma J.',
             avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA6LZtwoRZLVf_mfFqdY11OX1RDMuLNBfzg-1-JqIap60sqItIczvKLkOwTmDA2J4pvgnJj5aFZAOk2PIeB-aYBeYRowNGFP8T6NhD2DXsMXeufNtSm-w5qmkobZjLTsvLwAACWIfN9watEHLy7hX6MckJh3IpQmn_5d1cs77_r6spZ27YrpgTvwW_gUlkhejzZ15PFd6Wav0M6iz-05tnZhk6UZkd-dSx3hIpX_jHEGKs4ob8uyhELqdeumxAYPV-uJ49KGz0AbDw',
@@ -82,7 +114,7 @@ const SAVED_DATA: ContributionItem[] = [
         id: 's2',
         type: 'Word',
         title: 'Ubuntu',
-        subtitle: 'Word â€¢ Saved 1 week ago',
+        subtitle: 'Word • Saved 1 week ago',
         author: {
             name: 'Thabo Mokoena',
             avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA6LZtwoRZLVf_mfFqdY11OX1RDMuLNBfzg-1-JqIap60sqItIczvKLkOwTmDA2J4pvgnJj5aFZAOk2PIeB-aYBeYRowNGFP8T6NhD2DXsMXeufNtSm-w5qmkobZjLTsvLwAACWIfN9watEHLy7hX6MckJh3IpQmn_5d1cs77_r6spZ27YrpgTvwW_gUlkhejzZ15PFd6Wav0M6iz-05tnZhk6UZkd-dSx3hIpX_jHEGKs4ob8uyhELqdeumxAYPV-uJ49KGz0AbDw',
@@ -100,7 +132,7 @@ const SAVED_DATA: ContributionItem[] = [
         id: 's3',
         type: 'Story',
         title: 'The Hare and the Hyena',
-        subtitle: 'Folklore â€¢ Saved 3 weeks ago',
+        subtitle: 'Folklore • Saved 3 weeks ago',
         author: {
             name: 'Amina Diallo',
             avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDTCkmqfVuPlLQ4IRyL2yV9d82xXGhUn6PZJQuyR-wOR0cvIaU2RmXVEYxrDKRF8LwvPO8ui_vLey4StEqf8CTMHBir5NqJ8BI6X6gXKzW2e5jtCmaOROPdLEoAJCmmFm51ht9zq7QwPnSBQC8TAqlJfRa5M4kLarJ9LqR6i2YIFBkKl3YmSCiPo77SFPw336bJQN6weNdBrPdUlu-Ta6wtwbzNsRkfyTwRr05-OJF-2JEsH1EwbuwH-dLxzpESsJxfK0fBRGIneoQ',
@@ -313,19 +345,11 @@ const PAST_CHALLENGES = [
     }
 ];
 
-const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = 'My Changa', initialTypeFilter, onViewProfile, myContributions = [], setMyContributions }) => {
-    const [activeTab, setActiveTab] = useState<'My Changa' | 'Moderation' | 'Challenges'>(initialTab);
+const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = 'My Changa', initialTypeFilter, onViewProfile, myContributions = [], setMyContributions, languages = [] }) => {
+    const [activeTab, setActiveTab] = useState<'My Changa' | 'Moderation' | 'Challenges' | 'Saved'>(initialTab as any || 'My Changa');
 
     // Filters for My Contributions
     const [myStatusFilter, setMyStatusFilter] = useState('All');
-    const [myTypeFilter, setMyTypeFilter] = useState(initialTypeFilter || 'All');
-
-    // Filters for Moderation Posts
-    const [moderationTypeFilter, setModerationTypeFilter] = useState('All');
-
-    // Filter Dropdown
-    const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
-    const typeFilterRef = useRef<HTMLDivElement>(null);
 
     // Scroll Header Logic
     const [isHeaderVisible, setIsHeaderVisible] = useState(true);
@@ -339,22 +363,6 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
     const [itemToShare, setItemToShare] = useState<ContributionItem | null>(null);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (initialTypeFilter) {
-            setMyTypeFilter(initialTypeFilter);
-        }
-    }, [initialTypeFilter]);
-
-    // Click outside to close filter dropdown
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (typeFilterRef.current && !typeFilterRef.current.contains(event.target as Node)) {
-                setIsFilterDropdownOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
 
     // Measure Header Height
     useEffect(() => {
@@ -386,6 +394,7 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
     // Data States
 
     const [moderationPosts, setModerationPosts] = useState<ContributionItem[]>(MODERATION_POSTS_DATA);
+    const [savedContributions, setSavedContributions] = useState<ContributionItem[]>(SAVED_DATA);
 
     // Challenges State
     const [activeChallengeTab, setActiveChallengeTab] = useState<'active' | 'past'>('active');
@@ -394,11 +403,6 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
     const [inputTexts, setInputTexts] = useState<{ [key: string]: string }>({});
     const [replyTexts, setReplyTexts] = useState<{ [key: string]: string }>({});
 
-    const handleNavigate = (item: ContributionItem) => {
-        if (item.type === 'Story') navigate(Screen.STORY_DETAIL);
-        if (item.type === 'Word') navigate(Screen.WORD_DETAIL);
-        if (item.type === 'Proverb') navigate(Screen.PROVERB_DETAIL);
-    };
 
     const handleShareClick = (e: React.MouseEvent, item: ContributionItem) => {
         e.stopPropagation();
@@ -446,7 +450,7 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
     };
 
     // Calculate Cultural Impact Metrics
-    const { wordsPreserved, storiesShared, proverbsShared, communityReach, heritagePoints, uniqueLanguages } = useMemo(() => {
+    const { wordsPreserved, storiesShared, communityReach, heritagePoints, uniqueLanguages } = useMemo(() => {
         const words = myContributions.filter(c => c.type === 'Word').length * 5;
         const stories = myContributions.filter(c => c.type === 'Story').length;
         const proverbs = myContributions.filter(c => c.type === 'Proverb').length;
@@ -454,11 +458,20 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
 
         const points = words * 10 + stories * 50 + proverbs * 30 + reach * 2;
 
-        // Mock languages for now as suggested in plan
-        const langs = [
-            { name: 'Swahili', code: 'sw', contributionCount: myContributions.filter(c => c.title.toLowerCase().includes('swahili') || c.subtitle.toLowerCase().includes('swahili') || c.id.startsWith('s')).length },
-            { name: 'Yoruba', code: 'yo', contributionCount: myContributions.filter(c => c.title.toLowerCase().includes('yoruba') || c.subtitle.toLowerCase().includes('yoruba')).length }
-        ].filter(l => l.contributionCount > 0);
+        // Use the passed languages prop to calculate diversity
+        const langs = languages.map(lang => {
+            const contributionCount = myContributions.filter(c =>
+                c.subtitle.toLowerCase().includes(lang.name.toLowerCase()) ||
+                c.title.toLowerCase().includes(lang.name.toLowerCase())
+            ).length;
+
+            return {
+                name: lang.name,
+                code: lang.name.substring(0, 2).toLowerCase(),
+                contributionCount,
+                proficiency: lang.level
+            };
+        });
 
         return {
             wordsPreserved: words,
@@ -468,7 +481,7 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
             heritagePoints: points,
             uniqueLanguages: langs
         };
-    }, [myContributions]);
+    }, [myContributions, languages]);
 
     const streakDays = 12; // Mock as per plan
     const nextMilestone = streakDays < 10 ? 10 : streakDays < 30 ? 30 : 100;
@@ -655,143 +668,6 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
         setReplyTexts(prev => ({ ...prev, [parentId]: '' }));
     };
 
-    const renderComments = (comments: Comment[], contributionId: string, listType: 'my' | 'moderation', depth = 0) => {
-        return comments.map(comment => (
-            <div key={comment.id} className={`flex gap-3 mt-4 ${depth > 0 ? 'ml-8 border-l-2 border-stone-100 dark:border-white/5 pl-4' : ''}`}>
-                <img src={comment.avatar} alt={comment.author} className="w-8 h-8 rounded-full object-cover object-center shrink-0" />
-                <div className="flex-1 min-w-0">
-                    <div className="bg-stone-50 dark:bg-white/5 rounded-2xl rounded-tl-none p-3">
-                        <div className="flex justify-between items-start">
-                            <span className="font-bold text-sm text-stone-900 dark:text-white">{comment.author}</span>
-                            <span className="text-xs text-stone-500 dark:text-text-muted">{comment.timestamp}</span>
-                        </div>
-                        <p className="text-sm text-stone-700 dark:text-text-main mt-1 break-words">{comment.text}</p>
-                    </div>
-                    <div className="flex items-center gap-4 mt-1 ml-1">
-                        <button onClick={(e) => handleCommentVote(e, contributionId, comment.id, 'up', listType)} className={`flex items-center gap-1 text-xs font-medium ${comment.userVote === 'up' ? 'text-primary' : 'text-stone-500 dark:text-text-muted hover:text-stone-900 dark:hover:text-white'}`}>
-                            <span className={`material-symbols-outlined text-sm ${comment.userVote === 'up' ? 'fill-active' : ''}`}>thumb_up</span>
-                            {comment.likes > 0 && <span>{comment.likes}</span>}
-                        </button>
-                        <button onClick={(e) => handleCommentVote(e, contributionId, comment.id, 'down', listType)} className={`flex items-center gap-1 text-xs font-medium ${comment.userVote === 'down' ? 'text-error' : 'text-stone-500 dark:text-text-muted hover:text-stone-900 dark:hover:text-white'}`}>
-                            <span className={`material-symbols-outlined text-sm ${comment.userVote === 'down' ? 'fill-active' : ''}`}>thumb_down</span>
-                        </button>
-                        <button onClick={(e) => toggleReplyInput(e, contributionId, comment.id, listType)} className="text-xs font-bold text-stone-500 dark:text-text-muted hover:text-stone-900 dark:hover:text-white">Reply</button>
-                    </div>
-                    {comment.isReplying && (
-                        <div className="mt-3 flex gap-2">
-                            <input type="text" value={replyTexts[comment.id] || ''} onChange={(e) => setReplyTexts(prev => ({ ...prev, [comment.id]: e.target.value }))} placeholder="Write a reply..." className="flex-1 bg-stone-100 dark:bg-black/20 border-none rounded-full px-4 py-2 text-sm text-stone-900 dark:text-white focus:ring-1 focus:ring-primary outline-none" autoFocus onKeyDown={(e) => e.key === 'Enter' && addReply(contributionId, comment.id, listType)} />
-                            <button onClick={() => addReply(contributionId, comment.id, listType)} disabled={!replyTexts[comment.id]?.trim()} className="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-primary-hover"><span className="material-symbols-outlined text-lg">send</span></button>
-                        </div>
-                    )}
-                    {comment.replies && comment.replies.length > 0 && renderComments(comment.replies, contributionId, listType, depth + 1)}
-                </div>
-            </div>
-        ));
-    };
-
-    const renderContributionCard = (item: ContributionItem, listType: 'my' | 'saved' | 'moderation') => (
-        <div key={item.id} className="bg-white dark:bg-surface-dark rounded-xl shadow-sm border border-stone-200 dark:border-white/5 overflow-hidden transition-colors">
-            <div className="p-4">
-                <div className="flex justify-between items-start mb-2">
-                    <div className="flex items-center gap-3">
-                        {(listType === 'saved' || listType === 'moderation') && item.author ? (
-                            <img
-                                src={item.author.avatar}
-                                alt={item.author.name}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onViewProfile({
-                                        name: item.author!.name,
-                                        handle: item.author!.handle || 'user',
-                                        avatar: item.author!.avatar,
-                                        isGuest: false
-                                    });
-                                }}
-                                className="w-10 h-10 rounded-full object-cover object-center shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                            />
-                        ) : (
-                            <div className={`w-10 h-10 rounded-lg shrink-0 flex items-center justify-center ${item.type === 'Story' ? 'bg-rasta-gold/10 text-amber-600 dark:bg-rasta-gold/20 dark:text-rasta-gold' : item.type === 'Word' ? 'bg-rasta-green/10 text-rasta-green dark:bg-rasta-green/30 dark:text-rasta-green' : 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground'}`}>
-                                <span className="material-symbols-outlined text-lg">{item.icon}</span>
-                            </div>
-                        )}
-                        <div>
-                            {(listType === 'saved' || listType === 'moderation') && item.author ? (
-                                <div className="flex items-center gap-2">
-                                    <h3
-                                        className="text-sm font-bold text-stone-900 dark:text-white cursor-pointer hover:underline"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onViewProfile({
-                                                name: item.author!.name,
-                                                handle: item.author!.handle || 'user',
-                                                avatar: item.author!.avatar,
-                                                isGuest: false
-                                            });
-                                        }}
-                                    >
-                                        {item.author.name}
-                                    </h3>
-                                    <span className="text-xs text-stone-500 dark:text-text-muted">â€¢</span>
-                                    <span className="text-xs text-stone-500 dark:text-text-muted">{item.type}</span>
-                                </div>
-                            ) : (
-                                <span className="text-xs font-bold text-stone-500 dark:text-text-muted uppercase tracking-wider">{item.type}</span>
-                            )}
-                            <p className="text-xs text-stone-500 dark:text-text-muted">{item.subtitle}</p>
-                        </div>
-                    </div>
-                    {listType === 'my' && (
-                        <div className="flex items-center gap-1.5">
-                            <span className={`w-2 h-2 rounded-full ${item.dotColor}`}></span>
-                            <span className={`text-xs font-bold ${item.statusColor}`}>{item.status}</span>
-                        </div>
-                    )}
-                    {listType === 'saved' && (
-                        <span className="material-symbols-outlined text-primary text-xl fill-active">bookmark</span>
-                    )}
-                </div>
-
-                <h3 onClick={() => handleNavigate(item)} className="text-lg font-bold text-stone-900 dark:text-white mb-1 mt-2 cursor-pointer hover:text-primary transition-colors">{item.title}</h3>
-            </div>
-
-            <div className="px-4 py-3 border-t border-stone-100 dark:border-white/5 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <div className="flex items-center bg-stone-100 dark:bg-white/5 rounded-full px-2 py-1">
-                        <button onClick={(e) => handleVote(e, item.id, 'up', listType)} className={`p-1 rounded-full hover:bg-stone-200 dark:hover:bg-white/10 transition-colors ${item.userVote === 'up' ? 'text-primary' : 'text-stone-500 dark:text-text-muted'}`}>
-                            <span className={`material-symbols-outlined text-lg ${item.userVote === 'up' ? 'fill-active' : ''}`}>thumb_up</span>
-                        </button>
-                        <span className={`text-sm font-bold mx-1 ${item.userVote === 'up' ? 'text-primary' : item.userVote === 'down' ? 'text-error' : 'text-stone-700 dark:text-white'}`}>{item.likes}</span>
-
-                        <div className="w-px h-4 bg-stone-300 dark:bg-white/20 mx-1"></div>
-
-                        <button onClick={(e) => handleVote(e, item.id, 'down', listType)} className={`p-1 rounded-full hover:bg-stone-200 dark:hover:bg-white/10 transition-colors ${item.userVote === 'down' ? 'text-error' : 'text-stone-500 dark:text-text-muted'}`}>
-                            <span className={`material-symbols-outlined text-lg ${item.userVote === 'down' ? 'fill-active' : ''}`}>thumb_down</span>
-                        </button>
-                    </div>
-                    <button onClick={(e) => toggleComments(e, item.id, listType)} className={`flex items-center gap-1.5 px-2 py-1.5 rounded-full transition-colors ${item.showComments ? 'bg-primary/10 text-primary' : 'hover:bg-stone-100 dark:hover:bg-white/5 text-stone-500 dark:text-text-muted'}`}>
-                        <span className={`material-symbols-outlined text-lg ${item.showComments ? 'fill-active' : ''}`}>chat_bubble</span>
-                        <span className="text-sm font-bold">{item.commentsCount}</span>
-                    </button>
-                </div>
-                <button onClick={(e) => handleShareClick(e, item)} className="text-stone-400 dark:text-text-muted hover:text-stone-900 dark:hover:text-white transition-colors"><span className="material-symbols-outlined">share</span></button>
-            </div>
-
-            {item.showComments && (
-                <div className="bg-stone-50/50 dark:bg-black/10 border-t border-stone-100 dark:border-white/5 p-4 animate-in slide-in-from-top-2 duration-200">
-                    <div className="flex gap-3 mb-4">
-                        <img src={CURRENT_USER_AVATAR} alt="You" className="w-8 h-8 rounded-full object-cover shrink-0" />
-                        <div className="flex-1 flex gap-2">
-                            <input type="text" value={inputTexts[item.id] || ''} onChange={(e) => setInputTexts(prev => ({ ...prev, [item.id]: e.target.value }))} placeholder="Add a comment..." className="flex-1 bg-white dark:bg-black/20 border border-stone-200 dark:border-white/10 rounded-full px-4 py-2 text-sm text-stone-900 dark:text-white focus:ring-1 focus:ring-primary outline-none" onKeyDown={(e) => e.key === 'Enter' && addComment(item.id, listType)} />
-                            <button onClick={() => addComment(item.id, listType)} disabled={!inputTexts[item.id]?.trim()} className="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-primary-hover shadow-sm"><span className="material-symbols-outlined text-lg">send</span></button>
-                        </div>
-                    </div>
-                    <div className="space-y-4 max-h-64 overflow-y-auto custom-scrollbar pr-2">
-                        {item.comments.length > 0 ? renderComments(item.comments, item.id, listType) : <div className="text-center py-4 text-stone-500 dark:text-text-muted text-sm">No comments yet.</div>}
-                    </div>
-                </div>
-            )}
-        </div>
-    );
 
     return (
         <div className="flex flex-col h-full bg-stone-50 dark:bg-background-dark text-stone-900 dark:text-text-main transition-colors duration-300 relative">
@@ -802,9 +678,9 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                 style={{ marginTop: isHeaderVisible ? 0 : -headerHeight }}
             >
                 <header className="flex items-center p-4 bg-white dark:bg-[#2B1F1C] justify-between transition-colors shrink-0">
-                    <button onClick={goBack} className="p-2 -ml-2 text-stone-900 dark:text-white"><span className="material-symbols-outlined">arrow_back</span></button>
+                    <button onClick={goBack} className="p-2 -ml-2 text-stone-900 dark:text-white"><IconRenderer name="arrow_back" size={24} /></button>
                     <h1 className="flex-1 text-center text-lg font-bold">Changa</h1>
-                    <button onClick={() => navigate(Screen.ADD_CONTRIBUTION)} className="p-2 -mr-2 text-primary hover:bg-primary/10 rounded-full transition-colors"><span className="material-symbols-outlined">add</span></button>
+                    <button onClick={() => navigate(Screen.ADD_CONTRIBUTION)} className="p-2 -mr-2 text-primary hover:bg-primary/10 rounded-full transition-colors"><IconRenderer name="add" size={24} /></button>
                 </header>
 
                 {/* Main Tabs */}
@@ -813,7 +689,7 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                         {['My Changa', 'Moderation', 'Challenges'].map(tab => (
                             <button
                                 key={tab}
-                                onClick={() => setActiveTab(tab as any)}
+                                onClick={() => setActiveTab(tab as 'My Changa' | 'Moderation' | 'Challenges' | 'Saved')}
                                 className={`flex-1 py-2 px-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === tab ? 'bg-white dark:bg-surface-dark text-stone-900 dark:text-white shadow-sm' : 'text-stone-500 dark:text-text-muted hover:text-stone-700 dark:hover:text-white'}`}
                             >
                                 {tab === 'My Changa' ? 'My Posts' : tab}
@@ -828,108 +704,104 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                 onScroll={handleScroll}
                 className="flex-1 overflow-y-auto p-4 space-y-4 pb-24 custom-scrollbar"
                 style={{ paddingTop: headerHeight > 0 ? headerHeight + 16 : 140 }}
-            >
-                {activeTab === 'My Changa' && (
-                    <>
-                        {/* Cultural Impact Metrics Section */}
-                        {myContributions.length > 0 && (
-                            <div className="space-y-4 mb-6">
-                                <ContributionStreakBadge
-                                    streakDays={streakDays}
-                                    nextMilestone={nextMilestone}
-                                    className="animate-in fade-in slide-in-from-top-4 duration-500"
-                                />
+            >                {activeTab === 'My Changa' && (
+                <>
+                    {/* Cultural Impact Metrics Section */}
+                    {myContributions.length > 0 && (
+                        <div className="space-y-4 mb-6">
+                            <ContributionStreakBadge
+                                streakDays={streakDays}
+                                nextMilestone={nextMilestone}
+                                className="animate-in fade-in slide-in-from-top-4 duration-500"
+                            />
 
-                                <CulturalImpactCard
-                                    wordsPreserved={wordsPreserved}
-                                    storiesShared={storiesShared}
-                                    communityReach={communityReach}
-                                    heritagePoints={heritagePoints}
-                                    className="animate-in fade-in slide-in-from-top-4 duration-500 delay-100"
-                                />
+                            <CulturalImpactCard
+                                wordsPreserved={wordsPreserved}
+                                storiesShared={storiesShared}
+                                communityReach={communityReach}
+                                heritagePoints={heritagePoints}
+                                className="animate-in fade-in slide-in-from-top-4 duration-500 delay-100"
+                            />
 
-                                {uniqueLanguages.length > 0 && (
-                                    <LanguageDiversityBadges
-                                        languages={uniqueLanguages}
-                                        className="animate-in fade-in slide-in-from-top-4 duration-500 delay-200"
-                                    />
-                                )}
-
-                                <ShareStoryPrompt
-                                    onShareClick={() => navigate(Screen.ADD_CONTRIBUTION)}
-                                    className="animate-in fade-in slide-in-from-top-4 duration-500 delay-300"
+                            {uniqueLanguages.length > 0 && (
+                                <LanguageDiversityBadges
+                                    languages={uniqueLanguages}
+                                    className="animate-in fade-in slide-in-from-top-4 duration-500 delay-200"
                                 />
+                            )}
+
+                            <ShareStoryPrompt
+                                onShareClick={() => navigate(Screen.ADD_CONTRIBUTION)}
+                                onTypeClick={(type) => navigate(Screen.ADD_CONTRIBUTION, { initialData: { type } })}
+                                className="animate-in fade-in slide-in-from-top-4 duration-500 delay-300"
+                            />
+                        </div>
+                    )}
+
+                    {/* Status Filter Tabs */}
+                    <div className="flex gap-2 overflow-x-auto no-scrollbar mb-2 px-1 py-1">
+                        {['All', 'Live', 'Under Review', 'Declined'].map(tab => {
+                            const isActive = myStatusFilter === tab;
+                            let activeStyles = "bg-primary text-white"; // Default brown
+
+                            if (isActive) {
+                                if (tab === 'Live') activeStyles = "bg-rasta-green text-white";
+                                else if (tab === 'Under Review') activeStyles = "bg-rasta-gold text-yellow-950"; // Darker text for readability
+                                else if (tab === 'Declined') activeStyles = "bg-rasta-red text-white";
+                            }
+
+                            const baseStyles = isActive
+                                ? `${activeStyles} shadow-sm transform scale-105`
+                                : "bg-white dark:bg-surface-dark text-stone-600 dark:text-text-muted border border-stone-200 dark:border-white/5";
+
+                            return (
+                                <button
+                                    key={tab}
+                                    onClick={() => setMyStatusFilter(tab)}
+                                    className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 ${baseStyles}`}
+                                >
+                                    {tab}
+                                </button>
+                            );
+                        })}
+                    </div>
+
+
+                    {myContributions.filter(c =>
+                        (myStatusFilter === 'All' || c.status === myStatusFilter)
+                    ).map(item => (
+                        <ContributionCard
+                            key={item.id}
+                            item={item}
+                            listType="my"
+                            navigate={navigate}
+                            onViewProfile={onViewProfile}
+                            handleVote={handleVote}
+                            toggleComments={toggleComments}
+                            handleShareClick={handleShareClick}
+                            inputTexts={inputTexts}
+                            onInputChange={(id: string, text: string) => setInputTexts(prev => ({ ...prev, [id]: text }))}
+                            addComment={addComment}
+                            replyTexts={replyTexts}
+                            onReplyTextChange={(id: string, text: string) => setReplyTexts(prev => ({ ...prev, [id]: text }))}
+                            onAddReply={addReply}
+                            onCommentVote={handleCommentVote}
+                            onToggleReply={toggleReplyInput}
+                            currentUserAvatar={CURRENT_USER_AVATAR}
+                        />
+                    ))}
+
+                    {myContributions.filter(c =>
+                        (myStatusFilter === 'All' || c.status === myStatusFilter)
+                    ).length === 0 && (
+                            <div className="text-center py-10 opacity-50">
+                                <IconRenderer name="find_in_page" size={48} className="mb-2" />
+                                <p>No Changa found.</p>
                             </div>
                         )}
 
-                        {/* Status Filter Tabs */}
-                        <div className="flex gap-2 overflow-x-auto no-scrollbar mb-2">
-                            {['All', 'Live', 'Under Review', 'Declined'].map(tab => (
-                                <button key={tab} onClick={() => setMyStatusFilter(tab)} className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${myStatusFilter === tab ? 'bg-stone-900 dark:bg-white text-white dark:text-stone-900' : 'bg-white dark:bg-surface-dark text-stone-600 dark:text-text-muted border border-stone-200 dark:border-white/5'}`}>
-                                    {tab}
-                                </button>
-                            ))}
-                        </div>
-
-                        {/* Type Filter */}
-                        <div className="mb-4 relative z-10" ref={typeFilterRef}>
-                            <button
-                                onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
-                                className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition-all shadow-sm ${myTypeFilter !== 'All'
-                                    ? 'bg-primary text-white ring-2 ring-primary ring-offset-2 ring-offset-stone-50 dark:ring-offset-background-dark'
-                                    : 'bg-white dark:bg-surface-dark text-stone-700 dark:text-text-muted border border-stone-200 dark:border-white/5 hover:bg-stone-50 dark:hover:bg-white/5'
-                                    }`}
-                            >
-                                <span className="material-symbols-outlined text-lg">filter_list</span>
-                                <span>{myTypeFilter === 'All' ? 'Filter My Posts' : myTypeFilter}</span>
-                                <span className={`material-symbols-outlined text-lg transition-transform duration-200 ${isFilterDropdownOpen ? 'rotate-180' : ''}`}>expand_more</span>
-                            </button>
-
-                            {isFilterDropdownOpen && (
-                                <div className="absolute left-0 top-full mt-2 w-48 bg-white dark:bg-surface-dark rounded-xl shadow-xl border border-stone-200 dark:border-white/10 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
-                                    {['All', 'Story', 'Word', 'Proverb'].map((type) => (
-                                        <button
-                                            key={type}
-                                            onClick={() => {
-                                                setMyTypeFilter(type);
-                                                setIsFilterDropdownOpen(false);
-                                            }}
-                                            className={`w-full text-left px-4 py-3 text-sm flex items-center justify-between hover:bg-stone-50 dark:hover:bg-white/5 transition-colors border-b border-stone-100 dark:border-white/5 last:border-0 ${myTypeFilter === type
-                                                ? 'bg-primary/5 text-primary font-bold'
-                                                : 'text-stone-700 dark:text-text-main'
-                                                }`}
-                                        >
-                                            <span>{type === 'All' ? 'All Types' : type}</span>
-                                            {myTypeFilter === type && <span className="material-symbols-outlined text-lg">check</span>}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        {myContributions.filter(c =>
-                            (myStatusFilter === 'All' || c.status === myStatusFilter) &&
-                            (myTypeFilter === 'All' || c.type === myTypeFilter)
-                        ).map(item => renderContributionCard(item, 'my'))}
-
-                        {myContributions.filter(c =>
-                            (myStatusFilter === 'All' || c.status === myStatusFilter) &&
-                            (myTypeFilter === 'All' || c.type === myTypeFilter)
-                        ).length === 0 && (
-                                <div className="text-center py-10 opacity-50">
-                                    <span className="material-symbols-outlined text-5xl mb-2">find_in_page</span>
-                                    <p>No Changa found.</p>
-                                </div>
-                            )}
-
-                        <div className="flex items-center justify-center pt-4">
-                            <button onClick={() => navigate(Screen.ADD_CONTRIBUTION)} className="bg-stone-800 dark:bg-white text-white dark:text-stone-900 font-bold py-3 px-6 rounded-full shadow-lg hover:scale-105 transition-transform flex items-center gap-2">
-                                <span className="material-symbols-outlined">add_circle</span>
-                                Add New Changa
-                            </button>
-                        </div>
-                    </>
-                )}
+                </>
+            )}
 
                 {activeTab === 'Moderation' && (
                     <div className="flex flex-col h-full -mx-4 -mt-4 bg-background-light dark:bg-background-dark overflow-hidden">
@@ -944,14 +816,34 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                 {activeTab === 'Saved' && (
                     <div className="space-y-4 animate-in fade-in slide-in-from-right-2">
                         <div className="flex items-center gap-2 mb-2 px-2 text-stone-500 dark:text-text-muted text-sm">
-                            <span className="material-symbols-outlined text-lg">bookmark</span>
+                            <IconRenderer name="bookmark" size={18} />
                             <span>Only you can see your saved items.</span>
                         </div>
                         {savedContributions.length > 0 ? (
-                            savedContributions.map(item => renderContributionCard(item, 'saved'))
+                            savedContributions.map(item => (
+                                <ContributionCard
+                                    key={item.id}
+                                    item={item}
+                                    listType="saved"
+                                    navigate={navigate}
+                                    onViewProfile={onViewProfile}
+                                    handleVote={handleVote}
+                                    toggleComments={toggleComments}
+                                    handleShareClick={handleShareClick}
+                                    inputTexts={inputTexts}
+                                    onInputChange={(id: string, text: string) => setInputTexts(prev => ({ ...prev, [id]: text }))}
+                                    addComment={addComment}
+                                    replyTexts={replyTexts}
+                                    onReplyTextChange={(id: string, text: string) => setReplyTexts(prev => ({ ...prev, [id]: text }))}
+                                    onAddReply={addReply}
+                                    onCommentVote={handleCommentVote}
+                                    onToggleReply={toggleReplyInput}
+                                    currentUserAvatar={CURRENT_USER_AVATAR}
+                                />
+                            ))
                         ) : (
                             <div className="text-center py-16 opacity-60">
-                                <span className="material-symbols-outlined text-6xl mb-3 text-stone-400">bookmark_border</span>
+                                <IconRenderer name="bookmark_border" size={48} className="mb-3 text-stone-400" />
                                 <p className="font-medium text-stone-600 dark:text-text-muted">No saved items yet.</p>
                                 <p className="text-sm text-stone-500 dark:text-text-muted/70 mt-1">Tap the bookmark icon on stories and words to save them here.</p>
                             </div>
@@ -984,8 +876,8 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                                             )}
 
                                             <button onClick={() => navigate(challenge.screen as any, challenge.params)} className={`w-full py-3 font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${challenge.progress !== null ? 'bg-primary hover:bg-primary-hover text-white' : 'border border-stone-200 dark:border-white/10 text-stone-900 dark:text-white hover:bg-stone-50 dark:hover:bg-white/5'}`}>
-                                                {challenge.action === 'Start Teaching' && <span className="material-symbols-outlined">school</span>}
-                                                {challenge.action === 'Contribute Voice' && <span className="material-symbols-outlined">mic</span>}
+                                                {challenge.action === 'Start Teaching' && <IconRenderer name="school" />}
+                                                {challenge.action === 'Contribute Voice' && <IconRenderer name="mic" />}
                                                 {challenge.action}
                                             </button>
                                         </div>
@@ -1000,7 +892,7 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                                         <div className="flex-1 min-w-0">
                                             <div className="flex justify-between items-start"><h3 className="font-bold text-stone-900 dark:text-white truncate pr-2">{challenge.title}</h3><span className="px-2 py-0.5 rounded text-[10px] font-bold bg-success/20 text-success uppercase">Completed</span></div>
                                             <p className="text-xs text-stone-500 dark:text-text-muted mt-1">{challenge.date}</p>
-                                            <div className="flex items-center gap-2 mt-3"><span className="material-symbols-outlined text-yellow-500 text-lg">emoji_events</span><span className="text-sm font-semibold text-stone-700 dark:text-sand-beige">{challenge.badge}</span></div>
+                                            <div className="flex items-center gap-2 mt-3"><IconRenderer name="emoji_events" size={18} className="text-yellow-500" /><span className="text-sm font-semibold text-stone-700 dark:text-sand-beige">{challenge.badge}</span></div>
                                         </div>
                                     </div>
                                 ))}
@@ -1008,7 +900,7 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                         )}
                         <div className="fixed bottom-6 right-6 z-20">
                             <button onClick={() => navigate(Screen.ADD_CHALLENGE)} className="flex items-center gap-2 bg-stone-900 dark:bg-white dark:text-stone-900 text-white px-6 py-4 rounded-full shadow-lg transition-all duration-200 hover:scale-105">
-                                <span className="material-symbols-outlined">add</span><span className="font-bold">Create Teaching Challenge</span>
+                                <IconRenderer name="add" /><span className="font-bold">Create Teaching Challenge</span>
                             </button>
                         </div>
                     </>
@@ -1025,7 +917,7 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-xl font-bold text-stone-900 dark:text-white">Share {itemToShare.type}</h3>
                             <button onClick={() => { setShareModalOpen(false); setItemToShare(null); }} className="p-1 rounded-full hover:bg-stone-100 dark:hover:bg-white/10 text-stone-500 dark:text-text-muted">
-                                <span className="material-symbols-outlined">close</span>
+                                <IconRenderer name="close" />
                             </button>
                         </div>
 
@@ -1062,7 +954,7 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                                         />
                                     ) : (
                                         <div className={`w-14 h-14 rounded-full ${platform.color} flex items-center justify-center text-white shadow-md transform group-hover:scale-110 transition-transform`}>
-                                            <span className="material-symbols-outlined text-2xl">{platform.icon}</span>
+                                            <IconRenderer name={platform.icon} size={24} />
                                         </div>
                                     )}
                                     <span className="text-xs font-medium text-stone-600 dark:text-text-muted">{platform.name}</span>
@@ -1071,7 +963,7 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                         </div>
 
                         <div className="bg-stone-100 dark:bg-black/20 p-3 rounded-xl flex items-center gap-3 border border-stone-200 dark:border-white/5">
-                            <span className="material-symbols-outlined text-stone-400">link</span>
+                            <IconRenderer name="link" className="text-stone-400" />
                             <input
                                 type="text"
                                 value={`https://samiati.app/${itemToShare.type.toLowerCase()}/${itemToShare.id}`}
@@ -1091,7 +983,7 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
 
             {/* Toast */}
             <div className={`fixed top-6 left-1/2 -translate-x-1/2 bg-stone-900 dark:bg-white text-white dark:text-stone-900 px-6 py-3 rounded-full shadow-xl flex items-center gap-3 transition-all duration-300 z-[60] font-sans ${toastMessage ? 'translate-y-0 opacity-100' : '-translate-y-20 opacity-0'}`}>
-                <span className="material-symbols-outlined text-green-500 dark:text-green-600">check_circle</span>
+                <IconRenderer name="check_circle" className="text-green-500 dark:text-green-600" />
                 <span className="font-medium text-sm">{toastMessage}</span>
             </div>
         </div>

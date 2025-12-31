@@ -55,7 +55,7 @@ export function useWatuFilters(people: Person[]) {
 
     // Filter and sort people
     const filteredPeople = useMemo(() => {
-        let filtered = people.filter(person => {
+        const filtered = people.filter(person => {
             const languageMatch = selectedLanguage === 'All' || person.languages.includes(selectedLanguage);
             const regionMatch = selectedRegion === 'All' || person.region === selectedRegion;
             const roleMatch = selectedRole === 'All' || person.role === selectedRole;

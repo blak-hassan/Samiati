@@ -29,7 +29,7 @@ export interface DMChat {
 }
 
 // Initial Mock Data
-let MOCK_CHATS: DMChat[] = [
+const MOCK_CHATS: DMChat[] = [
     {
         id: '1',
         participants: [{

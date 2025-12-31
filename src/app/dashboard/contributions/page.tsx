@@ -9,17 +9,17 @@ import { INITIAL_CONTRIBUTIONS } from "@/data/mock";
 
 export default function ContributionsPage() {
     const { navigate, goBack } = useNavigation();
-    // Use local state for now until global context is established
-    const [myContributions, setMyContributions] = useState<ContributionItem[]>(INITIAL_CONTRIBUTIONS);
+    const { languages, myContributions, setMyContributions } = useUser();
 
     return (
         <ContributionsScreen
             navigate={navigate}
             goBack={goBack}
             initialTab="My Changa"
-            onViewProfile={(u) => console.log('View profile', u)}
+            onViewProfile={(u) => { }}
             myContributions={myContributions}
             setMyContributions={setMyContributions}
+            languages={languages}
         />
     );
 }

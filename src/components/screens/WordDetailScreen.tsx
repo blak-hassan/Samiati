@@ -66,7 +66,7 @@ const WordDetailScreen: React.FC<Props> = ({ goBack }) => {
                 {/* Header Section */}
                 <div className="flex flex-col items-center space-y-6 pt-4">
                     <div className="flex flex-col items-center gap-2">
-                        <Badge variant="secondary" className="bg-primary/10 text-primary border-none text-[10px] font-black uppercase tracking-[0.2em] px-3 h-6">Swahili â€¢ Noun</Badge>
+                        <Badge variant="secondary" className="bg-primary/10 text-primary border-none text-[10px] font-black uppercase tracking-[0.2em] px-3 h-6">Swahili • Noun</Badge>
                         <h1 className="text-6xl font-black text-foreground tracking-tighter text-center">Umoja</h1>
                     </div>
 
