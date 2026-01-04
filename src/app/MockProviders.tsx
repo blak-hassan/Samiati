@@ -1,8 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState } from "react";
-import { LanguageSkill, ContributionItem } from "@/types";
-import { INITIAL_LANGUAGES_STATE, INITIAL_CONTRIBUTIONS } from "@/data/mock";
+import { LanguageSkill, ContributionItem, NotificationItem } from "@/types";
+import { INITIAL_LANGUAGES_STATE, INITIAL_CONTRIBUTIONS, INITIAL_NOTIFICATIONS } from "@/data/mock";
 
 // --- Mock Clerk ---
 interface UserContextType {
@@ -13,16 +13,25 @@ interface UserContextType {
   setLanguages: React.Dispatch<React.SetStateAction<LanguageSkill[]>>;
   myContributions: ContributionItem[];
   setMyContributions: React.Dispatch<React.SetStateAction<ContributionItem[]>>;
+  notifications: NotificationItem[];
+  setNotifications: React.Dispatch<React.SetStateAction<NotificationItem[]>>;
+  unreadCount: number;
+  markAllAsRead: () => void;
+  markAsRead: (id: string) => void;
 }
 
 const MockUserContext = createContext<UserContextType | null>(null);
 
 // --- Mock Global State (Singleton pattern for persistence across remounts) ---
 let globalMyContributions: ContributionItem[] = [...INITIAL_CONTRIBUTIONS];
+let globalNotifications: NotificationItem[] = [...INITIAL_NOTIFICATIONS];
 
 export const ClerkProvider = ({ children }: { children: ReactNode }) => {
   const [languages, setLanguages] = useState<LanguageSkill[]>(INITIAL_LANGUAGES_STATE);
   const [myContributions, setMyContributionsInternal] = useState<ContributionItem[]>(globalMyContributions);
+  const [notifications, setNotificationsInternal] = useState<NotificationItem[]>(globalNotifications);
+
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   // Sync internal state with global singleton
   const setMyContributions = (val: React.SetStateAction<ContributionItem[]>) => {
@@ -32,6 +41,23 @@ export const ClerkProvider = ({ children }: { children: ReactNode }) => {
       globalMyContributions = val;
     }
     setMyContributionsInternal(globalMyContributions);
+  };
+
+  const setNotifications = (val: React.SetStateAction<NotificationItem[]>) => {
+    if (typeof val === 'function') {
+      globalNotifications = val(globalNotifications);
+    } else {
+      globalNotifications = val;
+    }
+    setNotificationsInternal(globalNotifications);
+  };
+
+  const markAllAsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+  };
+
+  const markAsRead = (id: string) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
   };
 
 
@@ -51,7 +77,12 @@ export const ClerkProvider = ({ children }: { children: ReactNode }) => {
       languages,
       setLanguages,
       myContributions,
-      setMyContributions
+      setMyContributions,
+      notifications,
+      setNotifications,
+      unreadCount,
+      markAllAsRead,
+      markAsRead
     }}>
       {children}
     </MockUserContext.Provider>
@@ -67,7 +98,12 @@ export const useUser = () => {
     languages: [],
     setLanguages: () => { },
     myContributions: [],
-    setMyContributions: () => { }
+    setMyContributions: () => { },
+    notifications: [],
+    setNotifications: () => { },
+    unreadCount: 0,
+    markAllAsRead: () => { },
+    markAsRead: () => { }
   };
 };
 

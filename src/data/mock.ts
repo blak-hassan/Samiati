@@ -1,6 +1,5 @@
 
-
-import { NotificationItem, Conversation, ChatPreview, Post, LanguageSkill, ContributionItem, Screen, Community } from '@/types';
+import { NotificationItem, Conversation, ChatPreview, Post, LanguageSkill, ContributionItem, Screen, Community, ValidationItem, LanguageHealth } from '@/types';
 
 
 export const INITIAL_NOTIFICATIONS: NotificationItem[] = [
@@ -11,14 +10,41 @@ export const INITIAL_NOTIFICATIONS: NotificationItem[] = [
         message: "A new weekly challenge has been posted. Share a story from your community to participate and earn rewards.",
         time: "2h ago",
         isRead: false,
-        targetScreen: Screen.CONTRIBUTIONS
+        targetScreen: Screen.CHALLENGE_DETAILS
+    },
+    {
+        id: '1b',
+        type: 'challenge',
+        title: "Challenge Ending Soon!",
+        message: "'Swahili Proverb Quest' ends in 4 hours. Submit your entry now!",
+        time: "32m ago",
+        isRead: false,
+        targetScreen: Screen.CHALLENGE_DETAILS
     },
     {
         id: '2',
         type: 'contribution',
-        title: "Your link was approved!",
-        message: "Congratulations! Your Changa to the 'Proverbs' collection has been approved by the community.",
+        title: "Changa Approved!",
+        message: "Your story 'The Lion and the Hare' is now live in the community hub.",
         time: "1d ago",
+        isRead: false,
+        targetScreen: Screen.CONTRIBUTIONS
+    },
+    {
+        id: '2b',
+        type: 'contribution',
+        title: "New Changa Live",
+        message: "Mzee Jomo just shared a new history post: 'The Origin of the Lunatic Express'.",
+        time: "3h ago",
+        isRead: false,
+        targetScreen: Screen.CONTRIBUTIONS
+    },
+    {
+        id: '2c',
+        type: 'contribution',
+        title: "Your Changa is Trending",
+        message: "Your 'Kikuyu Proverbs' collection reached 100 likes!",
+        time: "5h ago",
         isRead: false,
         targetScreen: Screen.CONTRIBUTIONS
     },
@@ -34,11 +60,20 @@ export const INITIAL_NOTIFICATIONS: NotificationItem[] = [
     {
         id: '4',
         type: 'comment',
-        title: "New comment on your story",
-        message: "Amina replied: 'What a wonderful tale! This reminds me of the stories my grandmother used to tell.'",
+        title: "New Mushenee Interaction",
+        message: "Kwame Mensah liked your post in the community feed.",
         time: "5d ago",
-        isRead: true,
-        targetScreen: Screen.CONTRIBUTIONS
+        isRead: false,
+        targetScreen: Screen.MESSAGES
+    },
+    {
+        id: '4b',
+        type: 'comment',
+        title: "Mushenee Reply",
+        message: "Amina added a comment: 'This is exactly how my uncle used to tell it!'",
+        time: "20m ago",
+        isRead: false,
+        targetScreen: Screen.POST_THREAD
     },
     {
         id: '5',
@@ -53,8 +88,17 @@ export const INITIAL_NOTIFICATIONS: NotificationItem[] = [
         id: '6',
         type: 'moderation',
         title: "Flagged Content",
-        message: "A comment requires your review.",
+        message: "A comment requires your review in the 'Folklore' section.",
         time: "30m ago",
+        isRead: false,
+        targetScreen: Screen.MODERATION_DASHBOARD
+    },
+    {
+        id: '6b',
+        type: 'moderation',
+        title: "Moderator Reward",
+        message: "You've earned 50 XP for resolving reports today. Keep it up!",
+        time: "1h ago",
         isRead: false,
         targetScreen: Screen.MODERATION_DASHBOARD
     },
@@ -497,5 +541,152 @@ export const INITIAL_COMMUNITIES: Community[] = [
         role: 'none',
         category: 'Music',
         members: []
+    }
+];
+
+export const INITIAL_LANGUAGE_HEALTH: LanguageHealth[] = [
+    {
+        id: 'lh1',
+        name: 'Swahili',
+        code: 'sw',
+        totalContributions: 1250,
+        validatedContributions: 1000,
+        pendingValidations: 45,
+        healthPercent: 80,
+        targetContributions: 2000,
+        isUserModerator: true
+    },
+    {
+        id: 'lh2',
+        name: 'Kikuyu',
+        code: 'ki',
+        totalContributions: 320,
+        validatedContributions: 150,
+        pendingValidations: 82,
+        healthPercent: 47,
+        targetContributions: 1000,
+        isUserModerator: true
+    },
+    {
+        id: 'lh3',
+        name: 'Yoruba',
+        code: 'yo',
+        totalContributions: 500,
+        validatedContributions: 400,
+        pendingValidations: 12,
+        healthPercent: 80,
+        targetContributions: 1000,
+        isUserModerator: false
+    }
+];
+
+export const INITIAL_VALIDATION_ITEMS: ValidationItem[] = [
+    {
+        id: 'v1',
+        type: 'Story',
+        language: 'Swahili',
+        languageCode: 'sw',
+        content: {
+            original: 'Zamani za kale, kulikuwa na simba na sungura waliokua marafiki...',
+            translation: 'Long ago, there was a lion and a rabbit who were friends...',
+            context: 'A traditional folk story about wit over strength.'
+        },
+        author: {
+            id: 'u1',
+            name: 'Mzee Jomo',
+            handle: 'mzee_jomo',
+            avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDuGLE0i9NWNJMGLNeeS7Y-fkwpi4GavU-5tFQGjerfZBUK9A2baVE6a0v9b6Le6AIX-Xejh_WCf4Bb8tk8yqNXUeyVehi927mNkXbnvMb3ggvQTzfMzZcJc0kPiyaqMcPlts57mpPxJLq5-lgGwTjXzXNGyasv8_llUjyNVB2m-dLngZv8en8HyHDdbU1j_Wt2xl1HDaHg_iKgKX7HviRx7y_sXmAmU_NNuzZlrcnkbqtGL8NTvNgBOFaC4sSZ5yd97zBiTylIkog'
+        },
+        aiInterpretation: {
+            suggestedTranslation: 'In ancient times, there lived a lion and a rabbit who were companions...',
+            confidence: 92,
+            linguisticNotes: 'The phrase "Zamani za kale" is correctly used as the standard opening for folktales.'
+        },
+        sentiment: {
+            upvotes: 42,
+            downvotes: 2,
+            validations: 12
+        },
+        reviews: [
+            {
+                moderator: {
+                    id: 'm1',
+                    name: 'Sarah M.',
+                    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah'
+                },
+                action: 'critiqued',
+                comment: 'The translation is good, but could be more poetic.',
+                timestamp: Date.now() - 1000 * 60 * 60 * 5
+            }
+        ],
+        status: 'pending',
+        timestamp: '2h ago'
+    },
+    {
+        id: 'v2',
+        type: 'Word',
+        language: 'Kikuyu',
+        languageCode: 'ki',
+        content: {
+            original: 'Mũthũngũ',
+            context: 'Noun used to describe white people, often historically significant.'
+        },
+        author: {
+            id: 'u2',
+            name: 'Kwame Mensah',
+            handle: 'kwame_m',
+            avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDuGLE0i9NWNJMGLNeeS7Y-fkwpi4GavU-5tFQGjerfZBUK9A2baVE6a0v9b6Le6AIX-Xejh_WCf4Bb8tk8yqNXUeyVehi927mNkXbnvMb3ggvQTzfMzZcJc0kPiyaqMcPlts57mpPxJLq5-lgGwTjXzXNGyasv8_llUjyNVB2m-dLngZv8en8HyHDdbU1j_Wt2xl1HDaHg_iKgKX7HviRx7y_sXmAmU_NNuzZlrcnkbqtGL8NTvNgBOFaC4sSZ5yd97zBiTylIkog'
+        },
+        aiInterpretation: {
+            confidence: 34,
+            linguisticNotes: 'High ambiguity with regional dialects. Needs human verification for cultural nuances.'
+        },
+        sentiment: {
+            upvotes: 8,
+            downvotes: 0,
+            validations: 2
+        },
+        reviews: [],
+        status: 'pending',
+        timestamp: '5h ago'
+    },
+    {
+        id: 'v3',
+        type: 'Proverb',
+        language: 'Swahili',
+        languageCode: 'sw',
+        content: {
+            original: 'Haraka haraka haina baraka',
+            translation: 'Hurry hurry has no blessing',
+            meaning: 'Haste makes waste.'
+        },
+        author: {
+            id: 'u_current', // Simulating current user's own post
+            name: 'Your Name',
+            handle: 'you',
+            avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBeLXbWz4AzkUBDUb3vYkhuHrvvC9EFxb7YuDTFXSRV6e6T547HBjftD2_M3MWQ23u8DdygDU3-kcrmReHHcg1xuI2vz_fBK_UAfIaTV6tCpEh1xW7vkPs6qjbSwVjkqUkPXcPuBDRL_I0E_dA3ckyiMN2POsZ3M2E57RwaQqNiSED1NzWUTMmbbesb_Ko-z2BYoXtkkWP0lVOyL0aKlkzlpsNevnW1dPGKRZ5SxqpNtu6pvvjeFLtIUcElhd54x2R98mDwi_k8K4w'
+        },
+        aiInterpretation: {
+            confidence: 99,
+            suggestedTranslation: 'Rapid movement results in no divine favor'
+        },
+        sentiment: {
+            upvotes: 156,
+            downvotes: 1,
+            validations: 45
+        },
+        reviews: [
+            {
+                moderator: {
+                    id: 'm1',
+                    name: 'Sarah M.',
+                    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah'
+                },
+                action: 'approved',
+                timestamp: Date.now() - 1000 * 60 * 60 * 24
+            }
+        ],
+        status: 'approved',
+        timestamp: '1d ago'
     }
 ];

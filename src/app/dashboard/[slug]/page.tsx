@@ -65,7 +65,7 @@ import PrivacyPolicyScreen from '@/components/screens/PrivacyPolicyScreen';
 
 export default function DashboardCatchAllPage({ params, searchParams }: { params: Promise<{ slug: string }>, searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
     const { navigate, goBack } = useNavigation();
-    const { user: clerkUser, languages, setLanguages } = useUser();
+    const { user: clerkUser, languages, setLanguages, notifications, unreadCount, markAllAsRead, markAsRead } = useUser();
 
     // Unwrap params synchronously using React.use() where needed, but params/searchParams are Promises in Next.js 15
     const resolvedParams = use(params);
@@ -82,6 +82,19 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
     const [isDarkMode, setIsDarkMode] = useState(true);
     const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
+    const [socialPosts, setSocialPosts] = useState<Post[]>([]);
+    const [conversations, setConversations] = useState<Conversation[]>([]);
+    const [messageChats, setMessageChats] = useState<ChatPreview[]>([]);
+
+    const { myContributions, setMyContributions } = useUser();
+
+    useEffect(() => {
+        // Initialize state on client side to avoid hydration mismatch
+        setSocialPosts(INITIAL_SOCIAL_POSTS);
+        setConversations(INITIAL_CONVERSATIONS);
+        setMessageChats(INITIAL_MESSAGES_CHATS);
+    }, []);
+
     // Transform Clerk User to App User
     const appUser: User = clerkUser ? {
         name: clerkUser.fullName || "User",
@@ -96,21 +109,6 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
         isGuest: true
     };
 
-    // Derived State placeholders
-    const { myContributions, setMyContributions } = useUser();
-    const [socialPosts, setSocialPosts] = useState<Post[]>([]);
-    const [conversations, setConversations] = useState<Conversation[]>([]);
-    const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-    const [messageChats, setMessageChats] = useState<ChatPreview[]>([]);
-
-    useEffect(() => {
-        // Initialize state on client side to avoid hydration mismatch
-        setSocialPosts(INITIAL_SOCIAL_POSTS);
-        setConversations(INITIAL_CONVERSATIONS);
-        setNotifications(INITIAL_NOTIFICATIONS);
-        setMessageChats(INITIAL_MESSAGES_CHATS);
-    }, []);
-
     if (!screen) {
         return notFound();
     }
@@ -121,24 +119,31 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
     const handleRepost = (postId: string) => { }; // Mock
     const handleNewChat = () => navigate(Screen.HOME_CHAT);
     const handleSaveChat = (msgs: any) => { };
-    const handleMarkAllRead = () => { };
-    const handleNotificationClick = (id: string) => { };
+    const handleMarkAllRead = () => {
+        markAllAsRead();
+    };
+    const handleNotificationClick = (id: string, targetScreen?: Screen) => {
+        markAsRead(id);
+        if (targetScreen) {
+            navigate(targetScreen);
+        }
+    };
     const handleJoinFireplace = (post: any) => { };
     const handleAddChat = (chat: any) => { };
     const handleSignOut = () => { };
 
     // Render logic adapted from App.tsx
     switch (screen) {
-        case Screen.CHALLENGE_DETAILS: return <ChallengeDetailsScreen navigate={navigate} goBack={goBack} onViewProfile={handleViewProfile} challenge={resolvedSearchParams?.challenge ? JSON.parse(resolvedSearchParams.challenge as string) : undefined} />;
+        case Screen.CHALLENGE_DETAILS: return <ChallengeDetailsScreen navigate={navigate} goBack={goBack} onViewProfile={handleViewProfile} unreadCount={unreadCount} challenge={resolvedSearchParams?.challenge ? JSON.parse(resolvedSearchParams.challenge as string) : undefined} />;
         case Screen.CHALLENGE_WINNERS: return <ChallengeWinnersScreen navigate={navigate} goBack={goBack} onViewProfile={handleViewProfile} />;
         case Screen.SUBMIT_ENTRY: return <SubmitEntryScreen navigate={navigate} goBack={goBack} challenge={resolvedSearchParams?.challenge ? JSON.parse(resolvedSearchParams.challenge as string) : undefined} />;
         case Screen.ADD_CHALLENGE: return <AddChallengeScreen navigate={navigate} goBack={goBack} />;
         case Screen.SUGGEST_CHALLENGE: return <SuggestChallengeScreen navigate={navigate} goBack={goBack} />;
 
         // Profile is handled by specific route, but fallback here if needed
-        case Screen.PROFILE: return <ProfileScreen user={appUser} navigate={navigate} goBack={goBack} isOwnProfile={true} languages={languages} />;
+        case Screen.PROFILE: return <ProfileScreen user={appUser} navigate={navigate} goBack={goBack} isOwnProfile={true} languages={languages} unreadCount={unreadCount} />;
         case Screen.GUEST_PROFILE: return <ProfileScreen user={appUser} navigate={navigate} goBack={goBack} isOwnProfile={false} languages={INITIAL_LANGUAGES_STATE} />; // Should pass actual other user
-        case Screen.EDIT_PROFILE: return <EditProfileScreen navigate={navigate} goBack={goBack} />;
+        case Screen.EDIT_PROFILE: return <EditProfileScreen navigate={navigate} goBack={goBack} unreadCount={unreadCount} />;
 
         // Settings sub-pages
         case Screen.SETTINGS_ACCOUNT: return <SettingsAccountScreen navigate={navigate} goBack={goBack} user={appUser} />;
@@ -158,6 +163,7 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
                 setMyContributions={setMyContributions}
                 languages={languages}
                 onViewProfile={handleViewProfile}
+                unreadCount={unreadCount}
             />;
 
         case Screen.NOTIFICATIONS:
@@ -165,11 +171,11 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
 
         case Screen.SAVED_CONVERSATIONS: return <SavedConversationsScreen navigate={navigate} goBack={goBack} conversations={conversations} setConversations={setConversations} onChatSelect={(id) => navigate(Screen.HOME_CHAT, { chatId: id })} />;
 
-        case Screen.PROVERB_DETAIL: return <ProverbDetailScreen navigate={navigate} goBack={goBack} />;
-        case Screen.STORY_DETAIL: return <StoryDetailScreen navigate={navigate} goBack={goBack} story={resolvedSearchParams?.story ? JSON.parse(resolvedSearchParams.story as string) : undefined} onViewProfile={handleViewProfile} />;
-        case Screen.WORD_DETAIL: return <WordDetailScreen navigate={navigate} goBack={goBack} />;
+        case Screen.PROVERB_DETAIL: return <ProverbDetailScreen navigate={navigate} goBack={goBack} unreadCount={unreadCount} />;
+        case Screen.STORY_DETAIL: return <StoryDetailScreen navigate={navigate} goBack={goBack} unreadCount={unreadCount} story={resolvedSearchParams?.story ? JSON.parse(resolvedSearchParams.story as string) : undefined} onViewProfile={handleViewProfile} />;
+        case Screen.WORD_DETAIL: return <WordDetailScreen navigate={navigate} goBack={goBack} unreadCount={unreadCount} />;
 
-        case Screen.MODERATION_DASHBOARD: return <ModerationDashboardScreen navigate={navigate} goBack={goBack} />;
+        case Screen.MODERATION_DASHBOARD: return <ModerationDashboardScreen navigate={navigate} goBack={goBack} unreadCount={unreadCount} />;
 
         case Screen.CHALLENGE_CREATED: return <ConfirmationScreen title="Challenge Created!" message="Your challenge is now live." onPrimary={() => navigate(Screen.CHALLENGE_DETAILS)} onSecondary={() => navigate(Screen.CONTRIBUTIONS)} />;
         case Screen.IDEA_SUBMITTED: return <ConfirmationScreen title="Idea Submitted" message="Your idea has been submitted." onPrimary={() => navigate(Screen.CONTRIBUTIONS)} onSecondary={() => navigate(Screen.HOME_CHAT)} icon="check" />;

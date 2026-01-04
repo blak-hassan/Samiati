@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useMemo } from 'react';
 import { Screen, User, LanguageSkill } from '@/types';
+import { NotificationBell } from '@/components/shared/NotificationBell';
 import {
   ArrowLeft,
   Globe,
@@ -38,6 +39,7 @@ interface Props {
   user: User;
   navigate: (screen: Screen, params?: any) => void;
   goBack: () => void;
+  unreadCount?: number;
   isOwnProfile?: boolean;
   languages: LanguageSkill[];
 }
@@ -50,7 +52,7 @@ interface DayData {
   isEmpty: boolean;
 }
 
-const ProfileScreen: React.FC<Props> = ({ user, navigate, goBack, isOwnProfile = true, languages }) => {
+const ProfileScreen: React.FC<Props> = ({ user, navigate, goBack, unreadCount = 0, isOwnProfile = true, languages }) => {
   const [profileVisible, setProfileVisible] = useState(true);
   const [showContributions, setShowContributions] = useState(true);
   const [allowMentions, setAllowMentions] = useState(false);
@@ -135,7 +137,8 @@ const ProfileScreen: React.FC<Props> = ({ user, navigate, goBack, isOwnProfile =
         <Button variant="ghost" size="icon" onClick={goBack} className="-ml-2 rounded-full">
           <ArrowLeft className="w-6 h-6" />
         </Button>
-        <h1 className="flex-1 text-center text-lg font-bold text-foreground pr-8 tracking-tight">Profile</h1>
+        <h1 className="flex-1 text-center text-lg font-bold text-foreground tracking-tight ml-8">Profile</h1>
+        <NotificationBell unreadCount={unreadCount} onNavigate={navigate} />
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 space-y-8 pb-24">

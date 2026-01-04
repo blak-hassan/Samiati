@@ -289,6 +289,80 @@ export interface ModeratorStats {
   userResolvedCount: number; // This moderator's stats
 }
 
+export interface ValidationItem {
+  id: string;
+  type: 'Story' | 'Word' | 'Proverb' | 'Song' | 'Phrases' | 'Translation';
+  language: string;
+  languageCode: string;
+
+  // Contribution content
+  content: {
+    original: string;
+    translation?: string;
+    meaning?: string;
+    context?: string;
+    audioUrl?: string;
+  };
+
+  // Author info
+  author: {
+    id: string;
+    name: string;
+    handle: string;
+    avatar: string;
+  };
+
+  // AI interpretation (for AI training context)
+  aiInterpretation?: {
+    suggestedTranslation?: string;
+    confidence: number;
+    linguisticNotes?: string;
+  };
+
+  // Community sentiment
+  sentiment: {
+    upvotes: number;
+    downvotes: number;
+    validations: number;
+    userVote?: 'up' | 'down' | null;
+  };
+
+  // Moderation history
+  reviews: {
+    moderator: {
+      id: string;
+      name: string;
+      avatar: string;
+    };
+    action: 'approved' | 'critiqued' | 'rejected';
+    comment?: string;
+    timestamp: number;
+  }[];
+
+  // Status
+  status: 'pending' | 'approved' | 'needs_revision' | 'rejected';
+  timestamp: string; // Using string to match Post timestamp format
+}
+
+export interface LanguageHealth {
+  id: string;
+  name: string;
+  code: string;
+  totalContributions: number;
+  validatedContributions: number;
+  pendingValidations: number;
+  healthPercent: number; // 0-100
+  targetContributions: number;
+  isUserModerator: boolean;
+}
+
+export interface ModeratorRoleDetails {
+  userId: string;
+  languages: string[]; // Language codes they can moderate
+  assignedAt: number;
+  level: 'junior' | 'senior' | 'lead';
+}
+
 export enum ReportReason {
   SPAM = 'Spam',
   HATE_SPEECH = 'Hate Speech',
@@ -301,3 +375,33 @@ export enum ReportReason {
 
 export type UserRole = 'admin' | 'moderator' | 'member';
 
+
+export type ChallengeType = 'ACCENT' | 'DIALECT' | 'ALPHABET' | 'TOTEM' | 'TRANSLATION' | 'STANDARD';
+
+export interface ChallengeRole {
+  userId: string;
+  role: 'LEAD' | 'CONTRIBUTOR';
+}
+
+export interface Challenge {
+  id: string;
+  title: string;
+  type: ChallengeType;
+  description: string; // mapped from desc
+  image: string; // mapped from img
+  goalMetric: string;
+  goalCount: number;
+  currentCount: number;
+  deadline?: string;
+  roles?: ChallengeRole[];
+  customConfig?: {
+    region?: string;
+    dialect?: string;
+    language?: string;
+  };
+  // Legacy/Compatibility fields
+  desc?: string;
+  img?: string;
+  progress?: number;
+  inputMode?: string;
+}

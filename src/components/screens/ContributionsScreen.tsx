@@ -2,11 +2,13 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Screen, User, ContributionItem, Comment, LanguageSkill } from '@/types';
+import { NotificationBell } from '@/components/shared/NotificationBell';
 import { CulturalImpactCard } from '@/components/CulturalImpactCard';
 import { ContributionStreakBadge } from '@/components/ContributionStreakBadge';
 import { LanguageDiversityBadges } from '@/components/LanguageDiversityBadges';
 import { ShareStoryPrompt } from '@/components/ShareStoryPrompt';
 import { CONTRIBUTION_TYPES, CATEGORY_COLORS } from '@/lib/constants';
+import { MOCK_CHALLENGES } from '@/data/mockChallenges';
 import ModerationDashboardScreen from './ModerationDashboardScreen';
 import { ContributionCard } from '@/components/contributions/ContributionCard';
 import { Button } from '@/components/ui/button';
@@ -45,6 +47,7 @@ interface Props {
     initialTab?: 'My Changa' | 'Moderation' | 'Challenges' | 'Saved';
     initialTypeFilter?: string;
     onViewProfile: (user: User) => void;
+    unreadCount?: number;
     myContributions?: ContributionItem[];
     setMyContributions?: React.Dispatch<React.SetStateAction<ContributionItem[]>>;
     languages?: LanguageSkill[];
@@ -345,7 +348,7 @@ const PAST_CHALLENGES = [
     }
 ];
 
-const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = 'My Changa', initialTypeFilter, onViewProfile, myContributions = [], setMyContributions, languages = [] }) => {
+const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = 'My Changa', initialTypeFilter, onViewProfile, unreadCount = 0, myContributions = [], setMyContributions, languages = [] }) => {
     const [activeTab, setActiveTab] = useState<'My Changa' | 'Moderation' | 'Challenges' | 'Saved'>(initialTab as any || 'My Changa');
 
     // Filters for My Contributions
@@ -680,7 +683,10 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                 <header className="flex items-center p-4 bg-white dark:bg-[#2B1F1C] justify-between transition-colors shrink-0">
                     <button onClick={goBack} className="p-2 -ml-2 text-stone-900 dark:text-white"><IconRenderer name="arrow_back" size={24} /></button>
                     <h1 className="flex-1 text-center text-lg font-bold">Changa</h1>
-                    <button onClick={() => navigate(Screen.ADD_CONTRIBUTION)} className="p-2 -mr-2 text-primary hover:bg-primary/10 rounded-full transition-colors"><IconRenderer name="add" size={24} /></button>
+                    <div className="flex items-center gap-1 -mr-2">
+                        <NotificationBell unreadCount={unreadCount} onNavigate={navigate} />
+                        <button onClick={() => navigate(Screen.ADD_CONTRIBUTION)} className="p-2 text-primary hover:bg-primary/10 rounded-full transition-colors"><IconRenderer name="add" size={24} /></button>
+                    </div>
                 </header>
 
                 {/* Main Tabs */}
@@ -852,59 +858,82 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                 )}
 
                 {activeTab === 'Challenges' && (
-                    <>
-                        <div className="flex border-b border-black/5 dark:border-white/5 mb-4">
-                            <button onClick={() => setActiveChallengeTab('active')} className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${activeChallengeTab === 'active' ? 'text-primary border-primary' : 'text-stone-500 dark:text-text-muted border-transparent'}`}>Teach & Contribute</button>
-                            <button onClick={() => setActiveChallengeTab('past')} className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${activeChallengeTab === 'past' ? 'text-primary border-primary' : 'text-stone-500 dark:text-text-muted border-transparent'}`}>Past Challenges</button>
+                    <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+                        {/* Header Actions */}
+                        <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center mb-6">
+                            <div className="flex border-b border-black/5 dark:border-white/5">
+                                <button onClick={() => setActiveChallengeTab('active')} className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${activeChallengeTab === 'active' ? 'text-[#cf6317] border-[#cf6317]' : 'text-stone-500 dark:text-text-muted border-transparent hover:text-stone-700'}`}>Active Mutations</button>
+                                <button onClick={() => setActiveChallengeTab('past')} className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${activeChallengeTab === 'past' ? 'text-[#cf6317] border-[#cf6317]' : 'text-stone-500 dark:text-text-muted border-transparent hover:text-stone-700'}`}>Legacy Archive</button>
+                            </div>
+                            <button
+                                onClick={() => navigate(Screen.ADD_CHALLENGE)}
+                                className="flex items-center gap-2 bg-[#cf6317] hover:bg-[#b05210] text-white px-5 py-2.5 rounded-full shadow-lg transition-all active:scale-[0.98]"
+                            >
+                                <IconRenderer name="add" size={20} /><span className="font-bold text-sm">Start a Movement</span>
+                            </button>
                         </div>
 
                         {activeChallengeTab === 'active' ? (
-                            <div className="space-y-6">
-                                {ACTIVE_CHALLENGES.map((challenge) => (
-                                    <div key={challenge.id} className="bg-white dark:bg-surface-dark rounded-2xl overflow-hidden shadow-sm border border-black/5 dark:border-white/5 transition-all hover:scale-[1.01] active:scale-[0.99]">
-                                        <div className="h-40 bg-cover bg-center" style={{ backgroundImage: `url('${challenge.img}')` }}></div>
-                                        <div className="p-5">
-                                            <div className="flex justify-between items-start mb-2"><span className="text-xs font-semibold text-primary uppercase tracking-wider bg-primary/10 px-2 py-1 rounded">{challenge.type}</span></div>
-                                            <h3 className="text-lg font-bold text-stone-900 dark:text-white mb-2">{challenge.title}</h3>
-                                            <p className="text-stone-600 dark:text-text-muted text-sm mb-4">{challenge.desc}</p>
-
-                                            {challenge.progress !== null && (
-                                                <div className="mb-4">
-                                                    <div className="flex justify-between text-xs mb-1.5 font-medium"><span className="text-stone-600 dark:text-text-muted">Goal Progress</span><span className="text-stone-900 dark:text-white">{challenge.progress}% Complete</span></div>
-                                                    <div className="h-2 bg-black/10 dark:bg-black/30 rounded-full overflow-hidden"><div className="h-full bg-primary rounded-full" style={{ width: `${challenge.progress}%` }}></div></div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Use imported MOCK_CHALLENGES or fallback to local if needed, but per plan we use the structure from ChallengesListScreen */}
+                                {MOCK_CHALLENGES.map((challenge) => (
+                                    <div key={challenge.id} className="group bg-white dark:bg-surface-dark border border-stone-200 dark:border-white/5 rounded-2xl overflow-hidden hover:shadow-xl transition-all hover:border-[#cf6317] flex flex-col">
+                                        <div className="h-48 bg-cover bg-center relative shrink-0" style={{ backgroundImage: `url('${challenge.image}')` }}>
+                                            <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors"></div>
+                                            <span className="absolute top-4 left-4 bg-white/20 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-white/10 shadow-sm">
+                                                {challenge.type}
+                                            </span>
+                                            {challenge.deadline && (
+                                                <div className="absolute bottom-4 right-4 bg-black/60 backdrop-blur-md text-white text-xs font-bold px-2 py-1 rounded flex items-center gap-1">
+                                                    <IconRenderer name="timer" size={14} />
+                                                    <span>{new Date(challenge.deadline) > new Date() ? 'Ends soon' : 'Ended'}</span>
                                                 </div>
                                             )}
+                                        </div>
+                                        <div className="p-5 flex-1 flex flex-col">
+                                            <h3 className="font-bold text-lg text-stone-900 dark:text-white mb-2 group-hover:text-[#cf6317] transition-colors">{challenge.title}</h3>
+                                            <p className="text-stone-600 dark:text-text-muted text-sm mb-4 line-clamp-2 flex-1">{challenge.description}</p>
 
-                                            <button onClick={() => navigate(challenge.screen as any, challenge.params)} className={`w-full py-3 font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${challenge.progress !== null ? 'bg-primary hover:bg-primary-hover text-white' : 'border border-stone-200 dark:border-white/10 text-stone-900 dark:text-white hover:bg-stone-50 dark:hover:bg-white/5'}`}>
-                                                {challenge.action === 'Start Teaching' && <IconRenderer name="school" />}
-                                                {challenge.action === 'Contribute Voice' && <IconRenderer name="mic" />}
-                                                {challenge.action}
-                                            </button>
+                                            <div className="space-y-3">
+                                                <div className="flex justify-between text-xs font-bold text-stone-500 dark:text-text-muted">
+                                                    <span>{challenge.currentCount} / {challenge.goalCount} {challenge.goalMetric}</span>
+                                                    <span>{Math.round((challenge.currentCount / challenge.goalCount) * 100)}%</span>
+                                                </div>
+                                                <div className="h-2 bg-stone-100 dark:bg-black/30 rounded-full overflow-hidden">
+                                                    <div className="h-full bg-[#cf6317]" style={{ width: `${(challenge.currentCount / challenge.goalCount) * 100}%` }}></div>
+                                                </div>
+
+                                                <button
+                                                    onClick={() => navigate(Screen.CHALLENGE_DETAILS, { challenge })}
+                                                    className="w-full mt-2 py-2.5 bg-stone-50 dark:bg-white/5 hover:bg-[#cf6317] hover:text-white text-stone-700 dark:text-white font-bold rounded-xl transition-colors border border-stone-200 dark:border-white/10"
+                                                >
+                                                    View Project Hub
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         ) : (
-                            <div className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {PAST_CHALLENGES.map((challenge) => (
-                                    <div key={challenge.id} onClick={() => navigate(Screen.CHALLENGE_WINNERS)} className="bg-white dark:bg-surface-dark rounded-2xl overflow-hidden shadow-sm border border-black/5 dark:border-white/5 p-4 flex gap-4 cursor-pointer hover:bg-stone-50 dark:hover:bg-white/5 transition-colors">
-                                        <div className="w-20 h-20 rounded-xl bg-cover bg-center shrink-0 grayscale opacity-80" style={{ backgroundImage: `url('${challenge.img}')` }}></div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex justify-between items-start"><h3 className="font-bold text-stone-900 dark:text-white truncate pr-2">{challenge.title}</h3><span className="px-2 py-0.5 rounded text-[10px] font-bold bg-success/20 text-success uppercase">Completed</span></div>
-                                            <p className="text-xs text-stone-500 dark:text-text-muted mt-1">{challenge.date}</p>
-                                            <div className="flex items-center gap-2 mt-3"><IconRenderer name="emoji_events" size={18} className="text-yellow-500" /><span className="text-sm font-semibold text-stone-700 dark:text-sand-beige">{challenge.badge}</span></div>
+                                    <div key={challenge.id} onClick={() => navigate(Screen.CHALLENGE_WINNERS)} className="bg-stone-50 dark:bg-white/5 rounded-2xl overflow-hidden border border-stone-200 dark:border-white/5 p-4 flex gap-4 cursor-pointer hover:bg-stone-100 dark:hover:bg-white/10 transition-colors opacity-75 hover:opacity-100 grayscale hover:grayscale-0">
+                                        <div className="w-20 h-20 rounded-xl bg-cover bg-center shrink-0" style={{ backgroundImage: `url('${challenge.img}')` }}></div>
+                                        <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                            <h3 className="font-bold text-stone-700 dark:text-white truncate">{challenge.title}</h3>
+                                            <p className="text-xs text-stone-500 mb-2">{challenge.date}</p>
+                                            <span className="text-xs font-bold text-[#cf6317] flex items-center gap-1">
+                                                <IconRenderer name="emoji_events" size={14} />
+                                                {challenge.badge}
+                                            </span>
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         )}
-                        <div className="fixed bottom-6 right-6 z-20">
-                            <button onClick={() => navigate(Screen.ADD_CHALLENGE)} className="flex items-center gap-2 bg-stone-900 dark:bg-white dark:text-stone-900 text-white px-6 py-4 rounded-full shadow-lg transition-all duration-200 hover:scale-105">
-                                <IconRenderer name="add" /><span className="font-bold">Create Teaching Challenge</span>
-                            </button>
-                        </div>
-                    </>
+                    </div>
                 )}
+
             </main>
 
             {/* Share Modal */}

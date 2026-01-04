@@ -7,15 +7,19 @@ import { useState } from "react";
 import { ContributionItem } from "@/types";
 import { INITIAL_CONTRIBUTIONS } from "@/data/mock";
 
-export default function ContributionsPage() {
+
+import React, { use } from "react";
+
+export default function ContributionsPage({ searchParams }: { searchParams: Promise<any> }) {
     const { navigate, goBack } = useNavigation();
     const { languages, myContributions, setMyContributions } = useUser();
+    const resolvedSearchParams = use(searchParams);
 
     return (
         <ContributionsScreen
             navigate={navigate}
             goBack={goBack}
-            initialTab="My Changa"
+            initialTab={resolvedSearchParams.initialTab || "My Changa"}
             onViewProfile={(u) => { }}
             myContributions={myContributions}
             setMyContributions={setMyContributions}

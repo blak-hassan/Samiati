@@ -1,5 +1,6 @@
 import React from 'react';
 import { Screen } from '@/types';
+import { NotificationBell } from '@/components/shared/NotificationBell';
 import {
   ArrowLeft,
   Camera,
@@ -24,16 +25,18 @@ import { cn } from "@/lib/utils";
 interface Props {
   navigate: (screen: Screen) => void;
   goBack: () => void;
+  unreadCount?: number;
 }
 
-const EditProfileScreen: React.FC<Props> = ({ navigate, goBack }) => {
+const EditProfileScreen: React.FC<Props> = ({ navigate, goBack, unreadCount = 0 }) => {
   return (
     <div className="flex flex-col min-h-screen bg-background transition-colors duration-300">
       <header className="flex items-center p-4 border-b border-border sticky top-0 bg-background/95 backdrop-blur-md z-30">
         <Button variant="ghost" size="icon" onClick={goBack} className="-ml-2 rounded-full text-foreground">
           <ArrowLeft className="w-6 h-6" />
         </Button>
-        <h2 className="flex-1 text-center text-lg font-bold text-foreground pr-8 tracking-tight">Edit Profile</h2>
+        <h2 className="flex-1 text-center text-lg font-bold text-foreground tracking-tight ml-8">Edit Profile</h2>
+        <NotificationBell unreadCount={unreadCount} onNavigate={navigate} />
       </header>
 
       <main className="flex-1 p-6 pb-24 max-w-2xl mx-auto w-full">

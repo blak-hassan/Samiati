@@ -9,7 +9,7 @@ interface SamiatiLogoProps {
 const SamiatiLogo: React.FC<SamiatiLogoProps> = ({ className, size = 48, variant = 'primary' }) => {
     const colors = {
         primary: {
-            text: '#1C1917',  // Stone 900
+            text: '#FFFFFF',  // White for better visibility on dark backgrounds
         },
         white: {
             text: '#FFFFFF',
@@ -43,7 +43,7 @@ const SamiatiLogo: React.FC<SamiatiLogoProps> = ({ className, size = 48, variant
                 className="text-2xl font-black tracking-tight"
                 style={{ color: colors.text, fontStyle: 'normal' }}
             >
-                SAMIATI
+                Samiati
             </span>
         </div>
     );

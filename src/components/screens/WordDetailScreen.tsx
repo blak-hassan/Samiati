@@ -1,6 +1,7 @@
 ﻿"use client";
 import React, { useState } from 'react';
 import { Screen } from '@/types';
+import { NotificationBell } from '@/components/shared/NotificationBell';
 import {
     ArrowLeft,
     Bookmark,
@@ -28,9 +29,10 @@ import { cn } from "@/lib/utils";
 interface Props {
     navigate: (screen: Screen) => void;
     goBack: () => void;
+    unreadCount?: number;
 }
 
-const WordDetailScreen: React.FC<Props> = ({ goBack }) => {
+const WordDetailScreen: React.FC<Props> = ({ navigate, goBack, unreadCount = 0 }) => {
     const [isBookmarked, setIsBookmarked] = useState(false);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -47,7 +49,8 @@ const WordDetailScreen: React.FC<Props> = ({ goBack }) => {
                     <ArrowLeft className="w-6 h-6" />
                 </Button>
                 <div className="flex-1" />
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
+                    <NotificationBell unreadCount={unreadCount} onNavigate={navigate} />
                     <Button
                         variant="ghost"
                         size="icon"

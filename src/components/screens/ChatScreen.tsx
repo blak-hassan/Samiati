@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Screen, User, Message, Conversation } from '@/types';
+import { NotificationBell } from '@/components/shared/NotificationBell';
 import { sendMessageToGemini } from '@/services/geminiService';
 import { useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -33,7 +34,8 @@ import {
   Info,
   ChevronRight,
   Flame,
-  Globe
+  Globe,
+  Megaphone
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -540,6 +542,7 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
                 label="Kaendelee"
                 onClick={() => handleNavigate(Screen.SAVED_CONVERSATIONS)}
               />
+
               <DrawerItem
                 icon={<Flame className="w-5 h-5" />}
                 label="Changa"
@@ -552,6 +555,14 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
                 count={notificationCounts?.mushenee}
                 onClick={() => handleNavigate(Screen.MESSAGES)}
               />
+              {user.role === 'moderator' || user.role === 'admin' && (
+                <DrawerItem
+                  icon={<ShieldCheck className="w-5 h-5" />}
+                  label="Moderation"
+                  count={notificationCounts?.moderation}
+                  onClick={() => handleNavigate(Screen.MODERATION_DASHBOARD)}
+                />
+              )}
 
             </nav>
 
@@ -593,17 +604,7 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
               </div>
             </div>
             <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleNavigate(Screen.NOTIFICATIONS)}
-                className="relative rounded-full"
-              >
-                <Bell className="w-5 h-5" />
-                {unreadCount > 0 && (
-                  <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-primary rounded-full ring-2 ring-background animate-pulse" />
-                )}
-              </Button>
+              <NotificationBell unreadCount={unreadCount} onNavigate={handleNavigate} />
             </div>
           </header>
         </div>

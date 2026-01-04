@@ -4,19 +4,32 @@ import React, { useEffect, useState, use } from "react";
 import ChatScreen from "@/components/screens/ChatScreen";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useUser } from "../MockProviders";
-import { User, Screen, Conversation } from "@/types";
+import { User, Screen, Conversation, NotificationItem } from "@/types";
 import { localConversationService } from "@/services/localConversationService";
-import { INITIAL_CONVERSATIONS } from "@/data/mock";
+import {
+    INITIAL_NOTIFICATIONS,
+    INITIAL_CONVERSATIONS,
+    INITIAL_MESSAGES_CHATS,
+} from "@/data/mock";
 
 export default function DashboardPage({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
     const { navigate } = useNavigation();
-    const { user: clerkUser } = useUser();
+    const { user: clerkUser, notifications, unreadCount } = useUser();
 
     // Find active conversation from search params if provided
     const resolvedSearchParams = use(searchParams);
     const chatId = typeof resolvedSearchParams.chatId === 'string' ? resolvedSearchParams.chatId : null;
 
     const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
+
+    // Calculate unread counts
+    const notificationCounts = {
+        total: unreadCount,
+        contributions: notifications.filter(n => !n.isRead && n.type === 'contribution').length,
+        moderation: notifications.filter(n => !n.isRead && n.type === 'moderation').length,
+        mushenee: notifications.filter(n => !n.isRead && (n.type === 'comment' || n.type === 'like' || n.type === 'message')).length,
+        watu: notifications.filter(n => !n.isRead && n.type === 'follow').length,
+    };
 
     // Load conversation on mount or when chatId changes
     useEffect(() => {
@@ -85,6 +98,8 @@ export default function DashboardPage({ searchParams }: { searchParams: Promise<
             activeConversation={activeConversation}
             onNewChat={() => navigate(Screen.HOME_CHAT)}
             onSaveChat={handleSaveConversation}
+            unreadCount={unreadCount}
+            notificationCounts={notificationCounts}
         />
     );
 }

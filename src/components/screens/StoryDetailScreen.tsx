@@ -1,6 +1,7 @@
 ﻿"use client";
 import React, { useState, useEffect, useRef } from 'react';
 import { Screen, User } from '@/types';
+import { NotificationBell } from '@/components/shared/NotificationBell';
 import {
   ArrowLeft,
   Bookmark,
@@ -53,6 +54,7 @@ interface StoryParam {
 interface Props {
   navigate: (screen: Screen, params?: any) => void;
   goBack: () => void;
+  unreadCount?: number;
   story?: StoryParam;
   onViewProfile: (user: User) => void;
 }
@@ -78,7 +80,7 @@ const RELATED_STORIES: StoryParam[] = [
   { title: "The Magic Drum", author: "Kofi", type: 'Fable', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDKkfM9WqTPsqCfuM1KQIQ1QzsbiAaq2rab_EQ2MwL_8b9sbJ3-mIl3CjDCR888PPrsBNhkpl7tkden40rCqo3pJe3Sepe18k46KUvejTidyoAK941vcqejBnqRrcfC5hPZop_XFQ7S9jkteso1RvDSjv8s1JfGwGhOYE1uQ1M1J93quDxOniTqTNGD-1WZq2GOu_Z1EpzGjMzNeyvhYbuIwiqYK1TDLfGX5mpdg--_df6DoewiFO-RhrraeKpwY7MetQ94avb6spo' }
 ];
 
-const StoryDetailScreen: React.FC<Props> = ({ navigate, goBack, story, onViewProfile }) => {
+const StoryDetailScreen: React.FC<Props> = ({ navigate, goBack, unreadCount = 0, story, onViewProfile }) => {
   const [showMeaning, setShowMeaning] = useState<string | null>(null);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -200,7 +202,12 @@ const StoryDetailScreen: React.FC<Props> = ({ navigate, goBack, story, onViewPro
           <Button variant="ghost" size="icon" onClick={goBack} className="rounded-full bg-background/20 backdrop-blur-xl border border-white/10 text-white hover:bg-white/20">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center">
+            <NotificationBell
+              unreadCount={unreadCount}
+              onNavigate={navigate}
+              className="bg-background/20 backdrop-blur-xl border border-white/10 text-white hover:bg-white/20"
+            />
             <Button
               variant="ghost"
               size="icon"
