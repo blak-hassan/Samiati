@@ -85,7 +85,8 @@ const MOCK_ACTIONS: ModerationAction[] = [
     },
 ];
 
-const ModerationLogScreen: React.FC<Props> = ({ navigate, goBack }) => {
+
+export const ModerationLogContent: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded = false }) => {
     const [actions] = useState<ModerationAction[]>(MOCK_ACTIONS);
     const [filterAction, setFilterAction] = useState<string>('All');
     const [showFilterMenu, setShowFilterMenu] = useState(false);
@@ -126,37 +127,8 @@ const ModerationLogScreen: React.FC<Props> = ({ navigate, goBack }) => {
     };
 
     return (
-        <div className="flex flex-col min-h-screen bg-background-light dark:bg-background-dark transition-colors duration-300">
-            <header className="flex items-center p-4 sticky top-0 bg-background-light dark:bg-background-dark z-10 border-b border-black/5 dark:border-transparent">
-                <button onClick={goBack} className="p-2 -ml-2 text-stone-900 dark:text-white hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-colors">
-                    <ArrowLeft className="w-6 h-6" />
-                </button>
-                <h1 className="flex-1 text-center text-lg font-bold text-stone-900 dark:text-white pr-8">
-                    Moderation History
-                </h1>
-            </header>
+        <div className={`flex flex-col ${!isEmbedded ? 'min-h-screen bg-background-light dark:bg-background-dark' : 'h-full'} transition-colors duration-300`}>
 
-            {/* Stats Bar */}
-            <div className="px-4 py-4 bg-white dark:bg-[#32241a] border-b border-black/5 dark:border-white/5">
-                <div className="flex gap-4 overflow-x-auto no-scrollbar">
-                    <div className="flex-1 min-w-[120px] bg-stone-50 dark:bg-black/20 rounded-xl p-3">
-                        <p className="text-xs text-stone-500 dark:text-text-muted font-bold uppercase tracking-wider">Total Actions</p>
-                        <p className="text-2xl font-bold text-stone-900 dark:text-white mt-1">{actions.length}</p>
-                    </div>
-                    <div className="flex-1 min-w-[120px] bg-stone-50 dark:bg-black/20 rounded-xl p-3">
-                        <p className="text-xs text-stone-500 dark:text-text-muted font-bold uppercase tracking-wider">Today</p>
-                        <p className="text-2xl font-bold text-stone-900 dark:text-white mt-1">
-                            {actions.filter(a => Date.now() - a.timestamp < 24 * 60 * 60 * 1000).length}
-                        </p>
-                    </div>
-                    <div className="flex-1 min-w-[120px] bg-stone-50 dark:bg-black/20 rounded-xl p-3">
-                        <p className="text-xs text-stone-500 dark:text-text-muted font-bold uppercase tracking-wider">This Week</p>
-                        <p className="text-2xl font-bold text-stone-900 dark:text-white mt-1">
-                            {actions.filter(a => Date.now() - a.timestamp < 7 * 24 * 60 * 60 * 1000).length}
-                        </p>
-                    </div>
-                </div>
-            </div>
 
             {/* Filter Bar */}
             <div className="px-4 py-3 flex gap-2 items-center border-b border-black/5 dark:border-white/5">
@@ -191,9 +163,7 @@ const ModerationLogScreen: React.FC<Props> = ({ navigate, goBack }) => {
                     )}
                 </div>
 
-                <button className="p-2 rounded-xl bg-black/5 dark:bg-[#473324] text-stone-900 dark:text-white hover:bg-black/10 dark:hover:bg-[#5a4230] transition-colors">
-                    <Download className="w-5 h-5" />
-                </button>
+
             </div>
 
             {/* Actions List */}
@@ -260,6 +230,22 @@ const ModerationLogScreen: React.FC<Props> = ({ navigate, goBack }) => {
                     </div>
                 )}
             </main>
+        </div>
+    );
+};
+
+const ModerationLogScreen: React.FC<Props> = ({ navigate, goBack }) => {
+    return (
+        <div className="flex flex-col min-h-screen bg-background-light dark:bg-background-dark transition-colors duration-300">
+            <header className="flex items-center p-4 sticky top-0 bg-background-light dark:bg-background-dark z-10 border-b border-black/5 dark:border-transparent">
+                <button onClick={goBack} className="p-2 -ml-2 text-stone-900 dark:text-white hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-colors">
+                    <ArrowLeft className="w-6 h-6" />
+                </button>
+                <h1 className="flex-1 text-center text-lg font-bold text-stone-900 dark:text-white pr-8">
+                    Moderation History
+                </h1>
+            </header>
+            <ModerationLogContent />
         </div>
     );
 };

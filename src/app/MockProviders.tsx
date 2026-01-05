@@ -1,8 +1,9 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState } from "react";
-import { LanguageSkill, ContributionItem, NotificationItem } from "@/types";
+import { LanguageSkill, ContributionItem, NotificationItem, Challenge } from "@/types";
 import { INITIAL_LANGUAGES_STATE, INITIAL_CONTRIBUTIONS, INITIAL_NOTIFICATIONS } from "@/data/mock";
+import { MOCK_CHALLENGES } from "@/data/mockChallenges";
 
 // --- Mock Clerk ---
 interface UserContextType {
@@ -18,6 +19,8 @@ interface UserContextType {
   unreadCount: number;
   markAllAsRead: () => void;
   markAsRead: (id: string) => void;
+  challenges: Challenge[];
+  addChallenge: (challenge: Challenge) => void;
 }
 
 const MockUserContext = createContext<UserContextType | null>(null);
@@ -25,11 +28,13 @@ const MockUserContext = createContext<UserContextType | null>(null);
 // --- Mock Global State (Singleton pattern for persistence across remounts) ---
 let globalMyContributions: ContributionItem[] = [...INITIAL_CONTRIBUTIONS];
 let globalNotifications: NotificationItem[] = [...INITIAL_NOTIFICATIONS];
+let globalChallenges: Challenge[] = [...MOCK_CHALLENGES];
 
 export const ClerkProvider = ({ children }: { children: ReactNode }) => {
   const [languages, setLanguages] = useState<LanguageSkill[]>(INITIAL_LANGUAGES_STATE);
   const [myContributions, setMyContributionsInternal] = useState<ContributionItem[]>(globalMyContributions);
   const [notifications, setNotificationsInternal] = useState<NotificationItem[]>(globalNotifications);
+  const [challenges, setChallengesInternal] = useState<Challenge[]>(globalChallenges);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
@@ -60,6 +65,11 @@ export const ClerkProvider = ({ children }: { children: ReactNode }) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
   };
 
+  const addChallenge = (challenge: Challenge) => {
+    globalChallenges = [challenge, ...globalChallenges];
+    setChallengesInternal(globalChallenges);
+  };
+
 
   const mockUser = {
     id: "user_2mock",
@@ -82,7 +92,9 @@ export const ClerkProvider = ({ children }: { children: ReactNode }) => {
       setNotifications,
       unreadCount,
       markAllAsRead,
-      markAsRead
+      markAsRead,
+      challenges,
+      addChallenge
     }}>
       {children}
     </MockUserContext.Provider>
@@ -103,7 +115,9 @@ export const useUser = () => {
     setNotifications: () => { },
     unreadCount: 0,
     markAllAsRead: () => { },
-    markAsRead: () => { }
+    markAsRead: () => { },
+    challenges: [],
+    addChallenge: () => { }
   };
 };
 

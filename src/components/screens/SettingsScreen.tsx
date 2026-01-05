@@ -9,7 +9,7 @@ import {
     Bell,
     Lock,
     Moon,
-    Languages,
+
     HelpCircle,
     Info,
     LogOut,
@@ -47,8 +47,10 @@ const SettingsScreen: React.FC<Props> = ({ navigate, goBack, onSignOut, isDarkMo
 
             <main className="flex-1 overflow-y-auto pb-12 px-6 space-y-8 mt-4">
                 {/* Profile Card */}
-                <Card
-                    className="flex items-center gap-4 bg-muted/20 p-5 rounded-3xl border-border/50 cursor-pointer hover:bg-muted/30 transition-all active:scale-[0.98] group shadow-none"
+                {/* Profile Card */}
+                <button
+                    type="button"
+                    className="w-full text-left flex items-center gap-4 bg-muted/20 p-5 rounded-3xl border border-border/50 cursor-pointer hover:bg-muted/30 transition-all active:scale-[0.98] group shadow-none"
                     onClick={() => navigate(Screen.PROFILE)}
                 >
                     <Avatar className="w-16 h-16 rounded-full border-2 border-background shadow-xl">
@@ -60,7 +62,7 @@ const SettingsScreen: React.FC<Props> = ({ navigate, goBack, onSignOut, isDarkMo
                         <p className="text-xs font-bold text-muted-foreground opacity-60 font-mono italic">{user.handle}</p>
                     </div>
                     <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                </Card>
+                </button>
 
                 {/* Premium Banner */}
                 <Card className="bg-gradient-to-br from-primary via-orange-500 to-orange-600 rounded-[32px] p-6 text-white shadow-2xl shadow-primary/20 relative overflow-hidden border-none group">
@@ -85,16 +87,7 @@ const SettingsScreen: React.FC<Props> = ({ navigate, goBack, onSignOut, isDarkMo
                 <div className="space-y-3 px-1">
                     <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] ml-2">Personalization</h3>
                     <Card className="bg-muted/10 border-border/50 rounded-[32px] overflow-hidden shadow-none">
-                        <button onClick={() => navigate(Screen.SETTINGS_ACCOUNT)} className="w-full flex items-center gap-4 p-5 hover:bg-muted/30 transition-all border-b border-border/30 last:border-0 group">
-                            <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center group-hover:scale-110 transition-transform">
-                                <User className="w-5 h-5 fill-current" />
-                            </div>
-                            <div className="flex-1 text-left">
-                                <p className="text-sm font-black text-foreground tracking-tight">Account Security</p>
-                                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest opacity-60">Passkeys, Recovery, Linked Accounts</p>
-                            </div>
-                            <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
-                        </button>
+
                         <button onClick={() => navigate(Screen.SETTINGS_NOTIFICATIONS)} className="w-full flex items-center gap-4 p-5 hover:bg-muted/30 transition-all border-b border-border/30 last:border-0 group">
                             <div className="w-10 h-10 rounded-2xl bg-rasta-red/10 text-rasta-red flex items-center justify-center group-hover:scale-110 transition-transform">
                                 <Bell className="w-5 h-5 fill-current" />
@@ -135,64 +128,11 @@ const SettingsScreen: React.FC<Props> = ({ navigate, goBack, onSignOut, isDarkMo
                             <Switch checked={isDarkMode} onCheckedChange={toggleTheme} className="data-[state=checked]:bg-primary" />
                         </div>
 
-                        <button onClick={() => navigate(Screen.MANAGE_LANGUAGES)} className="w-full flex items-center gap-4 p-5 hover:bg-muted/30 transition-all border-b border-border/30 last:border-0 group">
-                            <div className="w-10 h-10 rounded-2xl bg-rasta-gold/10 text-rasta-gold flex items-center justify-center group-hover:scale-110 transition-transform">
-                                <Languages className="w-5 h-5" />
-                            </div>
-                            <div className="flex-1 text-left">
-                                <p className="text-sm font-black text-foreground tracking-tight">Content Language</p>
-                                <p className="text-[10px] text-primary font-bold uppercase tracking-widest">English (US)</p>
-                            </div>
-                            <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
-                        </button>
+
                     </Card>
                 </div>
 
-                {/* Community & Moderation */}
-                <div className="space-y-3 px-1">
-                    <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] ml-2">Community</h3>
-                    <Card className="bg-muted/10 border-border/50 rounded-[32px] overflow-hidden shadow-none">
-                        {/* If user is NOT a moderator */}
-                        {(!user.role || user.role === 'member') && (
-                            <button onClick={() => navigate(Screen.MODERATION_APPLICATION)} className="w-full flex items-center gap-4 p-5 hover:bg-muted/30 transition-all border-b border-border/30 last:border-0 group">
-                                <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <Shield className="w-5 h-5" />
-                                </div>
-                                <div className="flex-1 text-left">
-                                    <p className="text-sm font-black text-foreground tracking-tight">Become a Moderator</p>
-                                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest opacity-60">Help Keep Samiati Safe</p>
-                                </div>
-                                <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
-                            </button>
-                        )}
 
-                        {/* If user IS a moderator or admin */}
-                        {(user.role === 'moderator' || user.role === 'admin') && (
-                            <>
-                                <button onClick={() => navigate(Screen.MODERATION_DASHBOARD)} className="w-full flex items-center gap-4 p-5 hover:bg-muted/30 transition-all border-b border-border/30 last:border-0 group">
-                                    <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center group-hover:scale-110 transition-transform">
-                                        <Shield className="w-5 h-5 fill-current" />
-                                    </div>
-                                    <div className="flex-1 text-left">
-                                        <p className="text-sm font-black text-foreground tracking-tight">Moderation Dashboard</p>
-                                        <p className="text-[10px] text-primary font-bold uppercase tracking-widest">Active Moderator</p>
-                                    </div>
-                                    <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
-                                </button>
-                                <button onClick={() => navigate(Screen.MODERATION_LOG)} className="w-full flex items-center gap-4 p-5 hover:bg-muted/30 transition-all border-b border-border/30 last:border-0 group">
-                                    <div className="w-10 h-10 rounded-2xl bg-stone-500/10 text-stone-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                        <CreditCard className="w-5 h-5" />
-                                    </div>
-                                    <div className="flex-1 text-left">
-                                        <p className="text-sm font-black text-foreground tracking-tight">Moderation History</p>
-                                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest opacity-60">View Past Actions</p>
-                                    </div>
-                                    <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
-                                </button>
-                            </>
-                        )}
-                    </Card>
-                </div>
 
                 {/* Support */}
                 <div className="space-y-3 px-1">
@@ -203,8 +143,8 @@ const SettingsScreen: React.FC<Props> = ({ navigate, goBack, onSignOut, isDarkMo
                                 <HelpCircle className="w-5 h-5 fill-current" />
                             </div>
                             <div className="flex-1 text-left">
-                                <p className="text-sm font-black text-foreground tracking-tight">Help Center</p>
-                                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest opacity-60">FAQs, Guides, Contact Support</p>
+                                <p className="text-sm font-black text-foreground tracking-tight">FAQ</p>
+                                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest opacity-60">Guides, Contact Support</p>
                             </div>
                             <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
                         </button>
@@ -213,7 +153,7 @@ const SettingsScreen: React.FC<Props> = ({ navigate, goBack, onSignOut, isDarkMo
                                 <Info className="w-5 h-5 fill-current" />
                             </div>
                             <div className="flex-1 text-left">
-                                <p className="text-sm font-black text-foreground tracking-tight">Legal & Version</p>
+                                <p className="text-sm font-black text-foreground tracking-tight">About</p>
                                 <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest opacity-60">Terms, Privacy Policy, Build Info</p>
                             </div>
                             <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />

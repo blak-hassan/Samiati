@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { REGIONS, ROLES, ACTIVITY_LEVELS, SORT_OPTIONS } from '@/hooks/useWatuFilters';
-import { SlidersHorizontal, ChevronDown, Check, ArrowUpDown } from 'lucide-react';
+import { SlidersHorizontal, ChevronDown } from 'lucide-react';
 
 interface WatuFiltersProps {
     selectedRegion: string;
@@ -9,8 +9,7 @@ interface WatuFiltersProps {
     setSelectedLanguage: (language: string) => void;
     selectedRole: string;
     setSelectedRole: (role: string) => void;
-    selectedActivity: string;
-    setSelectedActivity: (activity: string) => void;
+
     sortBy: string;
     setSortBy: (sort: string) => void;
     availableLanguages: string[];
@@ -25,8 +24,7 @@ export const WatuFilters: React.FC<WatuFiltersProps> = ({
     setSelectedLanguage,
     selectedRole,
     setSelectedRole,
-    selectedActivity,
-    setSelectedActivity,
+
     sortBy,
     setSortBy,
     availableLanguages,
@@ -34,54 +32,29 @@ export const WatuFilters: React.FC<WatuFiltersProps> = ({
     clearAllFilters
 }) => {
     const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-    const [showSortDropdown, setShowSortDropdown] = useState(false);
-    const sortRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (sortRef.current && !sortRef.current.contains(event.target as Node)) {
-                setShowSortDropdown(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
 
     return (
         <div className="space-y-3 px-4 pb-2">
             {/* Primary Filters */}
-            <div className="flex gap-2 overflow-x-auto no-scrollbar">
-                <span className="text-xs font-bold uppercase text-stone-500 dark:text-text-muted self-center mr-1">Region:</span>
-                {REGIONS.map(region => (
-                    <button
-                        key={region}
-                        onClick={() => setSelectedRegion(region)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors border ${selectedRegion === region
-                            ? 'bg-stone-800 dark:bg-white text-white dark:text-stone-900 border-stone-800 dark:border-white'
-                            : 'bg-white dark:bg-surface-dark text-stone-600 dark:text-text-muted border-stone-200 dark:border-white/10 hover:border-stone-400 dark:hover:border-white/20'
-                            }`}
-                        aria-label={`Filter by ${region}`}
-                    >
-                        {region}
-                    </button>
-                ))}
-            </div>
 
-            <div className="flex gap-2 overflow-x-auto no-scrollbar">
-                <span className="text-xs font-bold uppercase text-stone-500 dark:text-text-muted self-center mr-1">Lang:</span>
-                {availableLanguages.map(lang => (
-                    <button
-                        key={lang}
-                        onClick={() => setSelectedLanguage(lang)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors border ${selectedLanguage === lang
-                            ? 'bg-primary text-white border-primary'
-                            : 'bg-white dark:bg-surface-dark text-stone-600 dark:text-text-muted border-stone-200 dark:border-white/10 hover:border-primary/50'
-                            }`}
-                        aria-label={`Filter by ${lang}`}
-                    >
-                        {lang}
-                    </button>
-                ))}
+
+            <div className="flex flex-col gap-2">
+                <span className="text-xs font-bold uppercase text-stone-500 dark:text-text-muted ml-1">Lang:</span>
+                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                    {availableLanguages.map(lang => (
+                        <button
+                            key={lang}
+                            onClick={() => setSelectedLanguage(lang)}
+                            className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors border ${selectedLanguage === lang
+                                ? 'bg-primary text-white border-primary'
+                                : 'bg-white dark:bg-surface-dark text-stone-600 dark:text-text-muted border-stone-200 dark:border-white/10 hover:border-primary/50'
+                                }`}
+                            aria-label={`Filter by ${lang}`}
+                        >
+                            {lang}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Advanced Filters Toggle */}
@@ -115,74 +88,66 @@ export const WatuFilters: React.FC<WatuFiltersProps> = ({
             {/* Advanced Filters */}
             {showAdvancedFilters && (
                 <div className="space-y-3 animate-in slide-in-from-top-2 duration-200">
+                    {/* Region Filter */}
+                    <div className="flex flex-col gap-2">
+                        <span className="text-xs font-bold uppercase text-stone-500 dark:text-text-muted ml-1">Region:</span>
+                        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                            {REGIONS.map(region => (
+                                <button
+                                    key={region}
+                                    onClick={() => setSelectedRegion(region)}
+                                    className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors border ${selectedRegion === region
+                                        ? 'bg-stone-800 dark:bg-white text-white dark:text-stone-900 border-stone-800 dark:border-white'
+                                        : 'bg-white dark:bg-surface-dark text-stone-600 dark:text-text-muted border-stone-200 dark:border-white/10 hover:border-stone-400 dark:hover:border-white/20'
+                                        }`}
+                                    aria-label={`Filter by ${region}`}
+                                >
+                                    {region}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     {/* Role Filter */}
-                    <div className="flex gap-2 overflow-x-auto no-scrollbar">
-                        <span className="text-xs font-bold uppercase text-stone-500 dark:text-text-muted self-center mr-1">Role:</span>
-                        {ROLES.map(role => (
-                            <button
-                                key={role}
-                                onClick={() => setSelectedRole(role)}
-                                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors border ${selectedRole === role
-                                    ? 'bg-rasta-green text-white border-rasta-green'
-                                    : 'bg-white dark:bg-surface-dark text-stone-600 dark:text-text-muted border-stone-200 dark:border-white/10 hover:border-rasta-green/50'
-                                    }`}
-                                aria-label={`Filter by ${role}`}
-                            >
-                                {role}
-                            </button>
-                        ))}
+                    <div className="flex flex-col gap-2">
+                        <span className="text-xs font-bold uppercase text-stone-500 dark:text-text-muted ml-1">Role:</span>
+                        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                            {ROLES.map(role => (
+                                <button
+                                    key={role}
+                                    onClick={() => setSelectedRole(role)}
+                                    className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors border ${selectedRole === role
+                                        ? 'bg-rasta-green text-white border-rasta-green'
+                                        : 'bg-white dark:bg-surface-dark text-stone-600 dark:text-text-muted border-stone-200 dark:border-white/10 hover:border-rasta-green/50'
+                                        }`}
+                                    aria-label={`Filter by ${role}`}
+                                >
+                                    {role}
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
-                    {/* Activity Filter */}
-                    <div className="flex gap-2 overflow-x-auto no-scrollbar">
-                        <span className="text-xs font-bold uppercase text-stone-500 dark:text-text-muted self-center mr-1">Activity:</span>
-                        {ACTIVITY_LEVELS.map(activity => (
-                            <button
-                                key={activity}
-                                onClick={() => setSelectedActivity(activity)}
-                                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors border ${selectedActivity === activity
-                                    ? 'bg-green-600 text-white border-green-600'
-                                    : 'bg-white dark:bg-surface-dark text-stone-600 dark:text-text-muted border-stone-200 dark:border-white/10 hover:border-green-400'
-                                    }`}
-                                aria-label={`Filter by ${activity}`}
-                            >
-                                {activity}
-                            </button>
-                        ))}
-                    </div>
 
-                    {/* Sort Dropdown */}
-                    <div className="relative" ref={sortRef}>
-                        <button
-                            onClick={() => setShowSortDropdown(!showSortDropdown)}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-surface-dark border border-stone-200 dark:border-white/10 text-sm font-medium text-stone-700 dark:text-white hover:border-primary transition-colors"
-                            aria-label="Sort options"
-                        >
-                            <ArrowUpDown className="w-5 h-5" />
-                            <span>Sort: {sortBy}</span>
-                            <ChevronDown className={`w-5 h-5 ml-auto transition-transform ${showSortDropdown ? 'rotate-180' : ''}`} />
-                        </button>
 
-                        {showSortDropdown && (
-                            <div className="absolute left-0 top-full mt-2 w-full bg-white dark:bg-surface-dark rounded-xl shadow-xl border border-stone-200 dark:border-white/10 overflow-hidden z-10 animate-in fade-in slide-in-from-top-2 duration-150">
-                                {SORT_OPTIONS.map(option => (
-                                    <button
-                                        key={option}
-                                        onClick={() => {
-                                            setSortBy(option);
-                                            setShowSortDropdown(false);
-                                        }}
-                                        className={`w-full text-left px-4 py-3 text-sm flex items-center justify-between hover:bg-stone-50 dark:hover:bg-white/5 transition-colors border-b border-stone-100 dark:border-white/5 last:border-0 ${sortBy === option
-                                            ? 'bg-primary/5 text-primary font-bold'
-                                            : 'text-stone-700 dark:text-text-main'
-                                            }`}
-                                    >
-                                        <span>{option}</span>
-                                        {sortBy === option && <Check className="w-5 h-5" />}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
+                    {/* Sort Filter */}
+                    <div className="flex flex-col gap-2">
+                        <span className="text-xs font-bold uppercase text-stone-500 dark:text-text-muted ml-1">Sort:</span>
+                        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                            {SORT_OPTIONS.map(option => (
+                                <button
+                                    key={option}
+                                    onClick={() => setSortBy(option)}
+                                    className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors border ${sortBy === option
+                                        ? 'bg-stone-800 dark:bg-white text-white dark:text-stone-900 border-stone-800 dark:border-white'
+                                        : 'bg-white dark:bg-surface-dark text-stone-600 dark:text-text-muted border-stone-200 dark:border-white/10 hover:border-stone-400 dark:hover:border-white/20'
+                                        }`}
+                                    aria-label={`Sort by ${option}`}
+                                >
+                                    {option}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </div>
             )}

@@ -29,7 +29,6 @@ const CustomSelect: React.FC<CustomSelectProps> = ({ label, value, options, onCh
         setIsOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
@@ -37,18 +36,20 @@ const CustomSelect: React.FC<CustomSelectProps> = ({ label, value, options, onCh
     <div className="relative" ref={dropdownRef}>
       <label className="block text-xs font-bold text-stone-500 dark:text-text-muted uppercase mb-2 tracking-wider">{label}</label>
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-stone-100 dark:bg-input-bg border border-stone-200 dark:border-white/10 rounded-xl p-4 text-stone-900 dark:text-white flex items-center justify-between hover:bg-stone-200 dark:hover:bg-white/10 transition-colors focus:ring-2 focus:ring-primary/50 outline-none"
+        className="w-full bg-stone-100 dark:bg-black/40 border border-stone-200 dark:border-white/10 rounded-xl p-4 text-stone-900 dark:text-white flex items-center justify-between hover:bg-stone-200 dark:hover:bg-white/5 transition-colors focus:ring-2 focus:ring-primary/50 outline-none"
       >
         <span className="font-medium">{value}</span>
         <span className={`material-symbols-outlined transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>expand_more</span>
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-surface-dark border border-stone-200 dark:border-white/10 rounded-xl shadow-2xl max-h-60 overflow-y-auto z-50 custom-scrollbar animate-in fade-in slide-in-from-top-2 duration-150">
+        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-stone-900 border border-stone-200 dark:border-white/10 rounded-xl shadow-2xl max-h-60 overflow-y-auto z-50 custom-scrollbar animate-in fade-in slide-in-from-top-2 duration-150">
           {options.map((option) => (
             <button
               key={option}
+              type="button"
               onClick={() => {
                 onChange(option);
                 setIsOpen(false);

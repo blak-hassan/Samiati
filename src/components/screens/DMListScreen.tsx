@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Screen, ChatPreview } from '@/types';
+import { useFuzzySearch } from '@/hooks/useFuzzySearch';
 import { dmService } from '@/services/mockDmService';
 import {
   ArrowLeft,
@@ -41,10 +42,8 @@ const DMListScreen: React.FC<Props> = ({ navigate, goBack, chats: initialChats }
     return () => clearInterval(interval);
   }, []);
 
-  const filteredChats = chats.filter(chat =>
-    chat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    chat.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const searchKeys = React.useMemo(() => ['name', 'lastMessage'], []);
+  const filteredChats = useFuzzySearch(chats, searchQuery, searchKeys);
 
   const handleChatClick = (chat: ChatPreview) => {
     // Pass chatId to persist connection

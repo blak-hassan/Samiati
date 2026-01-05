@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { ValidationItem, Screen } from '@/types';
 import {
-    Brain,
+
     ShieldAlert,
     MessageSquare,
     CheckCircle,
@@ -45,7 +45,7 @@ export const ValidationCard: React.FC<Props> = ({
     onNavigate,
     onVote
 }) => {
-    const [showAI, setShowAI] = useState(false);
+
     const [showHistory, setShowHistory] = useState(false);
     const isAuthor = item.author.id === currentUserId;
 
@@ -174,7 +174,9 @@ export const ValidationCard: React.FC<Props> = ({
 
                         <div className="flex items-center gap-1.5 px-2 py-1 bg-rasta-green/10 rounded-lg">
                             <CheckCircle className="size-3 text-rasta-green" />
-                            <span className="text-xs font-black text-rasta-green">{item.sentiment.validations}</span>
+                            <span className="text-xs font-black text-rasta-green">
+                                {item.reviews.filter(r => r.action === 'approved').length}
+                            </span>
                         </div>
                     </div>
 
@@ -199,51 +201,7 @@ export const ValidationCard: React.FC<Props> = ({
                 </div>
             </div>
 
-            {/* AI Interpretation Panel */}
-            {item.aiInterpretation && (
-                <div className={`overflow-hidden rounded-xl border transition-all duration-300 ${showAI ? 'border-primary/20 bg-primary/5' : 'border-black/5 dark:border-white/5 bg-transparent'}`}>
-                    <button
-                        onClick={() => setShowAI(!showAI)}
-                        className="w-full flex items-center justify-between p-3"
-                    >
-                        <div className="flex items-center gap-2">
-                            <div className={`size-6 rounded-lg flex items-center justify-center ${showAI ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-black/5 dark:bg-white/5 text-stone-400'}`}>
-                                <Brain className="size-4" />
-                            </div>
-                            <span className={`text-[10px] font-black uppercase tracking-widest ${showAI ? 'text-primary' : 'text-stone-400'}`}>
-                                AI Interpretation
-                            </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded">
-                                {item.aiInterpretation.confidence}% Match
-                            </span>
-                            {showAI ? <ChevronUp className="size-4 text-primary" /> : <ChevronDown className="size-4 text-stone-400" />}
-                        </div>
-                    </button>
 
-                    {showAI && (
-                        <div className="px-4 pb-4 space-y-3 animate-in fade-in slide-in-from-top-1 duration-300">
-                            {item.aiInterpretation.suggestedTranslation && (
-                                <div className="bg-white/50 dark:bg-black/20 p-2.5 rounded-lg border border-primary/10">
-                                    <p className="text-[10px] font-bold text-primary uppercase tracking-tighter mb-1">Suggested Translation</p>
-                                    <p className="text-xs text-stone-800 dark:text-sand-beige font-medium italic">
-                                        "{item.aiInterpretation.suggestedTranslation}"
-                                    </p>
-                                </div>
-                            )}
-                            {item.aiInterpretation.linguisticNotes && (
-                                <div className="flex gap-2">
-                                    <ShieldAlert className="size-3 text-rasta-gold shrink-0 mt-0.5" />
-                                    <p className="text-[10px] text-stone-600 dark:text-text-muted leading-relaxed">
-                                        {item.aiInterpretation.linguisticNotes}
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-            )}
 
             {/* Review History / Avatars */}
             <div className="pt-2">
@@ -326,32 +284,43 @@ export const ValidationCard: React.FC<Props> = ({
                     </div>
                 ) : (
                     <>
-                        <div className="flex gap-2 flex-1">
-                            <button
-                                disabled={!isUserModerator}
-                                onClick={() => onApprove(item.id)}
-                                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-rasta-green text-white font-black text-xs shadow-lg shadow-rasta-green/20 active:scale-95 transition-all hover:bg-rasta-green/90 disabled:opacity-50 disabled:grayscale"
-                            >
-                                <CheckCircle className="size-4" />
-                                Approve
-                            </button>
-                            <button
-                                disabled={!isUserModerator}
-                                onClick={() => onCritique(item.id)}
-                                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-rasta-gold text-stone-900 font-black text-xs shadow-lg shadow-rasta-gold/20 active:scale-95 transition-all hover:bg-rasta-gold/90 disabled:opacity-50 disabled:grayscale"
-                            >
-                                <MessageSquare className="size-4" />
-                                Critique
-                            </button>
-                        </div>
-                        <button
-                            disabled={!isUserModerator}
-                            onClick={() => onReport(item.id)}
-                            className="ml-2 p-2.5 rounded-xl bg-rasta-red/10 text-rasta-red hover:bg-rasta-red/20 transition-colors disabled:opacity-30 disabled:grayscale"
-                            title="Report/Reject Quality"
-                        >
-                            <Flag className="size-4" />
-                        </button>
+                        {item.reviews.some(r => r.moderator.id === currentUserId) ? (
+                            <div className="flex-1 flex items-center justify-center p-2 bg-black/5 dark:bg-white/5 rounded-xl border border-stone-200 dark:border-white/10">
+                                <p className="text-[10px] font-bold text-stone-500 dark:text-text-muted uppercase tracking-widest flex items-center gap-2">
+                                    <CheckCircle className="size-3" />
+                                    You have reviewed this
+                                </p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="flex gap-2 flex-1">
+                                    <button
+                                        disabled={!isUserModerator}
+                                        onClick={() => onApprove(item.id)}
+                                        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-rasta-green text-white font-black text-xs shadow-lg shadow-rasta-green/20 active:scale-95 transition-all hover:bg-rasta-green/90 disabled:opacity-50 disabled:grayscale"
+                                    >
+                                        <CheckCircle className="size-4" />
+                                        Approve
+                                    </button>
+                                    <button
+                                        disabled={!isUserModerator}
+                                        onClick={() => onCritique(item.id)}
+                                        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-rasta-gold text-stone-900 font-black text-xs shadow-lg shadow-rasta-gold/20 active:scale-95 transition-all hover:bg-rasta-gold/90 disabled:opacity-50 disabled:grayscale"
+                                    >
+                                        <MessageSquare className="size-4" />
+                                        Critique
+                                    </button>
+                                </div>
+                                <button
+                                    disabled={!isUserModerator}
+                                    onClick={() => onReport(item.id)}
+                                    className="ml-2 p-2.5 rounded-xl bg-rasta-red/10 text-rasta-red hover:bg-rasta-red/20 transition-colors disabled:opacity-30 disabled:grayscale"
+                                    title="Report/Reject Quality"
+                                >
+                                    <Flag className="size-4" />
+                                </button>
+                            </>
+                        )}
                     </>
                 )}
             </div>

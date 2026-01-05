@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Screen, ValidationItem, LanguageHealth } from '@/types';
+import { useFuzzySearch } from '@/hooks/useFuzzySearch';
 import { NotificationBell } from '@/components/shared/NotificationBell';
 import {
   Brain,
@@ -79,52 +80,42 @@ const ModerationDashboardScreen: React.FC<Props> = ({
     };
   }, [items, languages]);
 
-  // Simple fuzzy match helper
-  const fuzzyMatch = (text: string, query: string) => {
-    text = text.toLowerCase();
-    query = query.toLowerCase();
-    let j = 0;
-    for (let i = 0; i < text.length && j < query.length; i++) {
-      if (text[i] === query[j]) j++;
-    }
-    return j === query.length;
-  };
+
 
   // Filtering Logic
+  // 1. Basic Filtering (Status, Type, Language, Permissions)
+  const basicFilteredItems = useMemo(() => {
+    return items.filter(item => {
+      // Only show languages the user is a moderator for OR items the user authored
+      const isUserModeratorForLang = languages.find(l => l.code === item.languageCode)?.isUserModerator;
+      const isAuthoredByUser = item.author.id === CURRENT_USER_ID;
+
+      if (!isUserModeratorForLang && !isAuthoredByUser) return false;
+
+      if (selectedLanguageCode && item.languageCode !== selectedLanguageCode) return false;
+      if (activeType !== 'All' && item.type !== activeType) return false;
+
+      if (selectedStatus) {
+        if (selectedStatus === 'approved' && item.status !== 'approved') return false;
+        if (selectedStatus === 'pending' && item.status !== 'pending') return false;
+        if (selectedStatus === 'rejected' && (item.status === 'rejected' || item.status === 'needs_revision')) return true;
+        if (selectedStatus === 'rejected' && item.status !== 'rejected') return false;
+      }
+
+      return true;
+    });
+  }, [items, languages, selectedLanguageCode, activeType, selectedStatus]);
+
+  // 2. Fuzzy Search
+  const searchKeys = useMemo(() => ['content.original', 'content.translation', 'author.name', 'type'], []);
+  const searchFilteredItems = useFuzzySearch(basicFilteredItems, searchQuery, searchKeys);
+
+  // 3. Sorting
   const filteredItems = useMemo(() => {
-    return items
-      .filter(item => {
-        // Only show languages the user is a moderator for OR items the user authored
-        const isUserModeratorForLang = languages.find(l => l.code === item.languageCode)?.isUserModerator;
-        const isAuthoredByUser = item.author.id === CURRENT_USER_ID;
-        return isUserModeratorForLang || isAuthoredByUser;
-      })
-      .filter(item => {
-        if (selectedLanguageCode && item.languageCode !== selectedLanguageCode) return false;
-        if (activeType !== 'All' && item.type !== activeType) return false;
-
-        if (selectedStatus) {
-          if (selectedStatus === 'approved' && item.status !== 'approved') return false;
-          if (selectedStatus === 'pending' && item.status !== 'pending') return false;
-          if (selectedStatus === 'rejected' && (item.status === 'rejected' || item.status === 'needs_revision')) return true; // Group rejected and needs revision logic if needed, but strict for now
-          if (selectedStatus === 'rejected' && item.status !== 'rejected') return false;
-        }
-
-        if (searchQuery) {
-          return (
-            fuzzyMatch(item.content.original, searchQuery) ||
-            (item.content.translation && fuzzyMatch(item.content.translation, searchQuery)) ||
-            fuzzyMatch(item.author.name, searchQuery) ||
-            fuzzyMatch(item.type, searchQuery)
-          );
-        }
-        return true;
-      })
-      .sort((a, b) => {
-        // This is a simple mock sort as we don't have real dates
-        return sortBy === 'newest' ? -1 : 1;
-      });
-  }, [items, selectedLanguageCode, activeType, searchQuery, sortBy, languages, selectedStatus]);
+    return [...searchFilteredItems].sort((a, b) => {
+      return sortBy === 'newest' ? -1 : 1;
+    });
+  }, [searchFilteredItems, sortBy]);
 
   // Handlers
   const handleApprove = (id: string) => {
@@ -229,6 +220,18 @@ const ModerationDashboardScreen: React.FC<Props> = ({
       };
     }));
     setReportModal({ isOpen: false, itemId: null });
+  };
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    // Simulate API call
+    setTimeout(() => {
+      setItems(INITIAL_VALIDATION_ITEMS); // Reset to initial state or fetch new data
+      setIsRefreshing(false);
+      showToast('Contributions refreshed', 'success');
+    }, 1500);
   };
 
   const showToast = (text: string, type: 'success' | 'warning' | 'error') => {
@@ -409,8 +412,12 @@ const ModerationDashboardScreen: React.FC<Props> = ({
             <h2 className="text-xs font-black uppercase tracking-widest text-stone-400 dark:text-text-muted/60">
               {filteredItems.length} Contributions to review
             </h2>
-            <button className="p-2 text-primary hover:bg-primary/10 rounded-full transition-colors">
-              <RefreshCw className="size-4" />
+            <button
+              onClick={handleRefresh}
+              className={`p-2 text-primary hover:bg-primary/10 rounded-full transition-all duration-500 ${isRefreshing ? 'rotate-180' : ''}`}
+              disabled={isRefreshing}
+            >
+              <RefreshCw className={`size-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             </button>
           </div>
 

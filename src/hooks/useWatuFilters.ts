@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useFuzzySearch } from './useFuzzySearch';
 
 export interface Person {
     id: string;
@@ -54,15 +55,12 @@ export function useWatuFilters(people: Person[]) {
     }, [selectedRegion, availableLanguages, selectedLanguage]);
 
     // Filter and sort people
-    const filteredPeople = useMemo(() => {
-        const filtered = people.filter(person => {
+    // 1. First apply categorical filters
+    const categoryFiltered = useMemo(() => {
+        return people.filter(person => {
             const languageMatch = selectedLanguage === 'All' || person.languages.includes(selectedLanguage);
             const regionMatch = selectedRegion === 'All' || person.region === selectedRegion;
             const roleMatch = selectedRole === 'All' || person.role === selectedRole;
-            const searchMatch = searchQuery === '' ||
-                person.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                person.handle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                person.about?.toLowerCase().includes(searchQuery.toLowerCase());
 
             // Activity filter (mock implementation - would use real timestamps in production)
             let activityMatch = true;
@@ -71,10 +69,19 @@ export function useWatuFilters(people: Person[]) {
                 activityMatch = true; // For now, show all
             }
 
-            return languageMatch && regionMatch && roleMatch && searchMatch && activityMatch;
+            return languageMatch && regionMatch && roleMatch && activityMatch;
         });
+    }, [people, selectedLanguage, selectedRegion, selectedRole, selectedActivity]);
 
-        // Sort
+    // 2. Apply Fuzzy Search
+    // Import need to be added at top, but for now I'm changing the hook body
+    // I will use keys: name, handle, about
+    const searchKeys = useMemo(() => ['name', 'handle', 'about', 'role', 'languages', 'region'], []);
+    const searchFiltered = useFuzzySearch(categoryFiltered, searchQuery, searchKeys);
+
+    // 3. Sort
+    const filteredPeople = useMemo(() => {
+        let filtered = [...searchFiltered];
         if (sortBy === 'Alphabetical') {
             filtered.sort((a, b) => a.name.localeCompare(b.name));
         } else if (sortBy === 'Most Followed') {
@@ -87,7 +94,7 @@ export function useWatuFilters(people: Person[]) {
         // 'Recommended' keeps the original order (would use algorithm in real implementation)
 
         return filtered;
-    }, [people, selectedLanguage, selectedRegion, selectedRole, selectedActivity, sortBy, searchQuery]);
+    }, [searchFiltered, sortBy]);
 
     const clearAllFilters = () => {
         setSelectedLanguage('All');

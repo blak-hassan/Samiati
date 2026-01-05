@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
-import { Screen, ChallengeType } from '@/types';
+import { Screen, ChallengeType, InputType, ChallengeInputField } from '@/types';
+import { useUser } from '@/app/MockProviders';
 
 interface Props {
   navigate: (screen: Screen, params?: any) => void;
@@ -8,14 +9,40 @@ interface Props {
 }
 
 const AddChallengeScreen: React.FC<Props> = ({ navigate, goBack }) => {
+  const { addChallenge } = useUser();
   const [step, setStep] = useState(1);
   const [selectedType, setSelectedType] = useState<ChallengeType | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     goalCount: 50,
     deadline: '7 Days',
-    invitees: [] as string[]
+    invitees: [] as string[],
+    goalDescription: '',
+    inputSchema: [
+      { id: '1', type: 'AUDIO', label: 'Audio Recording', required: true }
+    ] as ChallengeInputField[]
   });
+  const [customMission, setCustomMission] = useState('');
+
+  // Squad State
+  const [squad, setSquad] = useState([
+    { name: 'Wanjiku M.', avatar: 'WM', selected: true },
+    { name: 'Ochieng J.', avatar: 'OJ', selected: false },
+    { name: 'Kamau K.', avatar: 'KK', selected: true },
+    { name: 'Aisha S.', avatar: 'AS', selected: false },
+  ]);
+
+  const [suggestions, setSuggestions] = useState([
+    { name: 'Dr. Ali', avatar: 'DA', role: 'Linguist' },
+    { name: 'Mama Z.', avatar: 'MZ', role: 'Elder' },
+    { name: 'Kevo', avatar: 'K', role: 'Historian' },
+    { name: 'Sarah', avatar: 'S', role: 'Teacher' },
+  ]);
+
+  const handleAddToSquad = (user: typeof suggestions[0]) => {
+    setSquad([...squad, { ...user, selected: true }]);
+    setSuggestions(suggestions.filter(s => s.name !== user.name));
+  };
 
   const handleNext = () => setStep(s => s + 1);
   const handleBack = () => setStep(s => s - 1);
@@ -29,6 +56,14 @@ const AddChallengeScreen: React.FC<Props> = ({ navigate, goBack }) => {
 
   const handleTypeSelect = (type: ChallengeType) => {
     setSelectedType(type);
+    handleNext();
+  };
+
+  const handleCustomTypeSelect = () => {
+    if (!customMission.trim()) return;
+    setSelectedType('CUSTOM');
+    // Pre-fill the title with the custom mission name
+    setFormData(prev => ({ ...prev, title: customMission }));
     handleNext();
   };
 
@@ -78,100 +113,224 @@ const AddChallengeScreen: React.FC<Props> = ({ navigate, goBack }) => {
                 </button>
               ))}
             </div>
+
+            {/* Custom Mission Input */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-stone-200 dark:border-white/10" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-[#FAF9F6] dark:bg-[#2b1e19] px-2 text-stone-500">Or create your own</span>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Name your mission (e.g. Digital Museum)"
+                className="flex-1 bg-white dark:bg-[#42342b] border border-stone-200 dark:border-white/10 rounded-xl p-4 text-stone-900 dark:text-white focus:border-[#cf6317] outline-none transition-colors"
+                value={customMission}
+                onChange={(e) => setCustomMission(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && customMission.trim()) {
+                    handleCustomTypeSelect();
+                  }
+                }}
+              />
+              <button
+                onClick={handleCustomTypeSelect}
+                disabled={!customMission.trim()}
+                className="bg-stone-900 dark:bg-white text-white dark:text-stone-900 rounded-xl px-4 aspect-square flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+              >
+                <span className="material-symbols-outlined">arrow_forward</span>
+              </button>
+            </div>
           </div>
         )}
 
         {/* STEP 2: DEFINE GOALS */}
-        {step === 2 && (
-          <div className="space-y-8">
-            <div className="text-center space-y-2 mb-4">
-              <h2 className="text-2xl font-extrabold text-stone-900 dark:text-white">Define Success</h2>
-              <p className="text-stone-500 dark:text-[#A8A29E]">Set a target to motivate the community.</p>
-            </div>
-
-            <div className="space-y-5">
-              <div>
-                <label className="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">Project Title</label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="e.g. The Great Kikuyu Archive"
-                  className="w-full bg-white dark:bg-[#42342b] border-2 border-stone-200 dark:border-white/10 rounded-xl p-4 font-bold text-lg text-stone-900 dark:text-white placeholder-stone-300 focus:border-[#cf6317] outline-none transition-colors"
-                />
+        {
+          step === 2 && (
+            <div className="space-y-8">
+              <div className="text-center space-y-2 mb-4">
+                <h2 className="text-2xl font-extrabold text-stone-900 dark:text-white">Define Success</h2>
+                <p className="text-stone-500 dark:text-[#A8A29E]">Set a target to motivate the community.</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+
+              <div className="space-y-6">
+                {/* Goal Description */}
                 <div>
-                  <label className="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">Target Goal</label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      value={formData.goalCount}
-                      onChange={(e) => setFormData({ ...formData, goalCount: parseInt(e.target.value) })}
-                      className="w-full bg-white dark:bg-[#42342b] border-2 border-stone-200 dark:border-white/10 rounded-xl p-4 font-bold text-lg text-stone-900 dark:text-white focus:border-[#cf6317] outline-none transition-colors"
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-stone-400">ITEMS</span>
+                  <label className="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">Goal Description</label>
+                  <textarea
+                    value={formData.goalDescription}
+                    onChange={(e) => setFormData({ ...formData, goalDescription: e.target.value })}
+                    placeholder="Describe what success looks like (e.g. We need 50 recordings of the elders in the village...)"
+                    className="w-full bg-white dark:bg-[#42342b] border-2 border-stone-200 dark:border-white/10 rounded-xl p-4 font-medium text-lg text-stone-900 dark:text-white placeholder-stone-300 focus:border-[#cf6317] outline-none transition-colors min-h-[120px] resize-y"
+                  />
+                </div>
+
+                {/* Submission Inputs Builder */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <label className="block text-sm font-bold text-stone-700 dark:text-stone-300">Submission Requirements</label>
+                    <span className="text-xs font-bold text-stone-400 uppercase tracking-widest">What creators submit</span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {formData.inputSchema.map((input, index) => (
+                      <div key={input.id} className="bg-white dark:bg-[#42342b] border border-stone-200 dark:border-white/10 p-4 rounded-xl flex items-center gap-4 group">
+                        <div className="w-10 h-10 rounded-full bg-stone-100 dark:bg-white/5 flex items-center justify-center text-stone-500">
+                          <span className="material-symbols-outlined">
+                            {input.type === 'AUDIO' ? 'mic' :
+                              input.type === 'VIDEO' ? 'videocam' :
+                                input.type === 'IMAGE' ? 'image' :
+                                  input.type === 'LOCATION' ? 'location_on' : 'text_fields'}
+                          </span>
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <input
+                              value={input.label}
+                              onChange={(e) => {
+                                const newSchema = [...formData.inputSchema];
+                                newSchema[index].label = e.target.value;
+                                setFormData({ ...formData, inputSchema: newSchema });
+                              }}
+                              className="font-bold text-stone-900 dark:text-white bg-transparent outline-none focus:underline decoration-[#cf6317]"
+                            />
+                            <span className="material-symbols-outlined text-stone-300 text-sm cursor-help" title="Click to rename">edit</span>
+                          </div>
+                          <div className="text-xs text-stone-400 font-medium flex gap-2">
+                            <span>{input.type}</span>
+                            <span>•</span>
+                            <button
+                              onClick={() => {
+                                const newSchema = [...formData.inputSchema];
+                                newSchema[index].required = !newSchema[index].required;
+                                setFormData({ ...formData, inputSchema: newSchema });
+                              }}
+                              className={`${input.required ? 'text-[#cf6317]' : 'text-stone-300'} font-bold hover:underline`}
+                            >
+                              {input.required ? 'Required' : 'Optional'}
+                            </button>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const newSchema = formData.inputSchema.filter((_, i) => i !== index);
+                            setFormData({ ...formData, inputSchema: newSchema });
+                          }}
+                          className="p-2 text-stone-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
+                        >
+                          <span className="material-symbols-outlined">delete</span>
+                        </button>
+                      </div>
+                    ))}
+
+                    {/* Add Field Button */}
+                    <div className="flex gap-2 flex-wrap">
+                      {(['TEXT', 'AUDIO', 'VIDEO', 'IMAGE', 'LOCATION'] as InputType[]).map(type => (
+                        <button
+                          key={type}
+                          onClick={() => {
+                            const newField: ChallengeInputField = {
+                              id: Math.random().toString(36).substr(2, 9),
+                              type,
+                              label: type === 'TEXT' ? 'Description' :
+                                type === 'AUDIO' ? 'Recording' :
+                                  type === 'VIDEO' ? 'Video Clip' :
+                                    type === 'IMAGE' ? 'Photo' : 'Location',
+                              required: true
+                            };
+                            setFormData({ ...formData, inputSchema: [...formData.inputSchema, newField] });
+                          }}
+                          className="px-3 py-2 rounded-lg border border-dashed border-stone-300 dark:border-white/20 text-xs font-bold text-stone-500 hover:bg-stone-50 dark:hover:bg-white/5 hover:text-[#cf6317] hover:border-[#cf6317] transition-all flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">add</span>
+                          {type}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">Duration</label>
-                  <select
-                    className="w-full bg-white dark:bg-[#42342b] border-2 border-stone-200 dark:border-white/10 rounded-xl p-4 font-bold text-lg text-stone-900 dark:text-white focus:border-[#cf6317] outline-none transition-colors appearance-none"
-                    value={formData.deadline}
-                    onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
-                  >
-                    <option>3 Days</option>
-                    <option>7 Days</option>
-                    <option>30 Days</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-700/30 rounded-xl flex gap-3">
-                <span className="material-symbols-outlined text-yellow-600 dark:text-yellow-500">lightbulb</span>
-                <p className="text-sm text-stone-700 dark:text-[#A8A29E]">
-                  <strong>Pro tip:</strong> Projects with clear, achievable goals (like "50 Recordings") get 3x more contributions.
-                </p>
               </div>
             </div>
-          </div>
-        )}
+          )
+        }
 
         {/* STEP 3: INVITE SQUAD */}
-        {step === 3 && (
-          <div className="space-y-6">
-            <div className="text-center space-y-2 mb-8">
-              <h2 className="text-2xl font-extrabold text-stone-900 dark:text-white">Assemble Your Squad</h2>
-              <p className="text-stone-500 dark:text-[#A8A29E]">Who are the best experts for this task?</p>
-            </div>
+        {
+          step === 3 && (
+            <div className="space-y-6">
+              <div className="text-center space-y-2 mb-8">
+                <h2 className="text-2xl font-extrabold text-stone-900 dark:text-white">Assemble Your Squad</h2>
+                <p className="text-stone-500 dark:text-[#A8A29E]">Who are the best experts for this task?</p>
+              </div>
 
-            <div className="bg-white dark:bg-[#42342b] border border-stone-200 dark:border-white/5 rounded-2xl overflow-hidden divide-y divide-stone-100 dark:divide-white/5">
-              {[
-                { name: 'Wanjiku M.', avatar: 'WM', selected: true },
-                { name: 'Ochieng J.', avatar: 'OJ', selected: false },
-                { name: 'Kamau K.', avatar: 'KK', selected: true },
-                { name: 'Aisha S.', avatar: 'AS', selected: false },
-              ].map((user, idx) => (
-                <div key={idx} className="p-4 flex items-center justify-between hover:bg-stone-50 dark:hover:bg-black/20 cursor-pointer">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-stone-200 dark:bg-white/10 flex items-center justify-center font-bold text-stone-600 dark:text-stone-400">
-                      {user.avatar}
+              <div className="bg-white dark:bg-[#42342b] border border-stone-200 dark:border-white/5 rounded-2xl overflow-hidden divide-y divide-stone-100 dark:divide-white/5">
+                {squad.map((user, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => {
+                      const newSquad = [...squad];
+                      newSquad[idx].selected = !newSquad[idx].selected;
+                      setSquad(newSquad);
+                    }}
+                    className="p-4 flex items-center justify-between hover:bg-stone-50 dark:hover:bg-black/20 cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-stone-200 dark:bg-white/10 flex items-center justify-center font-bold text-stone-600 dark:text-stone-400">
+                        {user.avatar}
+                      </div>
+                      <span className="font-bold text-stone-700 dark:text-white">{user.name}</span>
                     </div>
-                    <span className="font-bold text-stone-700 dark:text-white">{user.name}</span>
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${user.selected ? 'bg-[#cf6317] border-[#cf6317]' : 'border-stone-300 dark:border-white/20'}`}>
+                      {user.selected && <span className="material-symbols-outlined text-white text-sm">check</span>}
+                    </div>
                   </div>
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${user.selected ? 'bg-[#cf6317] border-[#cf6317]' : 'border-stone-300 dark:border-white/20'}`}>
-                    {user.selected && <span className="material-symbols-outlined text-white text-sm">check</span>}
+                ))}
+              </div>
+
+              <button className="w-full py-4 rounded-xl border-2 border-dashed border-stone-300 dark:border-white/20 text-stone-500 dark:text-stone-400 font-bold hover:bg-stone-50 dark:hover:bg-white/5 transition-colors">
+                + Copy Invite Link
+              </button>
+
+              {/* Suggestions Section */}
+              {suggestions.length > 0 && (
+                <div className="pt-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  <div className="flex items-center justify-between mb-3 px-1">
+                    <h3 className="font-bold text-stone-700 dark:text-stone-300">Suggested Experts</h3>
+                    <span className="text-xs text-stone-400">Based on your mission</span>
+                  </div>
+
+                  <div className="flex gap-3 overflow-x-auto pb-4 snap-x">
+                    {suggestions.map((user, idx) => (
+                      <div
+                        key={idx}
+                        className="snap-center shrink-0 w-32 bg-white dark:bg-[#42342b] border border-stone-200 dark:border-white/5 rounded-xl p-3 flex flex-col items-center gap-2 text-center shadow-sm"
+                      >
+                        <div className="w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center font-bold text-[#cf6317]">
+                          {user.avatar}
+                        </div>
+                        <div>
+                          <div className="font-bold text-sm text-stone-900 dark:text-white truncate w-full">{user.name}</div>
+                          <div className="text-xs text-stone-400">{user.role}</div>
+                        </div>
+                        <button
+                          onClick={() => handleAddToSquad(user)}
+                          className="mt-1 w-full py-1.5 bg-stone-900 dark:bg-white text-white dark:text-stone-900 text-xs font-bold rounded-lg hover:opacity-90 transition-opacity"
+                        >
+                          Add +
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
+              )}
             </div>
-
-            <button className="w-full py-4 rounded-xl border-2 border-dashed border-stone-300 dark:border-white/20 text-stone-500 dark:text-stone-400 font-bold hover:bg-stone-50 dark:hover:bg-white/5 transition-colors">
-              + Copy Invite Link
-            </button>
-          </div>
-        )}
+          )
+        }
 
       </main>
 
@@ -181,25 +340,29 @@ const AddChallengeScreen: React.FC<Props> = ({ navigate, goBack }) => {
           <div className="text-center text-xs text-stone-400 font-bold uppercase tracking-widest pb-2">Select a type to proceed</div>
         ) : (
           <button
-            onClick={step === 3 ? () => navigate(Screen.CHALLENGE_DETAILS, {
-              challenge: {
-                id: 'new-1',
+            onClick={step === 3 ? () => {
+              const newChallenge = {
+                id: `new-${Date.now()}`,
                 title: formData.title || 'New Project',
-                description: `A collaborative ${selectedType?.toLowerCase()} project.`,
-                type: selectedType,
-                goalCount: formData.goalCount,
+                description: formData.goalDescription || `A collaborative ${selectedType?.toLowerCase()} project.`,
+                type: selectedType!,
+                goalCount: 0,
+                goalDescription: formData.goalDescription,
+                inputSchema: formData.inputSchema,
                 currentCount: 0,
                 goalMetric: 'Entries',
-                image: 'https://images.unsplash.com/photo-1544985335-7c2a74c10648?auto=format&fit=crop&q=80&w=2000' // Placeholder
-              }
-            }) : handleNext}
+                image: 'https://images.unsplash.com/photo-1544985335-7c2a74c10648?auto=format&fit=crop&q=80&w=2000'
+              };
+              addChallenge(newChallenge);
+              navigate(Screen.CONTRIBUTIONS, { tab: 'Challenges' }); // Navigate to Contributions with Challenges tab
+            } : handleNext}
             className="w-full bg-[#cf6317] hover:bg-[#b05210] text-white font-bold py-4 rounded-xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2"
           >
             {step === 3 ? 'Launch Project 🚀' : 'Continue'}
           </button>
         )}
       </footer>
-    </div>
+    </div >
   );
 };
 

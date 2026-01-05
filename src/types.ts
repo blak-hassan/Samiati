@@ -375,8 +375,18 @@ export enum ReportReason {
 
 export type UserRole = 'admin' | 'moderator' | 'member';
 
+export type InputType = 'TEXT' | 'LONG_TEXT' | 'AUDIO' | 'VIDEO' | 'IMAGE' | 'LOCATION' | 'SELECT';
 
-export type ChallengeType = 'ACCENT' | 'DIALECT' | 'ALPHABET' | 'TOTEM' | 'TRANSLATION' | 'STANDARD';
+export interface ChallengeInputField {
+  id: string;
+  type: InputType;
+  label: string;
+  required: boolean;
+  options?: string[]; // For SELECT type
+}
+
+
+export type ChallengeType = 'ACCENT' | 'DIALECT' | 'ALPHABET' | 'TOTEM' | 'TRANSLATION' | 'STANDARD' | 'CUSTOM';
 
 export interface ChallengeRole {
   userId: string;
@@ -399,6 +409,9 @@ export interface Challenge {
     dialect?: string;
     language?: string;
   };
+  goalDescription?: string;
+  inputSchema?: ChallengeInputField[];
+  // Legacy/Compatibility fields
   // Legacy/Compatibility fields
   desc?: string;
   img?: string;

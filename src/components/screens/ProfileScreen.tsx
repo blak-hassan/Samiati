@@ -8,6 +8,7 @@ import {
   MapPin,
   Share2,
   Edit3,
+  Lock,
   Check,
   UserPlus,
   Flame,
@@ -446,47 +447,71 @@ const ProfileScreen: React.FC<Props> = ({ user, navigate, goBack, unreadCount = 
 
         {/* Privacy Controls */}
         {isOwnProfile && (
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <ShieldCheck className="w-5 h-5 text-primary" />
-              <h3 className="text-xl font-bold tracking-tight">Privacy Controls</h3>
-            </div>
-            <Card className="divide-y border-border/50">
-              <div className="flex items-center justify-between p-4">
-                <div className="space-y-0.5">
-                  <Label htmlFor="profile-visibility" className="text-base font-bold">Profile Visibility</Label>
-                  <p className="text-xs text-muted-foreground">Control who can see your profile details.</p>
-                </div>
-                <Switch
-                  id="profile-visibility"
-                  checked={profileVisible}
-                  onCheckedChange={setProfileVisible}
-                />
+          <>
+            <section>
+              <div className="flex items-center gap-2 mb-4">
+                <ShieldCheck className="w-5 h-5 text-primary" />
+                <h3 className="text-xl font-bold tracking-tight">Privacy Controls</h3>
               </div>
-              <div className="flex items-center justify-between p-4">
-                <div className="space-y-0.5">
-                  <Label htmlFor="show-changa" className="text-base font-bold">Show Changa</Label>
-                  <p className="text-xs text-muted-foreground">Display your words and stories publicly.</p>
+              <Card className="divide-y border-border/50">
+                <div className="flex items-center justify-between p-4">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="profile-visibility" className="text-base font-bold">Profile Visibility</Label>
+                    <p className="text-xs text-muted-foreground">Control who can see your profile details.</p>
+                  </div>
+                  <Switch
+                    id="profile-visibility"
+                    checked={profileVisible}
+                    onCheckedChange={setProfileVisible}
+                  />
                 </div>
-                <Switch
-                  id="show-changa"
-                  checked={showContributions}
-                  onCheckedChange={setShowContributions}
-                />
-              </div>
-              <div className="flex items-center justify-between p-4">
-                <div className="space-y-0.5">
-                  <Label htmlFor="allow-mentions" className="text-base font-bold">Allow Mentions</Label>
-                  <p className="text-xs text-muted-foreground">Let others mention you in community posts.</p>
+                <div className="flex items-center justify-between p-4">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="show-changa" className="text-base font-bold">Show Changa</Label>
+                    <p className="text-xs text-muted-foreground">Display your words and stories publicly.</p>
+                  </div>
+                  <Switch
+                    id="show-changa"
+                    checked={showContributions}
+                    onCheckedChange={setShowContributions}
+                  />
                 </div>
-                <Switch
-                  id="allow-mentions"
-                  checked={allowMentions}
-                  onCheckedChange={setAllowMentions}
-                />
+                <div className="flex items-center justify-between p-4">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="allow-mentions" className="text-base font-bold">Allow Mentions</Label>
+                    <p className="text-xs text-muted-foreground">Let others mention you in community posts.</p>
+                  </div>
+                  <Switch
+                    id="allow-mentions"
+                    checked={allowMentions}
+                    onCheckedChange={setAllowMentions}
+                  />
+                </div>
+              </Card>
+            </section>
+
+            <section className="mt-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Lock className="w-5 h-5 text-primary" />
+                <h3 className="text-xl font-bold tracking-tight">Account Security</h3>
               </div>
-            </Card>
-          </section>
+              <Card className="p-1 overflow-hidden border-border/50">
+                <button
+                  onClick={() => navigate(Screen.SETTINGS_ACCOUNT)}
+                  className="w-full flex items-center gap-4 p-4 hover:bg-muted/30 transition-all group text-left"
+                >
+                  <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-black text-foreground tracking-tight">Login & Security</p>
+                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest opacity-60">Password, 2FA, Recovery</p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                </button>
+              </Card>
+            </section>
+          </>
         )}
 
       </main>

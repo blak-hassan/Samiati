@@ -7,6 +7,8 @@ import { usePaginatedQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { Id } from "../../../../convex/_generated/dataModel";
 
+import { INITIAL_SOCIAL_POSTS } from "@/data/mock";
+
 export default function FeedPage() {
     const { navigate, goBack } = useNavigation();
 
@@ -18,27 +20,23 @@ export default function FeedPage() {
 
     const likePost = useMutation(api.posts.mutations.like);
 
-    // Map database posts to Frontend Post Type
-    const posts: Post[] = (results || []).map((p: any) => ({
+    // Map database posts to Frontend Post Type, fallback to Mock Data if empty (for dev)
+    const dbPosts: Post[] = (results || []).map((p: any) => ({
         id: p._id,
         type: p.type as any,
         content: p.content,
         image: p.image,
         author: p.author,
-        timestamp: new Date(p._creationTime).toISOString(), // use creation time
+        timestamp: new Date(p._creationTime).toISOString(),
         stats: p.stats,
         isLiked: p.isLiked,
         isReposted: p.isReposted,
         isValidated: p.isValidated,
-        likes: p.likes, // remove? stats.likes used usually but Post type usually has it separately? 
-        // Checking schema: Post interface has stats.likes.
-        // Wait, Post interface usually doesn't have duplicate 'likes' unless legacy.
-        // Types.ts line 134: likes: number; inside stats.
-        // Types.ts line 137: isLiked: boolean;
-        // Types.ts DOES NOT have top-level 'likes' in lines 130-150 view.
-        // So just stats.
+        likes: p.likes,
         cw: p.cw,
     }));
+
+    const posts = dbPosts.length > 0 ? dbPosts : INITIAL_SOCIAL_POSTS;
 
     const handleLike = async (postId: string) => {
         // Optimistic update handled by Convex usually if subscription is fast, 

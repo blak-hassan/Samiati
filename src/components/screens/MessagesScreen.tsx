@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Screen, Post, User } from '@/types';
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -11,9 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import {
-    Menu,
     MoreVertical,
-    Bookmark,
     Settings,
     ArrowUpDown,
     ChevronDown,
@@ -21,10 +18,12 @@ import {
     Check,
     Inbox,
     PenLine,
-    Users
+    Users,
+    Bookmark
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FireplaceCard } from '@/components/social/FireplaceCard';
+import { IconRenderer } from '@/components/shared/IconRenderer';
 import { PostCard } from '@/components/social/PostCard';
 
 interface Props {
@@ -165,70 +164,61 @@ const MessagesScreen: React.FC<Props> = ({ navigate, goBack, posts, onLike, onRe
     };
 
     return (
-        <div className="flex flex-col h-full bg-white dark:bg-background-dark transition-colors duration-300 relative">
+        <div className="flex flex-col h-full bg-stone-50 dark:bg-background-dark text-stone-900 dark:text-text-main transition-colors duration-300 relative">
             <div
                 ref={headerRef}
-                className="absolute top-0 left-0 right-0 z-20 transition-all duration-300 ease-in-out bg-white dark:bg-background-dark"
+                className="transition-all duration-300 ease-in-out z-20 shadow-sm dark:shadow-none bg-white dark:bg-[#2B1F1C] absolute top-0 left-0 right-0"
                 style={{ marginTop: isHeaderVisible ? 0 : -headerHeight }}
             >
-                <div className="flex items-center justify-between px-4 h-16">
-                    <Button variant="ghost" size="icon" onClick={goBack} className="-ml-2 text-foreground rounded-full">
-                        <Menu className="w-6 h-6" />
-                    </Button>
+                <header className="flex items-center p-4 bg-white dark:bg-[#2B1F1C] justify-between transition-colors shrink-0">
+                    <button onClick={goBack} className="p-2 -ml-2 text-stone-900 dark:text-white"><IconRenderer name="arrow_back" size={24} /></button>
+                    <h1 className="flex-1 text-center text-lg font-bold">Mushenee</h1>
+                    <div className="flex items-center gap-1 -mr-2">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <button className="p-2 text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-white/10 rounded-full transition-colors">
+                                    <MoreVertical className="w-6 h-6" />
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56">
+                                <DropdownMenuItem onClick={() => navigate(Screen.DM_LIST)} className="gap-3 font-medium">
+                                    <Inbox className="w-4 h-4" /> Messages
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => navigate(Screen.PEOPLE_TO_FOLLOW)} className="gap-3 font-medium">
+                                    <Users className="w-4 h-4" /> Watu
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => navigate(Screen.CONTRIBUTIONS, { initialTab: 'Saved' })} className="gap-3 font-medium">
+                                    <Bookmark className="w-4 h-4" /> Bookmarks
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                </header>
 
-                    <h1 className="text-lg font-bold text-foreground tracking-tight">Mushenee</h1>
-
-                    {/* App Menu */}
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="-mr-2 text-muted-foreground rounded-full">
-                                <MoreVertical className="w-6 h-6" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-56">
-                            <DropdownMenuItem onClick={() => navigate(Screen.DM_LIST)} className="gap-3 font-medium">
-                                <Inbox className="w-4 h-4" /> Messages
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate(Screen.PEOPLE_TO_FOLLOW)} className="gap-3 font-medium">
-                                <Users className="w-4 h-4" /> Watu
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate(Screen.COMMUNITIES)} className="gap-3 font-medium">
-                                <Users className="w-4 h-4" /> Communities
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate(Screen.CONTRIBUTIONS, { initialTab: 'Saved' })} className="gap-3 font-medium">
-                                <Bookmark className="w-4 h-4" /> Bookmarks
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate(Screen.SETTINGS)} className="gap-3 font-medium border-t">
-                                <Settings className="w-4 h-4" /> Settings
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-
-                {/* Tabs */}
-                <Tabs defaultValue={activeTab} onValueChange={(val) => setActiveTab(val as any)} className="w-full">
-                    <TabsList className="w-full justify-around h-12 bg-transparent rounded-none border-b p-0">
+                {/* Main Tabs */}
+                <div className="flex p-2 bg-stone-50 dark:bg-[#2B1F1C] transition-colors shrink-0">
+                    <div className="flex w-full bg-stone-200 dark:bg-white/5 rounded-xl p-1 overflow-x-auto no-scrollbar">
                         {['Home', 'Explore'].map(tab => (
-                            <TabsTrigger
+                            <button
                                 key={tab}
-                                value={tab}
-                                className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-primary text-xs font-bold uppercase tracking-wide px-4"
+                                onClick={() => setActiveTab(tab as any)}
+                                className={`flex-1 py-2 px-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === tab ? 'bg-white dark:bg-surface-dark text-stone-900 dark:text-white shadow-sm' : 'text-stone-500 dark:text-text-muted hover:text-stone-700 dark:hover:text-white'}`}
                             >
                                 {tab}
-                            </TabsTrigger>
+                            </button>
                         ))}
-                    </TabsList>
-                </Tabs>
+                    </div>
+                </div>
 
                 {/* Filter Bar with Dropdowns */}
-                <div className="flex items-center justify-between px-4 py-2 bg-stone-50/50 dark:bg-black/20 border-t border-border relative z-30">
+                <div className="flex items-center justify-between px-4 py-2 bg-stone-50 dark:bg-[#2B1F1C] border-t border-stone-100 dark:border-white/5 relative z-30">
                     {/* Sort Dropdown */}
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-8 rounded-full text-xs font-bold gap-1.5 focus-visible:ring-0"
+                                className="h-8 rounded-full text-xs font-bold gap-1.5 focus-visible:ring-0 text-stone-600 dark:text-stone-400"
                             >
                                 <ArrowUpDown className="w-3.5 h-3.5" />
                                 Sort: {sortBy}
@@ -256,7 +246,7 @@ const MessagesScreen: React.FC<Props> = ({ navigate, goBack, posts, onLike, onRe
                                 variant="ghost"
                                 size="sm"
                                 className={cn(
-                                    "h-8 rounded-full text-xs font-bold gap-1.5 focus-visible:ring-0",
+                                    "h-8 rounded-full text-xs font-bold gap-1.5 focus-visible:ring-0 text-stone-600 dark:text-stone-400",
                                     filterLanguage !== 'All' && "text-primary bg-primary/10"
                                 )}
                             >
@@ -284,8 +274,8 @@ const MessagesScreen: React.FC<Props> = ({ navigate, goBack, posts, onLike, onRe
             <main
                 ref={mainRef}
                 onScroll={handleScroll}
-                className="flex-1 overflow-y-auto bg-stone-50/50 dark:bg-black/20"
-                style={{ paddingTop: headerHeight }}
+                className="flex-1 overflow-y-auto p-4 space-y-4 pb-24 custom-scrollbar"
+                style={{ paddingTop: headerHeight > 0 ? headerHeight + 16 : 140 }}
             >
                 {fireplacePosts.length > 0 && activeTab === 'Home' && (
                     <div className="p-4 pb-2">

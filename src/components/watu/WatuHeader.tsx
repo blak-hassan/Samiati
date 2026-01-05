@@ -3,8 +3,6 @@ import { ArrowLeft, Search, X, MoreVertical } from 'lucide-react';
 
 interface WatuHeaderProps {
     isSelectContactMode: boolean;
-    activeTab: 'Suggestions' | 'Watu Helped' | 'Watu Posts';
-    setActiveTab: (tab: 'Suggestions' | 'Watu Helped' | 'Watu Posts') => void;
     peopleCount: number;
     isSearchVisible: boolean;
     setIsSearchVisible: (visible: boolean) => void;
@@ -15,8 +13,6 @@ interface WatuHeaderProps {
 
 export const WatuHeader: React.FC<WatuHeaderProps> = ({
     isSelectContactMode,
-    activeTab,
-    setActiveTab,
     peopleCount,
     isSearchVisible,
     setIsSearchVisible,
@@ -38,7 +34,7 @@ export const WatuHeader: React.FC<WatuHeaderProps> = ({
                     <h1 className="text-lg font-bold leading-tight">{isSelectContactMode ? 'Select contact' : 'Watu'}</h1>
                     {isSelectContactMode && <p className="text-xs text-stone-500 dark:text-text-muted">{peopleCount} contacts</p>}
                 </div>
-                {!isSelectContactMode && activeTab !== 'Watu Posts' && (
+                {!isSelectContactMode && (
                     <button
                         onClick={() => setIsSearchVisible(!isSearchVisible)}
                         className={`p-2 -mr-2 rounded-full transition-colors ${isSearchVisible
@@ -70,7 +66,7 @@ export const WatuHeader: React.FC<WatuHeaderProps> = ({
             </header>
 
             {/* Search Bar (Collapsible) */}
-            {isSearchVisible && activeTab !== 'Watu Posts' && (
+            {isSearchVisible && (
                 <div className="px-4 pb-3 bg-white dark:bg-surface-dark animate-in slide-in-from-top-2 duration-200">
                     <div className="relative">
                         <div className="absolute left-4 top-3.5 text-stone-500">
@@ -78,7 +74,7 @@ export const WatuHeader: React.FC<WatuHeaderProps> = ({
                         </div>
                         <input
                             type="text"
-                            placeholder={`Search ${activeTab === 'Suggestions' ? 'watu' : 'helped watu'}...`}
+                            placeholder="Search watu..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full bg-stone-100 dark:bg-black/20 border-none rounded-xl py-3 pl-12 pr-10 text-stone-900 dark:text-white placeholder-stone-400 focus:ring-2 focus:ring-primary outline-none transition-colors"
@@ -94,27 +90,6 @@ export const WatuHeader: React.FC<WatuHeaderProps> = ({
                                 <X className="w-4 h-4" />
                             </button>
                         )}
-                    </div>
-                </div>
-            )}
-
-            {/* Main Tabs (Hidden in SelectContactMode) */}
-            {!isSelectContactMode && (
-                <div className="flex p-2 bg-background-light dark:bg-background-dark transition-colors">
-                    <div className="flex w-full bg-stone-200 dark:bg-white/5 rounded-xl p-1 overflow-x-auto no-scrollbar">
-                        {['Suggestions', 'Watu Helped', 'Watu Posts'].map(tab => (
-                            <button
-                                key={tab}
-                                onClick={() => setActiveTab(tab as any)}
-                                className={`flex-1 py-2 px-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === tab
-                                    ? 'bg-white dark:bg-surface-dark text-stone-900 dark:text-white shadow-sm'
-                                    : 'text-stone-500 dark:text-text-muted hover:text-stone-700 dark:hover:text-white'
-                                    }`}
-                                aria-label={`Switch to ${tab} tab`}
-                            >
-                                {tab}
-                            </button>
-                        ))}
                     </div>
                 </div>
             )}

@@ -8,18 +8,13 @@ import { User } from "@/types";
 
 export default function ProfilePage() {
     const { navigate, goBack } = useNavigation();
-    const { languages } = useUser();
+    const { languages, user: clerkUser } = useUser();
     const profile = useQuery(api.users.queries.getProfile, {});
 
-    if (!profile) {
-        // Loading state
-        return null; // Or a spinner
-    }
-
-    // Transform database user to App User Type
-    const appUser: User = {
+    // Transform database user to App User Type, falling back to clerkUser if profile is null
+    const appUser: User = profile ? {
         name: profile.name,
-        handle: profile.handle, // Should include @ if needed, logic check
+        handle: profile.handle,
         avatar: profile.avatar,
         isGuest: profile.isGuest,
         bio: profile.bio || "",
@@ -28,8 +23,21 @@ export default function ProfilePage() {
         badges: profile.badges,
         followerCount: profile.followerCount,
         followingCount: profile.followingCount,
-        languages: profile.languages as any, // Type mismatch needs check
+        languages: profile.languages as any,
         role: profile.role,
+    } : {
+        name: clerkUser?.fullName || "Guest",
+        handle: clerkUser?.username ? `@${clerkUser.username}` : "@guest",
+        avatar: clerkUser?.imageUrl || "",
+        isGuest: false,
+        bio: "Welcome to my profile!",
+        xp: 0,
+        level: 1,
+        badges: [],
+        followerCount: 0,
+        followingCount: 0,
+        languages: languages,
+        role: 'member'
     };
 
     return (

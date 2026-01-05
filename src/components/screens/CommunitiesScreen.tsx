@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Screen, Community } from '@/types';
+import { useFuzzySearch } from '@/hooks/useFuzzySearch';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Search, Plus } from "lucide-react";
@@ -27,10 +28,8 @@ const CommunitiesScreen: React.FC<Props> = ({ navigate, goBack, communities: ini
         }
     }, [initialCommunities]);
 
-    const filtered = communities.filter(c =>
-        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.description.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const searchKeys = React.useMemo(() => ['name', 'description'], []);
+    const filtered = useFuzzySearch(communities, searchQuery, searchKeys);
 
     const handleJoin = (id: string) => {
         setCommunities(prev => prev.map(c => {

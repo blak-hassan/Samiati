@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Screen, User, ContributionItem, Comment, LanguageSkill } from '@/types';
-import { NotificationBell } from '@/components/shared/NotificationBell';
+
 import { CulturalImpactCard } from '@/components/CulturalImpactCard';
 import { ContributionStreakBadge } from '@/components/ContributionStreakBadge';
 import { LanguageDiversityBadges } from '@/components/LanguageDiversityBadges';
@@ -11,6 +11,8 @@ import { CONTRIBUTION_TYPES, CATEGORY_COLORS } from '@/lib/constants';
 import { MOCK_CHALLENGES } from '@/data/mockChallenges';
 import ModerationDashboardScreen from './ModerationDashboardScreen';
 import { ContributionCard } from '@/components/contributions/ContributionCard';
+import { ModerationLogContent } from './ModerationLogScreen';
+import { useUser } from '@/app/MockProviders';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -349,7 +351,9 @@ const PAST_CHALLENGES = [
 ];
 
 const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = 'My Changa', initialTypeFilter, onViewProfile, unreadCount = 0, myContributions = [], setMyContributions, languages = [] }) => {
+    const { challenges } = useUser();
     const [activeTab, setActiveTab] = useState<'My Changa' | 'Moderation' | 'Challenges' | 'Saved'>(initialTab as any || 'My Changa');
+    const [moderationView, setModerationView] = useState<'dashboard' | 'history'>('dashboard');
 
     // Filters for My Contributions
     const [myStatusFilter, setMyStatusFilter] = useState('All');
@@ -401,6 +405,8 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
 
     // Challenges State
     const [activeChallengeTab, setActiveChallengeTab] = useState<'active' | 'past'>('active');
+    const [selectedLanguage, setSelectedLanguage] = useState('All');
+    const LANGUAGES = ['All', 'Swahili', 'Kikuyu', 'Luo', 'Kamba', 'English'];
 
     // Comment/Reply Inputs State
     const [inputTexts, setInputTexts] = useState<{ [key: string]: string }>({});
@@ -684,7 +690,7 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                     <button onClick={goBack} className="p-2 -ml-2 text-stone-900 dark:text-white"><IconRenderer name="arrow_back" size={24} /></button>
                     <h1 className="flex-1 text-center text-lg font-bold">Changa</h1>
                     <div className="flex items-center gap-1 -mr-2">
-                        <NotificationBell unreadCount={unreadCount} onNavigate={navigate} />
+
                         <button onClick={() => navigate(Screen.ADD_CONTRIBUTION)} className="p-2 text-primary hover:bg-primary/10 rounded-full transition-colors"><IconRenderer name="add" size={24} /></button>
                     </div>
                 </header>
@@ -810,12 +816,31 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
             )}
 
                 {activeTab === 'Moderation' && (
-                    <div className="flex flex-col h-full -mx-4 -mt-4 bg-background-light dark:bg-background-dark overflow-hidden">
-                        <ModerationDashboardScreen
-                            navigate={navigate}
-                            goBack={() => setActiveTab('My Changa')}
-                            isEmbedded={true}
-                        />
+                    <div className="space-y-4">
+                        <div className="flex border-b border-black/5 dark:border-white/5 mb-6">
+                            <button
+                                onClick={() => setModerationView('dashboard')}
+                                className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${moderationView === 'dashboard' ? 'text-[#cf6317] border-[#cf6317]' : 'text-stone-500 dark:text-text-muted border-transparent hover:text-stone-700'}`}
+                            >
+                                Dashboard
+                            </button>
+                            <button
+                                onClick={() => setModerationView('history')}
+                                className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${moderationView === 'history' ? 'text-[#cf6317] border-[#cf6317]' : 'text-stone-500 dark:text-text-muted border-transparent hover:text-stone-700'}`}
+                            >
+                                History
+                            </button>
+                        </div>
+
+                        {moderationView === 'dashboard' ? (
+                            <div className="h-[calc(100vh-280px)]">
+                                <ModerationDashboardScreen navigate={navigate} goBack={() => { }} isEmbedded />
+                            </div>
+                        ) : (
+                            <div className="h-[calc(100vh-280px)]">
+                                <ModerationLogContent isEmbedded />
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -873,10 +898,30 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                             </button>
                         </div>
 
+                        {/* Language Filter */}
+                        <div className="flex gap-2 overflow-x-auto no-scrollbar mb-6 pb-2">
+                            {LANGUAGES.map(lang => (
+                                <button
+                                    key={lang}
+                                    onClick={() => setSelectedLanguage(lang)}
+                                    className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all border ${selectedLanguage === lang
+                                        ? 'bg-stone-900 text-white border-stone-900 dark:bg-white dark:text-stone-900'
+                                        : 'bg-transparent text-stone-500 border-stone-200 dark:border-white/10 hover:border-stone-400'
+                                        }`}
+                                >
+                                    {lang}
+                                </button>
+                            ))}
+                        </div>
+
                         {activeChallengeTab === 'active' ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {/* Use imported MOCK_CHALLENGES or fallback to local if needed, but per plan we use the structure from ChallengesListScreen */}
-                                {MOCK_CHALLENGES.map((challenge) => (
+                                {/* Use global challenges from context */}
+                                {challenges.filter(c => {
+                                    if (selectedLanguage === 'All') return true;
+                                    const searchStr = `${c.title} ${c.description} ${c.customConfig?.language || ''}`.toLowerCase();
+                                    return searchStr.includes(selectedLanguage.toLowerCase());
+                                }).map((challenge) => (
                                     <div key={challenge.id} className="group bg-white dark:bg-surface-dark border border-stone-200 dark:border-white/5 rounded-2xl overflow-hidden hover:shadow-xl transition-all hover:border-[#cf6317] flex flex-col">
                                         <div className="h-48 bg-cover bg-center relative shrink-0" style={{ backgroundImage: `url('${challenge.image}')` }}>
                                             <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors"></div>
@@ -916,7 +961,11 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {PAST_CHALLENGES.map((challenge) => (
+                                {PAST_CHALLENGES.filter(c => {
+                                    if (selectedLanguage === 'All') return true;
+                                    const searchStr = `${c.title}`.toLowerCase(); // Past challenges have less data in mock
+                                    return searchStr.includes(selectedLanguage.toLowerCase());
+                                }).map((challenge) => (
                                     <div key={challenge.id} onClick={() => navigate(Screen.CHALLENGE_WINNERS)} className="bg-stone-50 dark:bg-white/5 rounded-2xl overflow-hidden border border-stone-200 dark:border-white/5 p-4 flex gap-4 cursor-pointer hover:bg-stone-100 dark:hover:bg-white/10 transition-colors opacity-75 hover:opacity-100 grayscale hover:grayscale-0">
                                         <div className="w-20 h-20 rounded-xl bg-cover bg-center shrink-0" style={{ backgroundImage: `url('${challenge.img}')` }}></div>
                                         <div className="flex-1 min-w-0 flex flex-col justify-center">

@@ -1,6 +1,7 @@
 ﻿"use client";
 import React, { useState } from 'react';
 import { Screen, Conversation } from '@/types';
+import { useFuzzySearch } from '@/hooks/useFuzzySearch';
 import {
     ArrowLeft,
     Search,
@@ -50,9 +51,8 @@ const SavedConversationsScreen: React.FC<Props> = ({
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState<'All' | 'Pinned' | 'Recent'>('All');
 
-    const filtered = conversations.filter(c =>
-        c.title.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const searchKeys = React.useMemo(() => ['title', 'category', 'language', 'messages.text'], []);
+    const filtered = useFuzzySearch(conversations, searchQuery, searchKeys);
 
     let displayedConversations = filtered;
     if (activeTab === 'Recent') {
