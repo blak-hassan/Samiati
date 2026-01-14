@@ -156,41 +156,9 @@ const DirectMessageScreen: React.FC<Props> = ({ navigate, goBack, chatId, chatUs
             {user.isOnline && <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-background rounded-full animate-pulse"></span>}
           </div>
         </button>
-        <div className="flex-1 ml-3 cursor-pointer" onClick={() => navigate(Screen.CONTACT_INFO, { chatUser: user })}>
+        <div className="flex-1 ml-3">
           <h1 className="text-base font-bold text-foreground leading-tight">{user.name}</h1>
           <p className="text-xs text-muted-foreground font-medium">{user.isOnline ? 'Active now' : 'Last seen recently'}</p>
-        </div>
-        <div className="flex gap-1 items-center" ref={menuRef}>
-          <button
-            onClick={() => navigate(Screen.VOICE_CALL, { chatUser: user })}
-            className="p-2 text-muted-foreground hover:bg-muted hover:text-primary rounded-full transition-all"
-          >
-            <Phone className="w-5 h-5" />
-          </button>
-          <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="p-2 text-muted-foreground hover:bg-muted hover:text-primary rounded-full transition-all"
-            title="More options"
-          >
-            <MoreVertical className="w-5 h-5" />
-          </button>
-
-          {isMenuOpen && (
-            <div className="absolute top-14 right-2 w-48 bg-white dark:bg-surface-dark shadow-xl rounded-xl py-2 z-50 border border-stone-100 dark:border-white/10 animate-in fade-in slide-in-from-top-2">
-              {['View contact', 'Media, links, and docs', 'Search', 'Wallpaper', 'Mute notifications', 'Block'].map((item) => (
-                <button
-                  key={item}
-                  onClick={() => { setIsMenuOpen(false); if (item === 'View contact') navigate(Screen.CONTACT_INFO, { chatUser: user }); }}
-                  className={cn(
-                    "w-full text-left px-4 py-3 text-stone-900 dark:text-text-main hover:bg-stone-100 dark:hover:bg-white/5 transition-colors text-sm font-medium",
-                    item === 'Block' && "text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10"
-                  )}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
       </header>
 

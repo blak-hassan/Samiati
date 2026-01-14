@@ -297,6 +297,15 @@ const PeopleToFollowScreen: React.FC<Props> = ({ navigate, goBack, onViewProfile
             isSelectContactMode={isSelectContactMode}
             onUserClick={handleUserClick}
             onToggleFollow={toggleFollow}
+            onDM={(person) => {
+              navigate(Screen.DIRECT_MESSAGE, {
+                chatUser: {
+                  name: person.name,
+                  avatar: person.avatar,
+                  isOnline: false
+                }
+              });
+            }}
             showMutualConnections={!isSelectContactMode}
           />
         )) : null}

@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
     Reply,
-    Repeat2,
+    HandMetal,
     Star,
     MoreHorizontal,
     Link,
@@ -50,9 +50,17 @@ export const PostCard: React.FC<PostCardProps> = ({
     const [isContentExpanded, setIsContentExpanded] = useState(!post.cw);
     const [showAltText, setShowAltText] = useState(false);
 
+    // Local state for optimistic updates and animations
+    const [localLiked, setLocalLiked] = useState(post.isLiked);
+    const [localClapped, setLocalClapped] = useState(post.isReposted);
+    const [localLikeCount, setLocalLikeCount] = useState(post.stats.likes || 0);
+    const [localClapCount, setLocalClapCount] = useState(post.stats.reposts || 0);
+    const [likeAnimating, setLikeAnimating] = useState(false);
+    const [clapAnimating, setClapAnimating] = useState(false);
+
     if (post.isFireplace) return null;
 
-    const fullHandle = `@${post.author.handle}@samiati.social`;
+    const fullHandle = `@${post.author.handle}`;
 
     const renderContentWithHashtags = (text: string) => {
         const parts = text.split(/(#\w+)/g);
@@ -200,37 +208,69 @@ export const PostCard: React.FC<PostCardProps> = ({
 
                         <button
                             className={cn(
-                                "flex items-center gap-2 transition-all duration-300 group active:scale-95",
-                                post.isReposted ? 'text-rasta-green' : 'hover:text-rasta-green'
+                                "flex items-center gap-2 transition-all duration-300 group",
+                                localClapped ? 'text-rasta-green' : 'hover:text-rasta-green'
                             )}
-                            title="Boost"
-                            onClick={(e) => { e.stopPropagation(); onRepost(post.id); }}
+                            title="Clap"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                // Optimistic update with animation
+                                setClapAnimating(true);
+                                setTimeout(() => setClapAnimating(false), 300);
+                                setLocalClapped(!localClapped);
+                                setLocalClapCount(prev => localClapped ? prev - 1 : prev + 1);
+                                onRepost(post.id);
+                            }}
                         >
                             <div className={cn(
-                                "p-2 transition-colors rounded-full",
-                                post.isReposted ? "bg-rasta-green/10" : "group-hover:bg-rasta-green/10"
+                                "p-2 transition-all rounded-full",
+                                localClapped ? "bg-rasta-green/10" : "group-hover:bg-rasta-green/10",
+                                clapAnimating && "scale-125"
                             )}
                             >
-                                <Repeat2 className={cn("w-5 h-5 transition-transform group-hover:rotate-180", post.isReposted && "fill-current")} />
+                                <HandMetal className={cn(
+                                    "w-5 h-5 transition-all duration-300",
+                                    localClapped && "fill-current",
+                                    clapAnimating && "rotate-12 scale-110"
+                                )} />
                             </div>
-                            <span className="text-xs font-medium">{post.stats.reposts || 0}</span>
+                            <span className={cn(
+                                "text-xs font-medium transition-all",
+                                clapAnimating && "scale-110 font-bold"
+                            )}>{localClapCount}</span>
                         </button>
 
                         <button
                             className={cn(
-                                "flex items-center gap-2 transition-all duration-300 group active:scale-95",
-                                post.isLiked ? 'text-yellow-500' : 'hover:text-yellow-500'
+                                "flex items-center gap-2 transition-all duration-300 group",
+                                localLiked ? 'text-yellow-500' : 'hover:text-yellow-500'
                             )}
                             title="Favorite"
-                            onClick={(e) => { e.stopPropagation(); onLike(post.id); }}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                // Optimistic update with animation
+                                setLikeAnimating(true);
+                                setTimeout(() => setLikeAnimating(false), 300);
+                                setLocalLiked(!localLiked);
+                                setLocalLikeCount(prev => localLiked ? prev - 1 : prev + 1);
+                                onLike(post.id);
+                            }}
                         >
                             <div className={cn(
-                                "p-2 transition-colors rounded-full",
-                                post.isLiked ? "bg-yellow-500/10" : "group-hover:bg-yellow-500/10"
+                                "p-2 transition-all rounded-full",
+                                localLiked ? "bg-yellow-500/10" : "group-hover:bg-yellow-500/10",
+                                likeAnimating && "scale-125"
                             )}>
-                                <Star className={cn("w-5 h-5 transition-transform group-hover:scale-110", post.isLiked && "fill-current")} />
+                                <Star className={cn(
+                                    "w-5 h-5 transition-all duration-300",
+                                    localLiked && "fill-current",
+                                    likeAnimating && "rotate-12 scale-110"
+                                )} />
                             </div>
-                            <span className="text-xs font-medium">{post.stats.likes || 0}</span>
+                            <span className={cn(
+                                "text-xs font-medium transition-all",
+                                likeAnimating && "scale-110 font-bold"
+                            )}>{localLikeCount}</span>
                         </button>
 
                         <div className="relative">

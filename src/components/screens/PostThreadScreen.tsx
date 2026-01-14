@@ -6,7 +6,7 @@ import {
     MoreVertical,
     Heart,
     MessageCircle,
-    Repeat2,
+    HandMetal,
     Share2,
     Send,
     Image as ImageIcon,
@@ -242,14 +242,13 @@ const PostThreadScreen: React.FC<Props> = ({ goBack, post, onLike, onRepost, aut
 
     if (!post) return null;
 
-    const fullHandle = `@${post.author.handle}@samiati.social`;
+    const fullHandle = `@${post.author.handle}`;
 
     return (
         <div className="flex flex-col h-full bg-background transition-colors duration-300 relative">
             <header className="flex items-center px-4 h-14 sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-border shrink-0">
-                <Button variant="ghost" size="sm" onClick={goBack} className="flex items-center gap-2 text-primary font-black uppercase text-[11px] tracking-widest hover:bg-primary/5">
-                    <ArrowLeft className="w-5 h-5 text-primary" />
-                    Back
+                <Button variant="ghost" size="icon" onClick={goBack} className="text-primary hover:bg-primary/5">
+                    <ArrowLeft className="w-5 h-5" />
                 </Button>
                 <h1 className="flex-1 text-center font-bold text-foreground text-sm tracking-tight">Post Details</h1>
                 <div className="w-16"></div>
@@ -325,14 +324,12 @@ const PostThreadScreen: React.FC<Props> = ({ goBack, post, onLike, onRepost, aut
                         <span>{post.timestamp}</span>
                         <Separator orientation="vertical" className="h-2.5" />
                         <span className="flex items-center gap-1.5"><Globe className="w-3 h-3" /> Public</span>
-                        <Separator orientation="vertical" className="h-2.5 ml-auto" />
-                        <span className="text-primary">samiati.social</span>
                     </div>
 
                     <div className="flex items-center gap-6 mb-2">
                         <div className="flex items-center gap-1.5 group cursor-pointer">
                             <span className="font-black text-foreground text-sm tracking-tight">{post.stats.reposts + (post.isReposted ? 1 : 0)}</span>
-                            <span className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest group-hover:text-primary transition-colors">Boosts</span>
+                            <span className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest group-hover:text-primary transition-colors">Claps</span>
                         </div>
                         <div className="flex items-center gap-1.5 group cursor-pointer">
                             <span className="font-black text-foreground text-sm tracking-tight">{post.stats.likes}</span>
@@ -407,7 +404,7 @@ const PostThreadScreen: React.FC<Props> = ({ goBack, post, onLike, onRepost, aut
                         <AvatarFallback>ME</AvatarFallback>
                     </Avatar>
 
-                    <div className="flex-1 bg-muted/30 border border-border/50 rounded-[24px] px-5 py-3 focus-within:bg-background focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/5 transition-all group">
+                    <div className="flex-1 bg-muted/30 rounded-[24px] px-5 py-3 focus-within:bg-background focus-within:ring-4 focus-within:ring-primary/5 transition-all group">
                         <Textarea
                             ref={replyInputRef}
                             value={replyText}

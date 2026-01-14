@@ -1,12 +1,13 @@
 import React from 'react';
 import { Person } from '@/hooks/useWatuFilters';
-import { Star, BadgeCheck, Users } from 'lucide-react';
+import { Star, BadgeCheck, Users, MessageCircle } from 'lucide-react';
 
 interface WatuUserCardProps {
     person: Person;
     isSelectContactMode?: boolean;
     onUserClick: (person: Person) => void;
     onToggleFollow: (id: string) => void;
+    onDM?: (person: Person) => void;
     showMutualConnections?: boolean;
 }
 
@@ -15,6 +16,7 @@ export const WatuUserCard: React.FC<WatuUserCardProps> = ({
     isSelectContactMode = false,
     onUserClick,
     onToggleFollow,
+    onDM,
     showMutualConnections = false
 }) => {
     return (
@@ -94,20 +96,35 @@ export const WatuUserCard: React.FC<WatuUserCardProps> = ({
             </div>
 
             {!isSelectContactMode && (
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onToggleFollow(person.id);
-                    }}
-                    className={`h-9 px-4 rounded-full text-sm font-bold transition-all ${person.isFollowing
-                        ? 'bg-transparent border border-stone-300 dark:border-white/20 text-stone-600 dark:text-white hover:bg-stone-50 dark:hover:bg-white/5 hover:border-error hover:text-error'
-                        : 'bg-primary text-white hover:bg-primary-hover shadow-sm hover:shadow-md'
-                        }`}
-                    aria-label={person.isFollowing ? `Unfollow ${person.name}` : `Follow ${person.name}`}
-                >
-                    <span className="group-hover:hidden">{person.isFollowing ? 'Following' : 'Follow'}</span>
-                    <span className="hidden group-hover:inline">{person.isFollowing ? 'Unfollow' : 'Follow'}</span>
-                </button>
+                <div className="flex items-center gap-2">
+                    {onDM && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onDM(person);
+                            }}
+                            className="h-9 w-9 rounded-full flex items-center justify-center bg-stone-100 dark:bg-white/10 text-stone-600 dark:text-white hover:bg-primary/10 hover:text-primary transition-all"
+                            aria-label={`Message ${person.name}`}
+                            title={`Message ${person.name}`}
+                        >
+                            <MessageCircle className="w-4 h-4" />
+                        </button>
+                    )}
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleFollow(person.id);
+                        }}
+                        className={`h-9 px-4 rounded-full text-sm font-bold transition-all ${person.isFollowing
+                            ? 'bg-transparent border border-stone-300 dark:border-white/20 text-stone-600 dark:text-white hover:bg-stone-50 dark:hover:bg-white/5 hover:border-error hover:text-error'
+                            : 'bg-primary text-white hover:bg-primary-hover shadow-sm hover:shadow-md'
+                            }`}
+                        aria-label={person.isFollowing ? `Unfollow ${person.name}` : `Follow ${person.name}`}
+                    >
+                        <span className="group-hover:hidden">{person.isFollowing ? 'Following' : 'Follow'}</span>
+                        <span className="hidden group-hover:inline">{person.isFollowing ? 'Unfollow' : 'Follow'}</span>
+                    </button>
+                </div>
             )}
         </div>
     );

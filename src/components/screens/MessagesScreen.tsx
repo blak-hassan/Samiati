@@ -39,7 +39,7 @@ interface Props {
 
 const MessagesScreen: React.FC<Props> = ({ navigate, goBack, posts, onLike, onRepost, onViewProfile, unreadDmCount, onJoinFireplace }) => {
     const [activeTab, setActiveTab] = useState<'Home' | 'Explore'>('Home');
-    const [sortBy, setSortBy] = useState<'Latest' | 'Top' | 'Boosted'>('Latest');
+    const [sortBy, setSortBy] = useState<'Latest' | 'Top' | 'Most Clapped'>('Latest');
     const [filterLanguage, setFilterLanguage] = useState('All');
 
     // Dropdown States
@@ -133,7 +133,7 @@ const MessagesScreen: React.FC<Props> = ({ navigate, goBack, posts, onLike, onRe
         const sorted = [...filtered];
         if (sortBy === 'Top') {
             sorted.sort((a, b) => b.stats.likes - a.stats.likes);
-        } else if (sortBy === 'Boosted') {
+        } else if (sortBy === 'Most Clapped') {
             sorted.sort((a, b) => b.stats.reposts - a.stats.reposts);
         }
         // 'Latest' default
@@ -226,7 +226,7 @@ const MessagesScreen: React.FC<Props> = ({ navigate, goBack, posts, onLike, onRe
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-40">
-                            {['Latest', 'Top', 'Boosted'].map(option => (
+                            {['Latest', 'Top', 'Most Clapped'].map(option => (
                                 <DropdownMenuItem
                                     key={option}
                                     onClick={() => setSortBy(option as any)}

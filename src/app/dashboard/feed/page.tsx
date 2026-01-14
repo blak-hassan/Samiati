@@ -9,6 +9,13 @@ import { Id } from "../../../../convex/_generated/dataModel";
 
 import { INITIAL_SOCIAL_POSTS } from "@/data/mock";
 
+// Helper to check if an ID is a valid Convex ID (not mock data)
+const isConvexId = (id: string): boolean => {
+    // Convex IDs are longer and contain specific characters
+    // Mock IDs are simple like "p1", "p2", "p3"
+    return id.length > 10 && !id.startsWith('p');
+};
+
 export default function FeedPage() {
     const { navigate, goBack } = useNavigation();
 
@@ -19,6 +26,7 @@ export default function FeedPage() {
     );
 
     const likePost = useMutation(api.posts.mutations.like);
+    const toggleRepost = useMutation(api.reposts.mutations.toggleRepost);
 
     // Map database posts to Frontend Post Type, fallback to Mock Data if empty (for dev)
     const dbPosts: Post[] = (results || []).map((p: any) => ({
@@ -39,14 +47,21 @@ export default function FeedPage() {
     const posts = dbPosts.length > 0 ? dbPosts : INITIAL_SOCIAL_POSTS;
 
     const handleLike = async (postId: string) => {
-        // Optimistic update handled by Convex usually if subscription is fast, 
-        // or we can optimistic update local state if needed.
-        // For now, simple mutation call.
+        // Guard: Only call mutation for real Convex IDs, not mock data
+        if (!isConvexId(postId)) {
+            console.warn('Cannot like mock post - create real posts in the database');
+            return;
+        }
         await likePost({ postId: postId as Id<"posts"> });
     };
 
-    const handleRepost = (postId: string) => {
-        // Repost not implemented yet via mutation
+    const handleRepost = async (postId: string) => {
+        // Guard: Only call mutation for real Convex IDs, not mock data
+        if (!isConvexId(postId)) {
+            console.warn('Cannot repost mock post - create real posts in the database');
+            return;
+        }
+        await toggleRepost({ postId: postId as Id<"posts"> });
     };
 
     const handleLoadMore = () => {
