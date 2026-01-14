@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Screen, ChatPreview } from '@/types';
 import { useFuzzySearch } from '@/hooks/useFuzzySearch';
-import { dmService } from '@/services/mockDmService';
 import {
   ArrowLeft,
   Settings,
@@ -12,7 +11,8 @@ import {
   Megaphone,
   Check,
   CheckCheck,
-  MessageSquarePlus
+  MessageSquarePlus,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,39 +23,27 @@ import { cn } from "@/lib/utils";
 interface Props {
   navigate: (screen: Screen, params?: any) => void;
   goBack: () => void;
-  // chats prop is optional now as we fetch from service, but kept for compatibility
+  // chats from Convex - now required for proper functionality
   chats?: ChatPreview[];
+  // Loading state from Convex query
+  isLoading?: boolean;
 }
 
-const DMListScreen: React.FC<Props> = ({ navigate, goBack, chats: initialChats }) => {
+const DMListScreen: React.FC<Props> = ({ navigate, goBack, chats = [], isLoading = false }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [chats, setChats] = useState<ChatPreview[]>(initialChats || []);
 
-  // Poll for updates (Simulation of real-time list updates)
-  useEffect(() => {
-    const loadChats = () => {
-      setChats(dmService.getChats());
-    };
-
-    loadChats();
-    const interval = setInterval(loadChats, 2000);
-    return () => clearInterval(interval);
-  }, []);
+  // Use chats directly from props (fetched from Convex in parent page)
+  // No more mock service polling - data comes from Convex reactive queries
 
   const searchKeys = React.useMemo(() => ['name', 'lastMessage'], []);
   const filteredChats = useFuzzySearch(chats, searchQuery, searchKeys);
 
   const handleChatClick = (chat: ChatPreview) => {
-    // Pass chatId to persist connection
+    // chat.id now contains the proper Convex ID from dmConversations table
     navigate(Screen.DIRECT_MESSAGE, {
-      chatId: chat.id,
+      chatId: chat.id, // This is now the proper Convex _id
       chatUser: {
-        id: chat.id, // This is conversation ID effectively if chat.id is conv ID? 
-        // Wait, if chat.id is Conversation ID, we can't use it as User ID.
-        // But DirectMessagePage needs Target User ID to CREATE new chat if conversation doesn't exist?
-        // Or if conversation exists, we just need Conversation ID.
-        // The logic in DirectMessagePage uses `chatId` as ConversationID.
-        // So we are safe passing chat.id as chatId.
+        id: chat.id,
         name: chat.name,
         avatar: chat.avatar,
         isOnline: chat.isOnline
@@ -103,7 +91,12 @@ const DMListScreen: React.FC<Props> = ({ navigate, goBack, chats: initialChats }
       </div>
 
       <main className="flex-1 overflow-y-auto">
-        {filteredChats.length > 0 ? (
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-20 px-4 text-center text-muted-foreground animate-in fade-in duration-500">
+            <Loader2 className="w-12 h-12 mb-4 animate-spin text-primary" />
+            <p className="text-lg font-bold text-foreground/50">Loading conversations...</p>
+          </div>
+        ) : filteredChats.length > 0 ? (
           filteredChats.map((chat) => (
             <div
               key={chat.id}

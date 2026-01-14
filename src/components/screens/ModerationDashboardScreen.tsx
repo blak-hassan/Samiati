@@ -5,22 +5,22 @@ import { Screen, ValidationItem, LanguageHealth } from '@/types';
 import { useFuzzySearch } from '@/hooks/useFuzzySearch';
 import { NotificationBell } from '@/components/shared/NotificationBell';
 import {
-  Brain,
   ShieldAlert,
   Clock,
   ArrowLeft,
   SlidersHorizontal,
   ChevronDown,
-  Check,
   Search,
   X,
   SearchX,
   CheckCircle2,
-  Filter,
   RefreshCw,
   Trophy,
   Zap
 } from 'lucide-react';
+
+// XP Service for gamification
+import { calculateXP, RARE_LANGUAGES } from '@/services/xpService';
 
 // New Components
 import { LanguageHealthWidget } from '@/components/moderation/LanguageHealthWidget';
@@ -119,21 +119,36 @@ const ModerationDashboardScreen: React.FC<Props> = ({
 
   // Handlers
   const handleApprove = (id: string) => {
-    setItems(prev => prev.map(item =>
-      item.id === id ? {
-        ...item,
-        status: 'approved',
-        reviews: [
-          ...item.reviews,
-          {
-            moderator: { id: CURRENT_USER_ID, name: 'You', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBeLXbWz4AzkUBDUb3vYkhuHrvvC9EFxb7YuDTFXSRV6e6T547HBjftD2_M3MWQ23u8DdygDU3-kcrmReHHcg1xuI2vz_fBK_UAfIaTV6tCpEh1xW7vkPs6qjbSwVjkqUkPXcPuBDRL_I0E_dA3ckyiMN2POsZ3M2E57RwaQqNiSED1NzWUTMmbbesb_Ko-z2BYoXtkkWP0lVOyL0aKlkzlpsNevnW1dPGKRZ5SxqpNtu6pvvjeFLtIUcElhd54x2R98mDwi_k8K4w' },
-            action: 'approved',
-            timestamp: Date.now()
-          }
-        ]
-      } : item
-    ));
-    showToast('Contribution validated for AI training!', 'success');
+    // Find the item to calculate XP
+    const approvedItem = items.find(item => item.id === id);
+
+    if (approvedItem) {
+      // Calculate XP earned for this contribution
+      const hasAudio = !!approvedItem.content.audioUrl;
+      const isRareLanguage = RARE_LANGUAGES.some(
+        lang => lang.toLowerCase() === approvedItem.language.toLowerCase()
+      );
+      // For demo, assume it's not the first language contribution
+      const xpEarned = calculateXP(approvedItem.type, hasAudio, false, approvedItem.language);
+
+      setItems(prev => prev.map(item =>
+        item.id === id ? {
+          ...item,
+          status: 'approved',
+          reviews: [
+            ...item.reviews,
+            {
+              moderator: { id: CURRENT_USER_ID, name: 'You', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBeLXbWz4AzkUBDUb3vYkhuHrvvC9EFxb7YuDTFXSRV6e6T547HBjftD2_M3MWQ23u8DdygDU3-kcrmReHHcg1xuI2vz_fBK_UAfIaTV6tCpEh1xW7vkPs6qjbSwVjkqUkPXcPuBDRL_I0E_dA3ckyiMN2POsZ3M2E57RwaQqNiSED1NzWUTMmbbesb_Ko-z2BYoXtkkWP0lVOyL0aKlkzlpsNevnW1dPGKRZ5SxqpNtu6pvvjeFLtIUcElhd54x2R98mDwi_k8K4w' },
+              action: 'approved',
+              timestamp: Date.now()
+            }
+          ]
+        } : item
+      ));
+
+      // Show XP earned in toast with contribution type
+      showToast(`✨ Approved! Author earned +${xpEarned} XP for ${approvedItem.type}`, 'success');
+    }
   };
 
   const handleVote = (id: string, direction: 'up' | 'down' | null) => {
@@ -158,7 +173,10 @@ const ModerationDashboardScreen: React.FC<Props> = ({
       let newStatus = item.status;
       if (newUpvotes >= 10 && newStatus === 'pending') {
         newStatus = 'approved';
-        showToast('Community consensus reached: Post is now Live!', 'success');
+        // Calculate XP for community-approved content
+        const hasAudio = !!item.content.audioUrl;
+        const xpEarned = calculateXP(item.type, hasAudio, false, item.language);
+        showToast(`🎉 Community consensus! Author earned +${xpEarned} XP`, 'success');
       }
 
       return {
@@ -254,7 +272,7 @@ const ModerationDashboardScreen: React.FC<Props> = ({
         </header>
       )}
 
-      <main className="flex-1 flex flex-col overflow-y-auto no-scrollbar pb-24">
+      <main className="flex-1 flex flex-col overflow-y-auto no-scrollbar pb-8">
         {/* Statistics Banner */}
         <div className="px-4 py-4 bg-white dark:bg-[#32241a] border-b border-black/5 dark:border-white/5">
           <div className="grid grid-cols-3 gap-3">
@@ -474,16 +492,7 @@ const ModerationDashboardScreen: React.FC<Props> = ({
         onSubmit={(reason, details) => handleReport(reportModal.itemId!, reason, details)}
       />
 
-      {/* Reward Notification (Gamification) */}
-      <div className="fixed bottom-24 right-4 z-40 flex flex-col items-end gap-2">
-        <div className="bg-rasta-gold text-stone-900 px-4 py-2 rounded-2xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-right-4 duration-500 group cursor-pointer hover:scale-105 active:scale-95 transition-all border-2 border-white/20">
-          <Trophy className="size-5" />
-          <div className="text-left">
-            <p className="text-[10px] font-black uppercase tracking-tighter">Daily Goal</p>
-            <p className="text-xs font-black">Level 12 • 850/1000 XP</p>
-          </div>
-        </div>
-      </div>
+
 
       {/* Toast Notification */}
       {toastMessage && (

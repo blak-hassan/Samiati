@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Screen, Message } from '@/types';
-import { dmService, DMMessage } from '@/services/mockDmService';
+// Mock service removed - using Convex via parent page
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft,

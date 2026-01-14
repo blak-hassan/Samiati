@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CONTRIBUTION_TYPES } from '@/lib/constants';
+import { calculateXP } from '@/services/xpService';
 
 interface Attachment {
   id: string;
@@ -505,20 +506,25 @@ const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave, init
 
         {/* Reward */}
         <section>
-          <Card className="bg-primary/10 border-primary/20 p-5 flex gap-4 items-center shadow-sm relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-1 opacity-5 group-hover:opacity-10 transition-opacity">
-              <IconRenderer name="emoji_events" size={80} className="-mr-4 -mt-4 rotate-12" />
+          <div className="relative overflow-hidden rounded-2xl bg-[#3C2A21] p-6 shadow-xl">
+            {/* Background Decorations */}
+            <div className="absolute top-0 right-0 p-4 opacity-10">
+              <Trophy size={120} className="text-[#FFD700] -mr-8 -mt-8 rotate-12" />
             </div>
-            <div className="h-12 w-12 bg-primary/20 rounded-2xl flex items-center justify-center shrink-0 shadow-inner">
-              <IconRenderer name="emoji_events" className="text-primary" size={24} />
+
+            <div className="relative z-10 flex flex-col items-center text-center space-y-3">
+              <div className="h-14 w-14 bg-[#FFD700]/10 rounded-2xl flex items-center justify-center shadow-inner border border-[#FFD700]/20 mb-1">
+                <Trophy className="text-[#FFD700] drop-shadow-md" size={28} />
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#FFD700]/80">Potential Rewards</p>
+                <p className="text-lg font-bold text-[#F5F5DC]">
+                  Earn <span className="text-[#FFD700] text-xl">+ {calculateXP(selectedType, attachments.some(a => a.type === 'audio'))} XP</span> & the <span className="text-[#DAA520] italic font-black">{selectedType === 'Story' ? 'Storyteller' : selectedType === 'Song' ? 'Musician' : selectedType === 'Word' ? 'Linguist' : 'Scholar'}</span> Badge!
+                </p>
+              </div>
             </div>
-            <div className="space-y-0.5">
-              <p className="text-[10px] font-black uppercase tracking-widest text-primary">Potential Rewards</p>
-              <p className="text-sm font-bold text-foreground">
-                Earn <span className="text-primary">+50 XP</span> & the <span className="text-primary italic">Storyteller</span> Badge!
-              </p>
-            </div>
-          </Card>
+          </div>
         </section>
 
         {/* Community Verification disclaimer */}
@@ -554,7 +560,7 @@ const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave, init
         </div>
         <div className="flex items-center justify-center gap-2 mt-4 text-muted-foreground">
           <IconRenderer name="schedule" size={14} className="opacity-50" />
-          <p className="text-[10px] font-black uppercase tracking-widest">Est. Reward: <span className="text-primary">+15 XP</span></p>
+          <p className="text-[10px] font-black uppercase tracking-widest">Est. Reward: <span className="text-primary">+{calculateXP(selectedType, attachments.some(a => a.type === 'audio'))} XP</span></p>
         </div>
       </footer>
 

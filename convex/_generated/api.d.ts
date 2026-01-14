@@ -8,6 +8,8 @@
  * @module
  */
 
+import type * as bookmarks_mutations from "../bookmarks/mutations.js";
+import type * as bookmarks_queries from "../bookmarks/queries.js";
 import type * as comments_mutations from "../comments/mutations.js";
 import type * as comments_queries from "../comments/queries.js";
 import type * as communities_mutations from "../communities/mutations.js";
@@ -23,7 +25,11 @@ import type * as notifications_mutations from "../notifications/mutations.js";
 import type * as notifications_queries from "../notifications/queries.js";
 import type * as posts_mutations from "../posts/mutations.js";
 import type * as posts_queries from "../posts/queries.js";
+import type * as presence_mutations from "../presence/mutations.js";
+import type * as presence_queries from "../presence/queries.js";
 import type * as reports from "../reports.js";
+import type * as reposts_mutations from "../reposts/mutations.js";
+import type * as reposts_queries from "../reposts/queries.js";
 import type * as translate from "../translate.js";
 import type * as users_mutations from "../users/mutations.js";
 import type * as users_queries from "../users/queries.js";
@@ -36,6 +42,8 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "bookmarks/mutations": typeof bookmarks_mutations;
+  "bookmarks/queries": typeof bookmarks_queries;
   "comments/mutations": typeof comments_mutations;
   "comments/queries": typeof comments_queries;
   "communities/mutations": typeof communities_mutations;
@@ -51,7 +59,11 @@ declare const fullApi: ApiFromModules<{
   "notifications/queries": typeof notifications_queries;
   "posts/mutations": typeof posts_mutations;
   "posts/queries": typeof posts_queries;
+  "presence/mutations": typeof presence_mutations;
+  "presence/queries": typeof presence_queries;
   reports: typeof reports;
+  "reposts/mutations": typeof reposts_mutations;
+  "reposts/queries": typeof reposts_queries;
   translate: typeof translate;
   "users/mutations": typeof users_mutations;
   "users/queries": typeof users_queries;

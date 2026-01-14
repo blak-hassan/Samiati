@@ -10,8 +10,11 @@ export default function MessagesPage() {
 
     const conversationsData = useQuery(api.dms.queries.listConversations);
 
+    // Convex returns undefined while loading
+    const isLoading = conversationsData === undefined;
+
     const chats: ChatPreview[] = (conversationsData || []).map((c: any) => ({
-        id: c._id, // Conversation ID
+        id: c._id, // Conversation ID - proper Convex typed ID
         name: c.otherUser?.name || "Unknown",
         avatar: c.otherUser?.avatar || "",
         lastMessage: c.lastMessage || "No messages yet",
@@ -19,23 +22,14 @@ export default function MessagesPage() {
         unreadCount: c.unreadCount,
         isOnline: c.otherUser?.isOnline || false,
         status: 'read' as const,
-        // We can attach the target User ID to helper fields if we define them, 
-        // or rely on DMListScreen using this ID as conversation ID.
-        // If DMListScreen uses `chat.id` as `chatId`, we are good.
-        // But `chatUser` object created in DMListScreen (lines 52-56) only includes name/avatar.
-        // We should probably modify DMListScreen to include id in chatUser if possible, 
-        // OR we just use conversationID. 
     }));
-
-    // We need to override the navigation behavior or ensure DMListScreen passes correct params.
-    // DMListScreen likely iterates chats and calls navigate.
 
     return (
         <DMListScreen
             navigate={navigate}
             goBack={goBack}
             chats={chats}
+            isLoading={isLoading}
         />
     );
 }
-

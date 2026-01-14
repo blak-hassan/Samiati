@@ -36,6 +36,9 @@ export default defineSchema({
         badges: v.optional(v.array(v.string())),
         followerCount: v.optional(v.number()),
         followingCount: v.optional(v.number()),
+        // Presence tracking
+        lastSeen: v.optional(v.number()), // Timestamp of last activity
+        isOnline: v.optional(v.boolean()), // Current online status
     })
         .index("by_clerkId", ["clerkId"])
         .index("by_handle", ["handle"])
@@ -252,4 +255,24 @@ export default defineSchema({
         userId: v.id("users"),
         vote: v.union(v.literal('up'), v.literal('down')),
     }).index("by_comment", ["commentId", "userId"]),
+
+    // Phase 3: Reposts table
+    reposts: defineTable({
+        userId: v.id("users"),
+        postId: v.id("posts"),
+        timestamp: v.number(),
+    })
+        .index("by_user", ["userId"])
+        .index("by_post", ["postId"])
+        .index("by_user_post", ["userId", "postId"]),
+
+    // Phase 3: Bookmarks table
+    bookmarks: defineTable({
+        userId: v.id("users"),
+        postId: v.id("posts"),
+        timestamp: v.number(),
+    })
+        .index("by_user", ["userId"])
+        .index("by_post", ["postId"])
+        .index("by_user_post", ["userId", "postId"]),
 });

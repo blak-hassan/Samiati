@@ -79,6 +79,15 @@ export interface User {
   followerCount?: number;
   followingCount?: number;
   languages?: LanguageSkill[];
+  // XP & Gamification fields
+  streakDays?: number;           // Current contribution streak
+  lastContributionDate?: string; // ISO date string for streak tracking
+  contributionStats?: {
+    totalApproved: number;
+    totalPending: number;
+    byType: Record<string, number>;     // e.g., { 'Word': 45, 'Story': 12 }
+    byLanguage: Record<string, number>; // e.g., { 'Swahili': 30, 'Kikuyu': 27 }
+  };
 }
 
 export interface Message {
