@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Screen, User, Message, Conversation } from '@/types';
 import { NotificationBell } from '@/components/shared/NotificationBell';
-import { sendMessageToGemini } from '@/services/geminiService';
+
 import { useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import {
@@ -114,34 +114,69 @@ const AttachmentItem: React.FC<{ icon: React.ReactNode, label: string, onClick: 
   </button>
 );
 
-// Data with proficiency scores
+// =============================================================================
+// KENYAN LANGUAGES - NLLB-200 Supported
+// =============================================================================
+// This list is filtered to only include languages that are:
+// 1. Primarily spoken in Kenya
+// 2. Supported by Meta's NLLB-200 translation model
+// 3. English included as international lingua franca
+//
+// NLLB-200 Kenyan Language Support (as of 2026):
+// - English (eng_Latn): International language, used in business/education
+// - Swahili (swh_Latn): Kenya's national language, ~50M speakers in East Africa
+// - Kikuyu (kik_Latn): Largest Kenyan ethnic group (Gikuyu), ~8M speakers
+// - Luo (luo_Latn): Third largest ethnic group (Dholuo), ~4.6M speakers
+//
+// Languages NOT YET Supported by NLLB-200:
+// - Kamba (Kikamba) - ~4.6M speakers
+// - Kalenjin dialects - ~5M speakers  
+// - Meru (Kimeru) - ~2M speakers
+// - Luhya dialects - ~6.8M speakers
+// - Maasai (Maa) - ~1.2M speakers
+//
+// TODO: Monitor NLLB model updates for additional Kenyan language support
+// =============================================================================
+
 const LANGUAGES: Language[] = [
-  { code: 'sw', nllbCode: 'swh_Latn', name: 'Swahili', score: 98 },
-  { code: 'en', nllbCode: 'eng_Latn', name: 'English', score: 100 },
-  { code: 'ki', nllbCode: 'kik_Latn', name: 'Kikuyu', score: 88 },
-  { code: 'lu', nllbCode: 'lug_Latn', name: 'Luganda', score: 82 },
-  { code: 'rw', nllbCode: 'kin_Latn', name: 'Kinyarwanda', score: 88 },
-  { code: 'so', nllbCode: 'som_Latn', name: 'Somali', score: 85 },
-  { code: 'am', nllbCode: 'amh_Ethi', name: 'Amharic', score: 90 },
-  { code: 'om', nllbCode: 'orm_Latn', name: 'Oromo', score: 85 },
-  { code: 'ti', nllbCode: 'tir_Ethi', name: 'Tigrinya', score: 82 },
-  { code: 'yo', nllbCode: 'yor_Latn', name: 'Yoruba', score: 80 },
-  { code: 'ig', nllbCode: 'ibo_Latn', name: 'Igbo', score: 78 },
-  { code: 'ha', nllbCode: 'hau_Latn', name: 'Hausa', score: 85 },
-  { code: 'zu', nllbCode: 'zul_Latn', name: 'Zulu', score: 72 },
-  { code: 'xh', nllbCode: 'xho_Latn', name: 'Xhosa', score: 68 },
+  {
+    code: 'en',
+    nllbCode: 'eng_Latn',
+    name: 'English',
+    score: 100  // Default for non-translated responses
+  },
+  {
+    code: 'sw',
+    nllbCode: 'swh_Latn',
+    name: 'Swahili',
+    score: 98  // Kenya's national language - excellent NLLB support
+  },
+  {
+    code: 'ki',
+    nllbCode: 'kik_Latn',
+    name: 'Kikuyu',
+    score: 88  // Good NLLB support, central Kenya
+  },
+  {
+    code: 'luo',
+    nllbCode: 'luo_Latn',
+    name: 'Luo',
+    score: 85  // Good NLLB support, western Kenya
+  },
 ];
 
 const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notificationCounts, activeConversation, onNewChat, onSaveChat, isDarkMode, toggleTheme }) => {
   const translate = useAction(api.translate.translateText);
+  const sendMessageAction = useAction(api.chat.sendMessage);
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isMicActive, setIsMicActive] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
 
-  // Language State
-  const [selectedLanguage, setSelectedLanguage] = useState<Language>(LANGUAGES[0]); // Default to Swahili
+  // Language State - Default to Swahili (index 1) so translations are enabled by default
+  // LANGUAGES order: [0] English, [1] Swahili, [2] Kikuyu, [3] Luo
+  const [selectedLanguage, setSelectedLanguage] = useState<Language>(LANGUAGES[1]); // Default to Swahili
   const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
   const [languageSearch, setLanguageSearch] = useState('');
 
@@ -293,10 +328,19 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
     setIsTyping(true);
 
     // Pass the selected language context to the AI service
-    // IMPORTANT: Ask Gemini to respond in ENGLISH so we can translate it to the local language
-    const contextPrompt = `[Context: User is learning ${selectedLanguage.name}. Please respond in ENGLISH so the response can be translated to ${selectedLanguage.name}.] ${userMsg.text}`;
-    // Pass full message objects for history context
-    const aiResponseText = await sendMessageToGemini(contextPrompt, messages);
+    // Instruction: React naturally in ENGLISH (to be translated). Avoid explanations.
+    const contextPrompt = `[Instruction: React naturally to "${userMsg.text}". REPLY IN ENGLISH ONLY. Do NOT define words. Do NOT explain content. Just reply as a friend.]`;
+
+    // Call Convex Action (Llama 3)
+    const history = messages.map(m => ({
+      role: m.sender === 'user' ? 'user' : 'assistant',
+      content: m.text
+    }));
+
+    // Add current message properly (User message + Instruction)
+    const payload = [...history, { role: 'user', content: contextPrompt }];
+
+    const aiResponseText = await sendMessageAction({ messages: payload });
 
     // Call translation if selected language is not English
     let translatedText = undefined;

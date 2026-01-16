@@ -10,6 +10,7 @@
 
 import type * as bookmarks_mutations from "../bookmarks/mutations.js";
 import type * as bookmarks_queries from "../bookmarks/queries.js";
+import type * as chat from "../chat.js";
 import type * as comments_mutations from "../comments/mutations.js";
 import type * as comments_queries from "../comments/queries.js";
 import type * as communities_mutations from "../communities/mutations.js";
@@ -44,6 +45,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   "bookmarks/mutations": typeof bookmarks_mutations;
   "bookmarks/queries": typeof bookmarks_queries;
+  chat: typeof chat;
   "comments/mutations": typeof comments_mutations;
   "comments/queries": typeof comments_queries;
   "communities/mutations": typeof communities_mutations;

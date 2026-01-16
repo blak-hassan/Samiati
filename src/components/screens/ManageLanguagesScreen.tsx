@@ -10,7 +10,27 @@ interface Props {
   onUpdateLanguages: (languages: LanguageSkill[]) => void;
 }
 
-const AVAILABLE_LANGUAGES = ['Hausa', 'Igbo', 'Amharic', 'Zulu', 'Xhosa', 'Arabic', 'Portuguese', 'Somali', 'Oromo', 'Twi', 'Yoruba', 'Swahili', 'French', 'English'];
+// =============================================================================
+// KENYAN LANGUAGES - User Profile Selection
+// =============================================================================
+// This list mirrors the chat language selector (ChatScreen.tsx) for consistency.
+// Users can indicate their proficiency in these NLLB-200 supported Kenyan languages.
+//
+// Supported Languages:
+// - English: International lingua franca
+// - Swahili: Kenya's national language (Kiswahili)
+// - Kikuyu: Largest ethnic group language (Gikuyu)
+// - Luo: Third largest ethnic group language (Dholuo)
+//
+// Future expansion: Add more Kenyan languages when NLLB-200 model support expands
+// (e.g., Kamba, Kalenjin, Meru, Luhya dialects, Maasai)
+// =============================================================================
+const AVAILABLE_LANGUAGES = [
+  'English',   // International lingua franca - used in business/education
+  'Swahili',   // Kenya national language - understood by most Kenyans
+  'Kikuyu',    // Gikuyu - largest ethnic group, central Kenya
+  'Luo',       // Dholuo - western Kenya, Lake Victoria region
+];
 
 interface CustomSelectProps {
   label: string;
