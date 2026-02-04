@@ -24,7 +24,7 @@ export const sendMessage = action({
 
         if (!apiKey) {
             console.error("HUGGINGFACE_API_KEY is not set!");
-            return "I am Samiati. (System Error: API Key missing)";
+            return "N/A"; // API Key missing
         }
 
         // System Prompt for Samiati
@@ -54,17 +54,17 @@ export const sendMessage = action({
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error(`HuggingFace API Error (${response.status}):`, errorText);
-                return "Sorry, I'm having trouble connecting to the spirits of knowledge right now. (Provider Error)";
+                return "N/A"; // Provider Error
             }
 
             const result = await response.json();
             const aiResponse = result.choices?.[0]?.message?.content;
 
-            return aiResponse || "I didn't quite catch that. Could you rephrase?";
+            return aiResponse || "N/A";
 
         } catch (error) {
             console.error("Chat Action execution failed:", error);
-            return "Sorry, I'm having trouble connecting to the spirits of knowledge right now. (Network Error)";
+            return "N/A"; // Network Error
         }
     },
 });

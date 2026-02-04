@@ -24,7 +24,6 @@ import {
   ThumbsUp,
   ThumbsDown,
   MessageCircle,
-  Mic,
   PlusCircle,
   Image as ImageIcon,
   FileText,
@@ -35,7 +34,9 @@ import {
   ChevronRight,
   Flame,
   Globe,
-  Megaphone
+  Megaphone,
+  Check,
+  Copy
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +48,7 @@ import {
   SheetTitle,
   SheetTrigger
 } from "@/components/ui/sheet";
+import { LanguageSelector, LANGUAGES, Language } from "@/components/chat/LanguageSelector";
 import {
   Popover,
   PopoverTrigger,
@@ -74,13 +76,6 @@ interface Props {
   onSaveChat: (messages: Message[]) => void;
   isDarkMode: boolean;
   toggleTheme: () => void;
-}
-
-interface Language {
-  code: string;
-  nllbCode: string;
-  name: string;
-  score: number; // 0-100 used to determine level
 }
 
 // Drawer Item Helper
@@ -114,71 +109,26 @@ const AttachmentItem: React.FC<{ icon: React.ReactNode, label: string, onClick: 
   </button>
 );
 
-// =============================================================================
-// KENYAN LANGUAGES - NLLB-200 Supported
-// =============================================================================
-// This list is filtered to only include languages that are:
-// 1. Primarily spoken in Kenya
-// 2. Supported by Meta's NLLB-200 translation model
-// 3. English included as international lingua franca
-//
-// NLLB-200 Kenyan Language Support (as of 2026):
-// - English (eng_Latn): International language, used in business/education
-// - Swahili (swh_Latn): Kenya's national language, ~50M speakers in East Africa
-// - Kikuyu (kik_Latn): Largest Kenyan ethnic group (Gikuyu), ~8M speakers
-// - Luo (luo_Latn): Third largest ethnic group (Dholuo), ~4.6M speakers
-//
-// Languages NOT YET Supported by NLLB-200:
-// - Kamba (Kikamba) - ~4.6M speakers
-// - Kalenjin dialects - ~5M speakers  
-// - Meru (Kimeru) - ~2M speakers
-// - Luhya dialects - ~6.8M speakers
-// - Maasai (Maa) - ~1.2M speakers
-//
-// TODO: Monitor NLLB model updates for additional Kenyan language support
-// =============================================================================
-
-const LANGUAGES: Language[] = [
-  {
-    code: 'en',
-    nllbCode: 'eng_Latn',
-    name: 'English',
-    score: 100  // Default for non-translated responses
-  },
-  {
-    code: 'sw',
-    nllbCode: 'swh_Latn',
-    name: 'Swahili',
-    score: 98  // Kenya's national language - excellent NLLB support
-  },
-  {
-    code: 'ki',
-    nllbCode: 'kik_Latn',
-    name: 'Kikuyu',
-    score: 88  // Good NLLB support, central Kenya
-  },
-  {
-    code: 'luo',
-    nllbCode: 'luo_Latn',
-    name: 'Luo',
-    score: 85  // Good NLLB support, western Kenya
-  },
-];
-
 const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notificationCounts, activeConversation, onNewChat, onSaveChat, isDarkMode, toggleTheme }) => {
   const translate = useAction(api.translate.translateText);
   const sendMessageAction = useAction(api.chat.sendMessage);
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
-  const [isMicActive, setIsMicActive] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
 
-  // Language State - Default to Swahili (index 1) so translations are enabled by default
-  // LANGUAGES order: [0] English, [1] Swahili, [2] Kikuyu, [3] Luo
-  const [selectedLanguage, setSelectedLanguage] = useState<Language>(LANGUAGES[1]); // Default to Swahili
-  const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
-  const [languageSearch, setLanguageSearch] = useState('');
+  // Language State - Default to Swahili so translations are enabled by default
+  // LANGUAGES order: Kenyan languages first
+  const [selectedLanguage, setSelectedLanguage] = useState<Language>(
+    LANGUAGES.find(l => l.code === 'sw') || LANGUAGES[0]
+  );
+  // Replaced with internal state in LanguageSelector, but we keep this for controlled if needed,
+  // or simply use it to toggle. Actually, we can remove isLanguageDropdownOpen if we use the component properly.
+  // But wait, the component needs an 'open' prop if we want to control it, or we rely on its internal state.
+  // The existing code has two places using it. It's better to keep it controlled or separate.
+  // We'll use separate states for the two instances or just let them manage themselves if possible?
+  // Language Selector now manages its own open state internally
+
 
   // Attachment State
   const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false);
@@ -187,12 +137,21 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
 
-  // Cultural Context Panel State
-  const [showContextPanel, setShowContextPanel] = useState(true);
-  const [isContextExpanded, setIsContextExpanded] = useState(true);
 
   // Translation Visibility State
   const [expandedTranslations, setExpandedTranslations] = useState<{ [key: string]: boolean }>({});
+
+  // Copy State
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+
+  const handleCopy = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedMessageId(id);
+    setTimeout(() => setCopiedMessageId(null), 2000);
+  };
+
+  // Welcome Mode - true when no user messages exist (Google-style centered layout)
+  const isWelcomeMode = !messages.some(m => m.sender === 'user');
 
   // Scroll Header Logic
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
@@ -201,7 +160,6 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
   const headerRef = useRef<HTMLDivElement>(null);
   const [headerHeight, setHeaderHeight] = useState(0);
 
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const attachmentRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -241,16 +199,17 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
   useEffect(() => {
     if (activeConversation) {
       // Load saved messages
-      setMessages(activeConversation.messages.length > 0 ? activeConversation.messages : [
-        { id: '1', sender: 'ai', text: 'Mambo! I see you want to continue talking about this topic. How can I help further?', timestamp: new Date() }
-      ]);
-      setShowContextPanel(false);
+      // STRICT CHECK: If the conversation only contains AI messages (legacy greetings),
+      // we treat it as a new chat to enforce the Welcome Screen.
+      const hasUserMessages = activeConversation.messages.some(m => m.sender === 'user');
+      if (hasUserMessages) {
+        setMessages(activeConversation.messages);
+      } else {
+        setMessages([]);
+      }
     } else {
-      // New Chat Default
-      setMessages([
-        { id: '1', sender: 'ai', text: `Mambo! How can I help you explore ${selectedLanguage.name} culture today?`, timestamp: new Date() }
-      ]);
-      setShowContextPanel(true);
+      // New Chat Default - Start Empty
+      setMessages([]);
     }
   }, [activeConversation]);
 
@@ -266,7 +225,7 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
   // Auto-scroll when messages change or UI expands
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isTyping, isContextExpanded, showContextPanel, activeCommentId]);
+  }, [messages, isTyping, activeCommentId]);
 
   // Auto-scroll on window resize (e.g., keyboard open)
   useEffect(() => {
@@ -286,21 +245,24 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
   // Click outside to close dropdowns
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsLanguageDropdownOpen(false);
-      }
+      // NOTE: We rely on standard Radix UI behavior for closing on outside click for many things,
+      // but if we need manual control, we can add it here.
+      // For now, ensuring attachment menu closes is fine if we had a ref, but we removed the manual dropdown ref.
+      // We can keep attachmentRef logic if we restore the Ref, or just trust the Popover component.
+      // The current Popover component from shadcn usually handles outside clicks automatically.
       if (attachmentRef.current && !attachmentRef.current.contains(event.target as Node)) {
         setIsAttachmentMenuOpen(false);
       }
     };
 
-    if (isLanguageDropdownOpen || isAttachmentMenuOpen) {
+    if (isAttachmentMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isLanguageDropdownOpen, isAttachmentMenuOpen]);
+  }, [isAttachmentMenuOpen]);
+
 
   // Wrapper to save chat before navigating
   const handleNavigate = (screen: Screen) => {
@@ -351,14 +313,15 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
           targetLanguage: selectedLanguage.nllbCode
         });
 
-        // Check if translation is valid and different from input (avoid fallback)
-        if (result && result.trim() !== aiResponseText.trim()) {
+        // Backend now returns "N/A" on failure.
+        // If result is valid (including "N/A"), use it.
+        // We no longer fallback to original text here.
+        if (result) {
           translatedText = result;
-        } else {
-          console.warn("Translation returned fallback or failed");
         }
       } catch (error) {
         console.error("Translation failed:", error);
+        translatedText = "N/A";
       }
     }
 
@@ -379,44 +342,24 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
     });
   };
 
-  const handleMicClick = () => {
-    if (isMicActive) {
-      setIsMicActive(false);
-      return;
-    }
 
-    setIsMicActive(true);
-    // Simulate listening and transcribing
-    setTimeout(() => {
-      setIsMicActive(false);
-      const phrases = {
-        'sw': ['Hujambo!', 'Habari yako?', 'Asante sana.', 'Naomba maji.', 'Bei gani?'],
-        'en': ['Hello!', 'How are you?', 'Thank you very much.', 'Can I have some water?', 'How much is this?'],
-        'default': ['Hello there!', 'Cultural wisdom is amazing.', 'Tell me a story.']
-      };
-
-      const langCode = selectedLanguage.code;
-      // Basic fallback logic
-      const langPhrases = (phrases as any)[langCode] || phrases['default'];
-      const randomPhrase = langPhrases[Math.floor(Math.random() * langPhrases.length)];
-
-      setInputText(prev => prev ? `${prev} ${randomPhrase}` : randomPhrase);
-    }, 2500);
-  };
 
   const handleNewChatClick = () => {
     // Save current chat before starting new
     if (messages.length > 1) {
       onSaveChat(messages);
     }
+
+    // Explicitly reset state for new chat to trigger Welcome Mode
+    setMessages([]);
+    setInputText('');
+    setExpandedTranslations({});
     setIsNavOpen(false);
     onNewChat();
   };
 
   const handleLanguageSelect = (lang: Language) => {
     setSelectedLanguage(lang);
-    setIsLanguageDropdownOpen(false);
-    setLanguageSearch(''); // Reset search on select
   };
 
   const handleFeedback = (messageId: string, type: 'up' | 'down') => {
@@ -453,8 +396,9 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
       }
       return m;
     }));
-    // Clear input but keep box open to see added comment confirmation
+    // Clear input and close box
     setCommentText('');
+    setActiveCommentId(null);
   };
 
   const toggleTranslation = (messageId: string) => {
@@ -523,26 +467,7 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
     setIsAttachmentMenuOpen(false);
   };
 
-  // Sort languages by score (descending) to ensure Expert (high score) is at the top
-  const filteredLanguages = LANGUAGES.filter(lang =>
-    lang.name.toLowerCase().includes(languageSearch.toLowerCase())
-  ).sort((a, b) => b.score - a.score);
-
-  const getProficiencyLevel = (score: number) => {
-    if (score >= 90) return 'Expert';
-    if (score >= 75) return 'Advanced';
-    if (score >= 50) return 'Intermediate';
-    return 'Basic';
-  };
-
-  const getLevelColor = (level: string) => {
-    switch (level) {
-      case 'Expert': return 'text-rasta-green bg-rasta-green/10';
-      case 'Advanced': return 'text-rasta-green/80 bg-rasta-green/5';
-      case 'Intermediate': return 'text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20';
-      default: return 'text-stone-500 dark:text-stone-400 bg-stone-100 dark:bg-stone-800';
-    }
-  };
+  // Removed local filtering/helper functions in favor of LanguageSelector component logic
 
   return (
     <div className="flex h-[100dvh] bg-background-light dark:bg-background-dark relative overflow-hidden transition-colors duration-300">
@@ -623,218 +548,319 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col w-full h-full relative">
-        {/* Header - Absolute Positioned for scroll effect */}
-        <div
-          ref={headerRef}
-          className="absolute top-0 left-0 right-0 z-20 transition-all duration-300 ease-in-out bg-background/95 backdrop-blur-md shadow-sm"
-          style={{ marginTop: isHeaderVisible ? 0 : -headerHeight }}
-        >
-          <header className="h-16 flex items-center justify-between px-4 shrink-0 transition-colors duration-300">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsNavOpen(true)}
-                className="rounded-full transition-colors"
-                aria-label="Toggle navigation"
-              >
-                <Menu className="w-6 h-6" />
-              </Button>
-              <div className="flex flex-col">
-                <h1 className="text-lg font-bold text-foreground truncate max-w-[200px] leading-tight tracking-tight">
-                  {activeConversation ? activeConversation.title : 'Samiati'}
-                </h1>
-
+        {/* Header - Hidden in welcome mode, visible when chatting */}
+        {!isWelcomeMode && (
+          <div
+            ref={headerRef}
+            className="absolute top-0 left-0 right-0 z-20 transition-all duration-300 ease-in-out bg-background/95 backdrop-blur-md shadow-sm"
+            style={{ marginTop: isHeaderVisible ? 0 : -headerHeight }}
+          >
+            <header className="h-16 flex items-center justify-between px-4 shrink-0 transition-colors duration-300">
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsNavOpen(true)}
+                  className="rounded-full transition-colors"
+                  aria-label="Toggle navigation"
+                >
+                  <Menu className="w-6 h-6" />
+                </Button>
+                <div className="flex flex-col">
+                  <h1 className="text-lg font-bold text-foreground truncate max-w-[200px] leading-tight tracking-tight">
+                    {activeConversation ? activeConversation.title : 'Samiati'}
+                  </h1>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1">
+                <NotificationBell unreadCount={unreadCount} onNavigate={handleNavigate} />
+              </div>
+            </header>
+          </div>
+        )}
+
+        {/* Welcome Mode - Google-style centered layout */}
+        {isWelcomeMode ? (
+          <div className="flex-1 flex flex-col items-center justify-center px-4 animate-in fade-in duration-500">
+            {/* Menu button in corner for welcome mode */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsNavOpen(true)}
+              className="absolute top-4 left-4 rounded-full transition-colors"
+              aria-label="Toggle navigation"
+            >
+              <Menu className="w-6 h-6" />
+            </Button>
+
+            {/* Notification bell in corner */}
+            <div className="absolute top-4 right-4">
               <NotificationBell unreadCount={unreadCount} onNavigate={handleNavigate} />
             </div>
-          </header>
-        </div>
 
-        {/* Chat Area */}
-        <main
-          className="flex-1 overflow-y-auto p-4 space-y-6"
-          ref={scrollRef}
-          onScroll={handleScroll}
-          style={{ paddingTop: headerHeight + 16 }} // +16 for base padding
-        >
-          {/* Cultural Context Panel */}
-          {showContextPanel && (
-            <Card className="bg-primary/5 border-primary/20 rounded-2xl p-4 relative overflow-hidden group shadow-sm">
-              <div className="absolute top-0 right-0 p-1 opacity-10 group-hover:opacity-20 transition-opacity">
-                <Globe className="w-16 h-16 -mr-4 -mt-4 rotate-12" />
+            {/* Logo and Branding */}
+            <div className="flex flex-col items-center mb-8 animate-in zoom-in-50 duration-500">
+              <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border-4 border-primary/20 shadow-lg mb-4">
+                <img
+                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuAVEz4UTCpp223l9QRsdxYGf4pegaKfIoxUYdvO2wPo8XCkY1wn0s7omDDuk5l9UfGHmSUMYiZUUiyeVrj5DHh5gKGghBS5J2alPWrLAd8VmA-CBLb7qbiOcvqYtIFuk8Iw9ZjCmIWsqxrq9lXoxaDfBKx3IEbV995TSPyPknJVXq7CE98Xs5Bc97lpSiqftZE4YnDIH4KY3CfDGILDtoz-44vJc1F-kNPQ3hBDDIXf21ifYT-byy_M-5rVvOpQ851C6YS0xkM3lcM"
+                  alt="Samiati Logo"
+                  className="w-full h-full object-cover"
+                />
               </div>
-              <div className={cn("flex justify-between items-center relative z-10", isContextExpanded ? 'mb-3' : 'mb-0')}>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-                  <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Cultural Whisper</span>
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight mb-2">
+                Samiati
+              </h1>
+              <p className="text-muted-foreground text-sm md:text-base font-medium">
+                How can I help you explore {selectedLanguage.name} culture today?
+              </p>
+            </div>
+
+            {/* Centered Input Bar */}
+            <div className="w-full max-w-2xl animate-in slide-in-from-bottom-4 duration-500 delay-150">
+              <div className="bg-background border border-border/40 rounded-[24px] px-4 py-3 flex flex-col gap-3 transition-all shadow-xl shadow-primary/5 focus-within:shadow-2xl focus-within:ring-1 focus-within:ring-primary/20">
+
+                {/* Top Layer: Text Input */}
+                <div className="w-full">
+                  <textarea
+                    ref={textareaRef}
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
+                    placeholder="Type or Speak..."
+                    className="w-full bg-transparent border-none text-foreground placeholder-muted-foreground/70 focus:ring-0 outline-none text-base md:text-lg resize-none min-h-[40px] max-h-[160px] p-0 font-medium leading-relaxed"
+                    rows={1}
+                  />
                 </div>
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsContextExpanded(!isContextExpanded)}
-                    className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
-                  >
-                    {isContextExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setShowContextPanel(false)}
-                    className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
+
+                {/* Bottom Layer: Actions */}
+                <div className="flex items-center justify-between w-full">
+                  {/* Left: Language Selector */}
+                  <LanguageSelector
+                    selectedLanguage={selectedLanguage}
+                    onSelect={handleLanguageSelect}
+                  />
+
+                  {/* Right: Actions */}
+                  <div className="flex items-center gap-2">
+                    {/* Attachments Menu Popover */}
+                    <Popover open={isAttachmentMenuOpen} onOpenChange={setIsAttachmentMenuOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="rounded-full text-muted-foreground hover:text-primary transition-colors h-9 w-9 hover:bg-muted/50"
+                          aria-label="Add attachments"
+                        >
+                          <PlusCircle className="w-5 h-5" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent side="top" align="end" className="w-[180px] p-1.5 mb-3 rounded-2xl shadow-xl border-border bg-background">
+                        <AttachmentItem
+                          icon={<ImageIcon className="w-4 h-4 text-blue-500" />}
+                          label="Photo / Video"
+                          onClick={() => photoInputRef.current?.click()}
+                        />
+                        <AttachmentItem
+                          icon={<FileText className="w-4 h-4 text-orange-500" />}
+                          label="Document"
+                          onClick={() => documentInputRef.current?.click()}
+                        />
+                        <AttachmentItem
+                          icon={<Camera className="w-4 h-4 text-green-500" />}
+                          label="Live Camera"
+                          onClick={() => cameraInputRef.current?.click()}
+                        />
+                      </PopoverContent>
+                    </Popover>
+
+                    <Button
+                      size="icon"
+                      onClick={handleSendMessage}
+                      disabled={!inputText.trim()}
+                      className={cn(
+                        "w-9 h-9 rounded-full transition-all duration-300 shadow-sm transition-transform active:scale-95",
+                        inputText.trim()
+                          ? "bg-primary text-primary-foreground opacity-100 hover:scale-105"
+                          : "bg-muted text-muted-foreground opacity-50 cursor-not-allowed"
+                      )}
+                    >
+                      <ArrowUp className="w-5 h-5 stroke-[2.5]" />
+                    </Button>
+                  </div>
                 </div>
               </div>
-              {isContextExpanded && (
-                <div className="relative z-10 px-1 animate-in slide-in-from-top-2 duration-300">
-                  <p className="text-sm text-foreground/80 leading-relaxed font-medium italic">
-                    "Habari za asubuhi" is a common Swahili greeting meaning "Good morning". In {selectedLanguage.name} culture, greetings are an essential part of daily life and showing respect.
-                  </p>
-                </div>
-              )}
-            </Card>
-          )}
-
-          {/* Messages */}
-          {messages.map((msg, index) => (
-            <div key={msg.id} className={cn(
-              "flex flex-col gap-2 group/msg",
-              msg.sender === 'user' ? 'items-end' : 'items-start'
-            )}>
-              <div className={cn(
-                "flex items-start gap-3 w-full max-w-[90%] md:max-w-[80%]",
-                msg.sender === 'user' && 'flex-row-reverse self-end'
-              )}>
-                {msg.sender === 'ai' ? (
-                  <Avatar className="w-8 h-8 shrink-0 border border-primary/20 shadow-sm mt-1">
-                    <AvatarImage src="https://lh3.googleusercontent.com/aida-public/AB6AXuAVEz4UTCpp223l9QRsdxYGf4pegaKfIoxUYdvO2wPo8XCkY1wn0s7omDDuk5l9UfGHmSUMYiZUUiyeVrj5DHh5gKGghBS5J2alPWrLAd8VmA-CBLb7qbiOcvqYtIFuk8Iw9ZjCmIWsqxrq9lXoxaDfBKx3IEbV995TSPyPknJVXq7CE98Xs5Bc97lpSiqftZE4YnDIH4KY3CfDGILDtoz-44vJc1F-kNPQ3hBDDIXf21ifYT-byy_M-5rVvOpQ851C6YS0xkM3lcM" />
-                    <AvatarFallback>AI</AvatarFallback>
-                  </Avatar>
-                ) : (
-                  <Avatar className="w-8 h-8 shrink-0 border border-border shadow-sm mt-1">
-                    <AvatarImage src={user.avatar} />
-                    <AvatarFallback>{user.name[0]}</AvatarFallback>
-                  </Avatar>
-                )}
-
-                <div className={cn(
-                  "p-4 rounded-3xl relative shadow-sm transition-all",
-                  msg.sender === 'user'
-                    ? 'bg-primary text-primary-foreground rounded-tr-none'
-                    : 'bg-card border border-border rounded-tl-none'
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Chat Area */}
+            <main
+              className="flex-1 overflow-y-auto p-4 space-y-6"
+              ref={scrollRef}
+              onScroll={handleScroll}
+            >
+              {/* Messages */}
+              {messages.map((msg, index) => (
+                <div key={msg.id} className={cn(
+                  "flex flex-col gap-1 group/msg", // Reduced gap
+                  msg.sender === 'user' ? 'items-end' : 'items-start'
                 )}>
-                  {msg.text.startsWith('data:image') ? (
-                    <img src={msg.text} alt="User upload" className="rounded-2xl max-h-72 w-full object-cover shadow-inner" />
-                  ) : (
-                    <p className="text-sm md:text-base leading-relaxed tracking-tight font-medium whitespace-pre-wrap">
-                      {/* Show translated text for AI messages if available, otherwise show original text */}
-                      {msg.sender === 'ai' && msg.translatedText ? msg.translatedText : msg.text}
-                    </p>
-                  )}
+                  <div className={cn(
+                    "flex items-start gap-3 w-full max-w-[90%] md:max-w-[80%]",
+                    msg.sender === 'user' && 'flex-row-reverse self-end'
+                  )}>
+                    {msg.sender === 'ai' ? (
+                      <Avatar className="w-8 h-8 shrink-0 border border-primary/20 shadow-sm mt-1">
+                        <AvatarImage src="https://lh3.googleusercontent.com/aida-public/AB6AXuAVEz4UTCpp223l9QRsdxYGf4pegaKfIoxUYdvO2wPo8XCkY1wn0s7omDDuk5l9UfGHmSUMYiZUUiyeVrj5DHh5gKGghBS5J2alPWrLAd8VmA-CBLb7qbiOcvqYtIFuk8Iw9ZjCmIWsqxrq9lXoxaDfBKx3IEbV995TSPyPknJVXq7CE98Xs5Bc97lpSiqftZE4YnDIH4KY3CfDGILDtoz-44vJc1F-kNPQ3hBDDIXf21ifYT-byy_M-5rVvOpQ851C6YS0xkM3lcM" />
+                        <AvatarFallback>AI</AvatarFallback>
+                      </Avatar>
+                    ) : (
+                      <Avatar className="w-8 h-8 shrink-0 border border-border shadow-sm mt-1">
+                        <AvatarImage src={user.avatar} />
+                        <AvatarFallback>{user.name[0]}</AvatarFallback>
+                      </Avatar>
+                    )}
 
-                  {/* Collapsible English Original - Only for AI messages with translations */}
-                  {msg.sender === 'ai' && msg.translatedText && (
-                    <div className="mt-3 pt-3 border-t border-border/50">
-                      {/* Toggle Button for English Original */}
+                    <div className={cn(
+                      "relative transition-all",
+                      msg.sender === 'user'
+                        ? 'p-4 rounded-2xl shadow-sm bg-[#EDE4D9] dark:bg-[#4A4035] text-[#4A4035] dark:text-[#EDE4D9]'
+                        : 'p-0 text-foreground bg-transparent'
+                    )}>
+                      {msg.text.startsWith('data:image') ? (
+                        <img src={msg.text} alt="User upload" className="rounded-2xl max-h-72 w-full object-cover shadow-inner" />
+                      ) : (
+                        <p className="text-sm md:text-base leading-relaxed tracking-tight font-medium whitespace-pre-wrap">
+                          {/* Show translated text for AI messages if available AND language is not English, otherwise show original text */}
+                          {msg.sender === 'ai' && selectedLanguage.code !== 'en' && msg.translatedText ? msg.translatedText : msg.text}
+                        </p>
+                      )}
+
+                      {/* Collapsible English Original - Only for AI messages with translations AND when not in English mode */}
+                      {msg.sender === 'ai' && selectedLanguage.code !== 'en' && (
+                        <div className="mt-3 pt-3 border-t border-border/50">
+                          {/* Toggle Button for English Original */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleTranslation(msg.id)}
+                            className="h-7 px-2.5 rounded-full gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-all"
+                          >
+                            {expandedTranslations[msg.id] ? (
+                              <>
+                                <ChevronUp className="w-3 h-3" />
+                                Hide English
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="w-3 h-3" />
+                                View English
+                              </>
+                            )}
+                          </Button>
+
+                          {/* English Original (Collapsible) */}
+                          {expandedTranslations[msg.id] && (
+                            <div className="mt-2 pt-2 border-t border-border/30 animate-in fade-in slide-in-from-top-2 duration-300">
+                              <div className="flex items-center gap-1.5 text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 opacity-60">
+                                <Globe className="w-3 h-3" />
+                                English Original
+                              </div>
+                              <p className="text-sm md:text-base leading-relaxed tracking-tight font-medium whitespace-pre-wrap border-l-2 border-muted-foreground/20 pl-3 py-0.5 text-muted-foreground">
+                                {msg.text}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* User Message Timestamp (Absolute) */}
+                      {msg.sender === 'user' && (
+                        <span className="absolute -bottom-5 right-0 text-[10px] font-bold text-muted-foreground/0 group-hover/msg:text-muted-foreground/60 transition-all">
+                          {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* AI Actions Row: Timestamp | Thumbs | Copy | Feedback */}
+                  {msg.sender === 'ai' && (
+                    <div className="flex items-center gap-4 ml-11 mt-0.5 opacity-0 group-hover/msg:opacity-100 transition-opacity duration-200">
+                      {/* Timestamp */}
+                      <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider">
+                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+
+                      {/* Divider */}
+                      <div className="h-3 w-[1px] bg-border" />
+
+                      {/* Thumbs Up/Down */}
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleFeedback(msg.id, 'up')}
+                          className={cn(
+                            "h-6 w-6 rounded-full hover:bg-muted/50 transition-colors",
+                            msg.feedback === 'up' ? "text-primary" : "text-muted-foreground"
+                          )}
+                        >
+                          <ThumbsUp className={cn("w-3.5 h-3.5", msg.feedback === 'up' && "fill-current")} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleFeedback(msg.id, 'down')}
+                          className={cn(
+                            "h-6 w-6 rounded-full hover:bg-muted/50 transition-colors",
+                            msg.feedback === 'down' ? "text-red-500" : "text-muted-foreground"
+                          )}
+                        >
+                          <ThumbsDown className={cn("w-3.5 h-3.5", msg.feedback === 'down' && "fill-current")} />
+                        </Button>
+                      </div>
+
+                      {/* Divider */}
+                      <div className="h-3 w-[1px] bg-border" />
+
+                      {/* Copy Button */}
                       <Button
                         variant="ghost"
-                        size="sm"
-                        onClick={() => toggleTranslation(msg.id)}
-                        className="h-7 px-2.5 rounded-full gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-all"
+                        size="icon"
+                        onClick={() => handleCopy(msg.text, msg.id)}
+                        className="h-6 w-6 rounded-full hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-all"
+                        title="Copy text"
                       >
-                        {expandedTranslations[msg.id] ? (
-                          <>
-                            <ChevronUp className="w-3 h-3" />
-                            Hide English
-                          </>
+                        {copiedMessageId === msg.id ? (
+                          <Check className="w-3.5 h-3.5 text-green-500" />
                         ) : (
-                          <>
-                            <ChevronDown className="w-3 h-3" />
-                            View English
-                          </>
+                          <Copy className="w-3.5 h-3.5" />
                         )}
                       </Button>
 
-                      {/* English Original (Collapsible) */}
-                      {expandedTranslations[msg.id] && (
-                        <div className="mt-2 pt-2 border-t border-border/30 animate-in fade-in slide-in-from-top-2 duration-300">
-                          <div className="flex items-center gap-1.5 text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 opacity-60">
-                            <Globe className="w-3 h-3" />
-                            English Original
-                          </div>
-                          <p className="text-sm md:text-base leading-relaxed tracking-tight font-medium whitespace-pre-wrap border-l-2 border-muted-foreground/20 pl-3 py-0.5 text-muted-foreground">
-                            {msg.text}
-                          </p>
-                        </div>
-                      )}
+                      {/* Feedback Text Button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleCommentBox(msg.id)}
+                        className="h-6 px-2 text-[10px] font-bold text-muted-foreground hover:text-foreground uppercase tracking-wider gap-1.5 rounded-md hover:bg-muted/50"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                        Feedback
+                      </Button>
+
                     </div>
                   )}
 
-                  {/* Message Timestamp (visible on hover) */}
-                  <span className={cn(
-                    "absolute -bottom-5 text-[10px] font-bold text-muted-foreground/0 group-hover/msg:text-muted-foreground/60 transition-all",
-                    msg.sender === 'user' ? 'right-0' : 'left-0'
-                  )}>
-                    {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-              </div>
 
-              {/* AI Feedback & Interaction */}
-              {msg.sender === 'ai' && (
-                <div className="flex flex-col gap-2 ml-11 max-w-[85%] mt-1">
-                  <div className="flex items-center gap-1 opacity-0 group-hover/msg:opacity-100 transition-opacity">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleFeedback(msg.id, 'up')}
-                      className={cn(
-                        "h-8 w-8 rounded-full",
-                        msg.feedback === 'up' ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-muted"
-                      )}
-                    >
-                      <ThumbsUp className={cn("w-3.5 h-3.5", msg.feedback === 'up' && "fill-current")} />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleFeedback(msg.id, 'down')}
-                      className={cn(
-                        "h-8 w-8 rounded-full",
-                        msg.feedback === 'down' ? "text-destructive bg-destructive/10" : "text-muted-foreground hover:bg-muted"
-                      )}
-                    >
-                      <ThumbsDown className={cn("w-3.5 h-3.5", msg.feedback === 'down' && "fill-current")} />
-                    </Button>
-                    <Separator orientation="vertical" className="h-4 mx-1" />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => toggleCommentBox(msg.id)}
-                      className={cn(
-                        "h-8 px-2.5 rounded-full gap-1.5 text-[10px] font-bold uppercase tracking-wider transition-all",
-                        activeCommentId === msg.id || (msg.comments && msg.comments.length > 0)
-                          ? "bg-secondary text-foreground"
-                          : "text-muted-foreground hover:bg-muted"
-                      )}
-                    >
-                      <MessageCircle className={cn("w-3.5 h-3.5", msg.comments && msg.comments.length > 0 && "fill-current")} />
-                      Feedback
-                      {msg.comments && msg.comments.length > 0 && (
-                        <Badge variant="default" className="h-4 min-w-[16px] p-0 flex items-center justify-center bg-primary text-[8px]">
-                          {msg.comments.length}
-                        </Badge>
-                      )}
-                    </Button>
-                  </div>
 
                   {/* Feedback Expansion */}
-                  {(activeCommentId === msg.id || (msg.comments && msg.comments.length > 0)) && (
+                  {(activeCommentId === msg.id) && (
                     <div className="bg-muted/50 rounded-2xl p-3 border border-border/50 space-y-3 animate-in fade-in slide-in-from-top-1">
                       {msg.comments && msg.comments.length > 0 && (
                         <div className="space-y-2">
@@ -875,178 +901,108 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
                     </div>
                   )}
                 </div>
-              )}
-            </div>
-          ))}
 
-          {isTyping && (
-            <div className="flex items-start gap-3 w-full self-start">
-              <Avatar className="w-8 h-8 shrink-0 border border-primary/20 shadow-sm animate-pulse">
-                <AvatarFallback>...</AvatarFallback>
-              </Avatar>
-              <div className="bg-muted/30 border border-border p-4 rounded-3xl rounded-tl-none flex gap-1.5 items-center shadow-sm">
-                <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce"></span>
+              ))}
+
+              {isTyping && (
+                <div className="flex items-start gap-3 w-full self-start">
+                  <Avatar className="w-8 h-8 shrink-0 border border-primary/20 shadow-sm animate-pulse">
+                    <AvatarFallback>...</AvatarFallback>
+                  </Avatar>
+                  <div className="bg-muted/30 border border-border p-4 rounded-3xl rounded-tl-none flex gap-1.5 items-center shadow-sm">
+                    <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                    <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                    <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce"></span>
+                  </div>
+                </div>
+              )}
+            </main>
+
+            {/* Standardized Input Area */}
+            <div className="bg-background p-2 shrink-0 transition-colors duration-300 relative z-20 pb-4">
+              <div className="max-w-4xl mx-auto bg-background/50 border border-border/40 rounded-[24px] px-4 py-3 flex flex-col gap-2 transition-all shadow-sm focus-within:shadow-md focus-within:ring-1 focus-within:ring-primary/10 group backdrop-blur-sm">
+
+                {/* Top Layer: Text Input */}
+                <div className="w-full">
+                  <textarea
+                    ref={textareaRef}
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
+                    placeholder="Type or Speak..."
+                    className="w-full bg-transparent border-none text-foreground placeholder-muted-foreground/70 focus:ring-0 outline-none text-base md:text-lg resize-none min-h-[40px] max-h-[160px] p-0 font-medium leading-relaxed"
+                    rows={1}
+                  />
+                </div>
+
+                {/* Bottom Layer: Actions */}
+                <div className="flex items-center justify-between w-full">
+                  {/* Left: Language Selector */}
+                  <LanguageSelector
+                    selectedLanguage={selectedLanguage}
+                    onSelect={handleLanguageSelect}
+                  />
+
+                  {/* Right: Actions */}
+                  <div className="flex items-center gap-2">
+                    {/* Attachments Menu Popover */}
+                    <Popover open={isAttachmentMenuOpen} onOpenChange={setIsAttachmentMenuOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="rounded-full text-muted-foreground hover:text-primary transition-colors h-9 w-9 hover:bg-muted/50"
+                          aria-label="Add attachments"
+                        >
+                          <PlusCircle className="w-5 h-5" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent side="top" align="end" className="w-[180px] p-1.5 mb-3 rounded-2xl shadow-xl border-border bg-background">
+                        <AttachmentItem
+                          icon={<ImageIcon className="w-4 h-4 text-blue-500" />}
+                          label="Photo / Video"
+                          onClick={() => photoInputRef.current?.click()}
+                        />
+                        <AttachmentItem
+                          icon={<FileText className="w-4 h-4 text-orange-500" />}
+                          label="Document"
+                          onClick={() => documentInputRef.current?.click()}
+                        />
+                        <AttachmentItem
+                          icon={<Camera className="w-4 h-4 text-green-500" />}
+                          label="Live Camera"
+                          onClick={() => cameraInputRef.current?.click()}
+                        />
+                      </PopoverContent>
+                    </Popover>
+
+                    <Button
+                      size="icon"
+                      onClick={handleSendMessage}
+                      disabled={!inputText.trim()}
+                      className={cn(
+                        "w-9 h-9 rounded-full transition-all duration-300 shadow-sm transition-transform active:scale-95",
+                        inputText.trim()
+                          ? "bg-primary text-primary-foreground opacity-100 hover:scale-105"
+                          : "bg-muted text-muted-foreground opacity-50 cursor-not-allowed"
+                      )}
+                    >
+                      <ArrowUp className="w-5 h-5 stroke-[2.5]" />
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
-          )}
-        </main>
-
-        {/* Standardized Input Area */}
-        <div className="bg-background p-3 shrink-0 transition-colors duration-300 relative z-20">
-          <div className="max-w-4xl mx-auto bg-muted/50 border border-primary/20 rounded-[28px] px-3 py-2 flex items-end gap-2 transition-all shadow-sm focus-within:shadow-lg focus-within:ring-2 focus-within:ring-primary/10 group">
-
-            {/* Language Selector Popover */}
-            <Popover open={isLanguageDropdownOpen} onOpenChange={setIsLanguageDropdownOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="mb-1 h-8 px-3 rounded-full gap-1.5 font-bold text-[10px] uppercase tracking-wider bg-background border border-border/50 hover:bg-muted"
-                >
-                  <Globe className="w-3.5 h-3.5" />
-                  {selectedLanguage.name}
-                  <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent side="top" align="start" className="w-[240px] p-0 mb-3 rounded-2xl shadow-xl border-border bg-background">
-                <div className="p-3 border-b border-border bg-muted/30">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search languages..."
-                      value={languageSearch}
-                      onChange={(e) => setLanguageSearch(e.target.value)}
-                      className="pl-9 h-9 rounded-xl text-sm border-none bg-background focus-visible:ring-1 focus-visible:ring-primary/50"
-                    />
-                  </div>
-                </div>
-                <div className="max-h-64 overflow-y-auto p-1 py-1.5">
-                  {filteredLanguages.length > 0 ? (
-                    filteredLanguages.map(lang => (
-                      <button
-                        key={lang.code}
-                        onClick={() => handleLanguageSelect(lang)}
-                        className={cn(
-                          "w-full px-3 py-2.5 text-left hover:bg-muted transition-all flex items-center justify-between rounded-lg group",
-                          selectedLanguage.code === lang.code && "bg-primary/5 shadow-inner"
-                        )}
-                      >
-                        <div className="flex flex-col">
-                          <span className={cn(
-                            "text-sm font-bold",
-                            selectedLanguage.code === lang.code ? "text-primary" : "text-foreground"
-                          )}>
-                            {lang.name}
-                          </span>
-                          <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tighter">
-                            {getProficiencyLevel(lang.score)}
-                          </span>
-                        </div>
-                        {selectedLanguage.code === lang.code && (
-                          <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center text-white scale-75">
-                            <ArrowUp className="w-4 h-4" />
-                          </div>
-                        )}
-                      </button>
-                    ))
-                  ) : (
-                    <div className="p-4 text-center text-muted-foreground text-xs italic font-medium">
-                      No matching cultures found
-                    </div>
-                  )}
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            {/* Main Textarea */}
-            <textarea
-              ref={textareaRef}
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendMessage();
-                }
-              }}
-              placeholder="Type or Speak to Samiati..."
-              className="flex-1 bg-transparent border-none text-foreground placeholder-muted-foreground/70 focus:ring-0 outline-none text-sm md:text-base resize-none min-h-[40px] max-h-[120px] py-2.5 px-1 scroll-area font-medium"
-              rows={1}
-            />
-
-            {/* Actions Toolbar */}
-            <div className="flex items-center gap-1.5 mb-1 mr-1">
-              {isMicActive ? (
-                <Button variant="ghost" size="icon" className="h-10 w-10 text-primary animate-pulse bg-primary/5 rounded-full">
-                  <div className="flex gap-0.5 items-center">
-                    {[1, 2, 3].map(i => (
-                      <div key={i} className="w-1 bg-primary rounded-full" style={{ height: Math.random() * 16 + 8 + 'px' }}></div>
-                    ))}
-                  </div>
-                </Button>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleMicClick}
-                  className="rounded-full text-muted-foreground hover:text-primary transition-colors h-10 w-10"
-                  aria-label="Voice input"
-                >
-                  <Mic className="w-5 h-5" />
-                </Button>
-              )}
-
-              {/* Attachments Menu Popover */}
-              <Popover open={isAttachmentMenuOpen} onOpenChange={setIsAttachmentMenuOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="rounded-full text-muted-foreground hover:text-primary transition-colors h-10 w-10"
-                    aria-label="Add attachments"
-                  >
-                    <PlusCircle className="w-5 h-5" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent side="top" align="end" className="w-[180px] p-1.5 mb-3 rounded-2xl shadow-xl border-border bg-background">
-                  <AttachmentItem
-                    icon={<ImageIcon className="w-4 h-4 text-blue-500" />}
-                    label="Photo / Video"
-                    onClick={() => photoInputRef.current?.click()}
-                  />
-                  <AttachmentItem
-                    icon={<FileText className="w-4 h-4 text-orange-500" />}
-                    label="Document"
-                    onClick={() => documentInputRef.current?.click()}
-                  />
-                  <AttachmentItem
-                    icon={<Camera className="w-4 h-4 text-green-500" />}
-                    label="Live Camera"
-                    onClick={() => cameraInputRef.current?.click()}
-                  />
-                </PopoverContent>
-              </Popover>
-
-              <Button
-                size="icon"
-                onClick={handleSendMessage}
-                disabled={!inputText.trim()}
-                className={cn(
-                  "w-10 h-10 rounded-full transition-all duration-300 shadow-md transform hover:translate-y-[-2px] active:scale-95",
-                  inputText.trim()
-                    ? "bg-primary text-primary-foreground opacity-100"
-                    : "bg-muted text-muted-foreground opacity-50 cursor-not-allowed grayscale"
-                )}
-              >
-                <ArrowUp className="w-5 h-5 stroke-[2.5]" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+          </>
+        )
+        }
+      </div >
+    </div >
   );
 };
 
