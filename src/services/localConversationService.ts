@@ -2,6 +2,8 @@ import { Conversation, Message } from "@/types";
 import { INITIAL_CONVERSATIONS } from "@/data/mock";
 
 const STORAGE_KEY = 'samiati_conversations';
+const ACTIVE_CHAT_KEY = 'samiati_active_chat';
+
 
 export const localConversationService = {
     // Load all conversations from local storage
@@ -55,5 +57,22 @@ export const localConversationService = {
             category: 'general'
         };
         return newConversation;
+    },
+
+    // Get the last active conversation ID
+    getActiveConversationId: (): string | null => {
+        if (typeof window === 'undefined') return null;
+        return localStorage.getItem(ACTIVE_CHAT_KEY);
+    },
+
+    // Set the active conversation ID
+    setActiveConversationId: (id: string | null) => {
+        if (typeof window === 'undefined') return;
+        if (id) {
+            localStorage.setItem(ACTIVE_CHAT_KEY, id);
+        } else {
+            localStorage.removeItem(ACTIVE_CHAT_KEY);
+        }
     }
 };
+

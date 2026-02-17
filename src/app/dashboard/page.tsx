@@ -36,8 +36,16 @@ export default function DashboardPage({ searchParams }: { searchParams: Promise<
         if (chatId) {
             const conversation = localConversationService.getConversation(chatId);
             setActiveConversation(conversation || null);
+            localConversationService.setActiveConversationId(chatId);
         } else {
-            setActiveConversation(null); // Reset for new chat
+            // Try to restore last active conversation on refresh
+            const lastActiveId = localConversationService.getActiveConversationId();
+            if (lastActiveId) {
+                const lastConversation = localConversationService.getConversation(lastActiveId);
+                setActiveConversation(lastConversation || null);
+            } else {
+                setActiveConversation(null);
+            }
         }
     }, [chatId]);
 
@@ -66,6 +74,7 @@ export default function DashboardPage({ searchParams }: { searchParams: Promise<
 
             localConversationService.saveConversation(newConv);
             setActiveConversation(newConv);
+            localConversationService.setActiveConversationId(newConv.id);
             // Optional: navigate to the new ID to persist URL
             // navigate(Screen.HOME_CHAT, { chatId: newConv.id });
         }

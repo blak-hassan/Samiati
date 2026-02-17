@@ -162,6 +162,7 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
 
   const attachmentRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const inputContainerRef = useRef<HTMLDivElement>(null);
 
   // Hidden File Inputs Refs
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -600,9 +601,9 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
 
             {/* Logo and Branding */}
             <div className="flex flex-col items-center mb-8 animate-in zoom-in-50 duration-500">
-              <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border-4 border-primary/20 shadow-lg mb-4">
+              <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl overflow-hidden shadow-lg mb-4 hover:scale-105 transition-transform duration-300">
                 <img
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuAVEz4UTCpp223l9QRsdxYGf4pegaKfIoxUYdvO2wPo8XCkY1wn0s7omDDuk5l9UfGHmSUMYiZUUiyeVrj5DHh5gKGghBS5J2alPWrLAd8VmA-CBLb7qbiOcvqYtIFuk8Iw9ZjCmIWsqxrq9lXoxaDfBKx3IEbV995TSPyPknJVXq7CE98Xs5Bc97lpSiqftZE4YnDIH4KY3CfDGILDtoz-44vJc1F-kNPQ3hBDDIXf21ifYT-byy_M-5rVvOpQ851C6YS0xkM3lcM"
+                  src="/samiati-logo.svg"
                   alt="Samiati Logo"
                   className="w-full h-full object-cover"
                 />
@@ -617,7 +618,7 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
 
             {/* Centered Input Bar */}
             <div className="w-full max-w-2xl animate-in slide-in-from-bottom-4 duration-500 delay-150">
-              <div className="bg-background border border-border/40 rounded-[24px] px-4 py-3 flex flex-col gap-3 transition-all shadow-xl shadow-primary/5 focus-within:shadow-2xl focus-within:ring-1 focus-within:ring-primary/20">
+              <div ref={inputContainerRef} className="bg-background border border-border/40 rounded-[24px] px-4 py-3 flex flex-col gap-3 transition-all shadow-xl shadow-primary/5 focus-within:shadow-2xl focus-within:ring-1 focus-within:ring-primary/20">
 
                 {/* Top Layer: Text Input */}
                 <div className="w-full">
@@ -625,6 +626,11 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
                     ref={textareaRef}
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
+                    onFocus={() => {
+                      setTimeout(() => {
+                        inputContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      }, 500);
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
@@ -715,8 +721,8 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
                     msg.sender === 'user' && 'flex-row-reverse self-end'
                   )}>
                     {msg.sender === 'ai' ? (
-                      <Avatar className="w-8 h-8 shrink-0 border border-primary/20 shadow-sm mt-1">
-                        <AvatarImage src="https://lh3.googleusercontent.com/aida-public/AB6AXuAVEz4UTCpp223l9QRsdxYGf4pegaKfIoxUYdvO2wPo8XCkY1wn0s7omDDuk5l9UfGHmSUMYiZUUiyeVrj5DHh5gKGghBS5J2alPWrLAd8VmA-CBLb7qbiOcvqYtIFuk8Iw9ZjCmIWsqxrq9lXoxaDfBKx3IEbV995TSPyPknJVXq7CE98Xs5Bc97lpSiqftZE4YnDIH4KY3CfDGILDtoz-44vJc1F-kNPQ3hBDDIXf21ifYT-byy_M-5rVvOpQ851C6YS0xkM3lcM" />
+                      <Avatar className="w-8 h-8 shrink-0 shadow-sm mt-1 bg-transparent p-0">
+                        <AvatarImage src="/samiati-logo.svg" className="object-cover rounded-md" />
                         <AvatarFallback>AI</AvatarFallback>
                       </Avatar>
                     ) : (
@@ -920,7 +926,7 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
 
             {/* Standardized Input Area */}
             <div className="bg-background p-2 shrink-0 transition-colors duration-300 relative z-20 pb-4">
-              <div className="max-w-4xl mx-auto bg-background/50 border border-border/40 rounded-[24px] px-4 py-3 flex flex-col gap-2 transition-all shadow-sm focus-within:shadow-md focus-within:ring-1 focus-within:ring-primary/10 group backdrop-blur-sm">
+              <div ref={inputContainerRef} className="max-w-4xl mx-auto bg-background/50 border border-border/40 rounded-[24px] px-4 py-3 flex flex-col gap-2 transition-all shadow-sm focus-within:shadow-md focus-within:ring-1 focus-within:ring-primary/10 group backdrop-blur-sm">
 
                 {/* Top Layer: Text Input */}
                 <div className="w-full">
@@ -928,6 +934,15 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
                     ref={textareaRef}
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
+                    onFocus={() => {
+                      // Double scroll attempt to catch immediate focus and post-keyboard animation
+                      setTimeout(() => {
+                        inputContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      }, 100);
+                      setTimeout(() => {
+                        inputContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      }, 500);
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
