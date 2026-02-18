@@ -697,8 +697,8 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
               <div className="hover:scale-105 transition-transform duration-300 mb-2">
                 <SamiatiLogo size={80} className="scale-110" />
               </div>
-              <p className="text-muted-foreground text-sm md:text-base font-medium">
-                How can I help you explore {selectedLanguage.name} culture today?
+              <p className="text-muted-foreground text-sm md:text-base font-medium text-center">
+                Experience your Culture
               </p>
             </div>
 
