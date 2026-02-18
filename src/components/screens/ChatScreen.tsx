@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Screen, User, Message, Conversation } from '@/types';
 import { NotificationBell } from '@/components/shared/NotificationBell';
+import SamiatiLogo from '@/components/SamiatiLogo';
 
 import { useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -29,6 +30,7 @@ import {
   FileText,
   Camera,
   ArrowUp,
+  ArrowDown,
   History,
   Info,
   ChevronRight,
@@ -36,7 +38,8 @@ import {
   Globe,
   Megaphone,
   Check,
-  Copy
+  Copy,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -109,6 +112,8 @@ const AttachmentItem: React.FC<{ icon: React.ReactNode, label: string, onClick: 
   </button>
 );
 
+const MESSAGES_PER_PAGE = 20;
+
 const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notificationCounts, activeConversation, onNewChat, onSaveChat, isDarkMode, toggleTheme }) => {
   const translate = useAction(api.translate.translateText);
   const sendMessageAction = useAction(api.chat.sendMessage);
@@ -155,8 +160,18 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
 
   // Scroll Header Logic
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [hasNewMessage, setHasNewMessage] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(MESSAGES_PER_PAGE);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Scroll & State Persistence
+  const conversationStates = useRef<{ [id: string]: { scrollTop: number, visibleCount: number } }>({});
+  const prevConversationId = useRef<string | null>(null);
+
   const scrollY = useRef(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const shouldForceScroll = useRef(false);
   const headerRef = useRef<HTMLDivElement>(null);
   const [headerHeight, setHeaderHeight] = useState(0);
 
@@ -193,24 +208,84 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
       setIsHeaderVisible(true);
     }
 
+    // Detect if user is near the bottom (within 150px)
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    setShowScrollToBottom(distanceFromBottom > 150);
+
+    // Clear new message indicator when user scrolls to bottom
+    if (distanceFromBottom <= 150) {
+      setHasNewMessage(false);
+    }
+
     scrollY.current = currentScrollY;
+
+    // Save scroll state for current conversation
+    if (activeConversation && scrollRef.current) {
+      conversationStates.current[activeConversation.id] = {
+        scrollTop: currentScrollY,
+        visibleCount
+      };
+    }
+
+    // Load more messages when scrolling near the top
+    if (currentScrollY < 100 && !isLoadingMore && visibleCount < messages.length) {
+      setIsLoadingMore(true);
+      const prevScrollHeight = scrollRef.current.scrollHeight;
+      setTimeout(() => {
+        setVisibleCount(prev => Math.min(prev + MESSAGES_PER_PAGE, messages.length));
+        // Preserve scroll position after prepending older messages
+        requestAnimationFrame(() => {
+          if (scrollRef.current) {
+            const newScrollHeight = scrollRef.current.scrollHeight;
+            scrollRef.current.scrollTop = newScrollHeight - prevScrollHeight + currentScrollY;
+          }
+          setIsLoadingMore(false);
+        });
+      }, 400);
+    }
   };
 
   // Initialize or Update Messages based on Active Conversation
   useEffect(() => {
     if (activeConversation) {
+      // Check if we switched conversations
+      const isDifferentConversation = activeConversation.id !== prevConversationId.current;
+
       // Load saved messages
-      // STRICT CHECK: If the conversation only contains AI messages (legacy greetings),
-      // we treat it as a new chat to enforce the Welcome Screen.
       const hasUserMessages = activeConversation.messages.some(m => m.sender === 'user');
       if (hasUserMessages) {
         setMessages(activeConversation.messages);
       } else {
         setMessages([]);
       }
+
+      if (isDifferentConversation) {
+        // Restore state if available
+        const savedState = conversationStates.current[activeConversation.id];
+        if (savedState) {
+          setVisibleCount(savedState.visibleCount);
+          // Restore scroll position after render
+          requestAnimationFrame(() => {
+            if (scrollRef.current) {
+              scrollRef.current.scrollTop = savedState.scrollTop;
+            }
+          });
+        } else {
+          // Default for new/unvisited conversation
+          setVisibleCount(MESSAGES_PER_PAGE);
+        }
+
+        // Reset new message indicator on switch
+        setHasNewMessage(false);
+        prevConversationId.current = activeConversation.id;
+      }
     } else {
       // New Chat Default - Start Empty
       setMessages([]);
+      setVisibleCount(MESSAGES_PER_PAGE);
+      setHasNewMessage(false);
+      prevConversationId.current = null;
     }
   }, [activeConversation]);
 
@@ -225,7 +300,24 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
 
   // Auto-scroll when messages change or UI expands
   useEffect(() => {
-    scrollToBottom();
+    if (!scrollRef.current) {
+      if (shouldForceScroll.current) {
+        scrollToBottom();
+        shouldForceScroll.current = false;
+      }
+      return;
+    }
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+
+    if (distanceFromBottom < 150 || shouldForceScroll.current) {
+      // User is near the bottom OR forced (user sent message) — auto-scroll
+      scrollToBottom();
+      shouldForceScroll.current = false;
+    } else {
+      // User is scrolled up — show new message indicator instead
+      setHasNewMessage(true);
+    }
   }, [messages, isTyping, activeCommentId]);
 
   // Auto-scroll on window resize (e.g., keyboard open)
@@ -285,6 +377,7 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
 
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
+    shouldForceScroll.current = true; // Force scroll to bottom for user messages
     onSaveChat(newMessages);
 
     setInputText('');
@@ -567,8 +660,8 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
                 >
                   <Menu className="w-6 h-6" />
                 </Button>
-                <div className="flex flex-col">
-                  <h1 className="text-lg font-bold text-foreground truncate max-w-[200px] leading-tight tracking-tight">
+                <div className="flex flex-col cursor-pointer" onClick={handleNewChatClick}>
+                  <h1 className="text-lg font-bold text-foreground truncate max-w-[200px] leading-tight tracking-tight hover:text-primary transition-colors">
                     {activeConversation ? activeConversation.title : 'Samiati'}
                   </h1>
                 </div>
@@ -601,16 +694,9 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
 
             {/* Logo and Branding */}
             <div className="flex flex-col items-center mb-8 animate-in zoom-in-50 duration-500">
-              <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl overflow-hidden shadow-lg mb-4 hover:scale-105 transition-transform duration-300">
-                <img
-                  src="/samiati-logo.svg"
-                  alt="Samiati Logo"
-                  className="w-full h-full object-cover"
-                />
+              <div className="hover:scale-105 transition-transform duration-300 mb-2">
+                <SamiatiLogo size={80} className="scale-110" />
               </div>
-              <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight mb-2">
-                Samiati
-              </h1>
               <p className="text-muted-foreground text-sm md:text-base font-medium">
                 How can I help you explore {selectedLanguage.name} culture today?
               </p>
@@ -706,12 +792,26 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
           <>
             {/* Chat Area */}
             <main
-              className="flex-1 overflow-y-auto p-4 space-y-6"
+              className="flex-1 overflow-y-auto pt-20 px-4 pb-4 space-y-6 scroll-smooth overscroll-contain"
               ref={scrollRef}
               onScroll={handleScroll}
+              style={{ WebkitOverflowScrolling: 'touch' }}
             >
+              {/* Loading older messages indicator */}
+              {isLoadingMore && (
+                <div className="flex items-center justify-center py-3">
+                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                  <span className="ml-2 text-xs font-medium text-muted-foreground">Loading older messages...</span>
+                </div>
+              )}
+              {/* Show indicator for hidden history */}
+              {!isLoadingMore && visibleCount < messages.length && (
+                <div className="flex items-center justify-center py-2">
+                  <span className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-wider">↑ Scroll up for older messages</span>
+                </div>
+              )}
               {/* Messages */}
-              {messages.map((msg, index) => (
+              {messages.slice(-visibleCount).map((msg, index) => (
                 <div key={msg.id} className={cn(
                   "flex flex-col gap-1 group/msg", // Reduced gap
                   msg.sender === 'user' ? 'items-end' : 'items-start'
@@ -923,6 +1023,36 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
                 </div>
               )}
             </main>
+
+            {/* Scroll to Bottom FAB */}
+            {showScrollToBottom && (
+              <div className="absolute bottom-24 right-4 z-30 flex flex-col items-end gap-2">
+                {/* New message indicator */}
+                {hasNewMessage && (
+                  <button
+                    onClick={() => {
+                      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+                      setHasNewMessage(false);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 animate-in fade-in slide-in-from-bottom-2"
+                  >
+                    <ArrowDown className="w-3.5 h-3.5" />
+                    New message
+                  </button>
+                )}
+                {/* Scroll to bottom button */}
+                <button
+                  onClick={() => {
+                    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+                    setHasNewMessage(false);
+                  }}
+                  className="w-10 h-10 rounded-full bg-background border border-border shadow-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 animate-in fade-in zoom-in-75"
+                  aria-label="Scroll to bottom"
+                >
+                  <ArrowDown className="w-5 h-5" />
+                </button>
+              </div>
+            )}
 
             {/* Standardized Input Area */}
             <div className="bg-background p-2 shrink-0 transition-colors duration-300 relative z-20 pb-4">

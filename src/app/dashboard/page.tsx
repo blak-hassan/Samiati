@@ -105,7 +105,11 @@ export default function DashboardPage({ searchParams }: { searchParams: Promise<
             isDarkMode={isDarkMode}
             toggleTheme={toggleTheme}
             activeConversation={activeConversation}
-            onNewChat={() => navigate(Screen.HOME_CHAT)}
+            onNewChat={() => {
+                setActiveConversation(null);
+                localConversationService.setActiveConversationId(null);
+                navigate(Screen.HOME_CHAT);
+            }}
             onSaveChat={handleSaveConversation}
             unreadCount={unreadCount}
             notificationCounts={notificationCounts}

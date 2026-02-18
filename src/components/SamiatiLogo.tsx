@@ -29,7 +29,7 @@ const SamiatiLogo: React.FC<SamiatiLogoProps> = ({ className, size = 48, variant
                 xmlns="http://www.w3.org/2000/svg"
                 className="drop-shadow-md"
             >
-                <g transform="rotate(3, 48, 48)">
+                <g>
                     {/* Background: Orange Rounded Square */}
                     <rect x="0" y="0" width="96" height="96" rx="16" fill="#cf6317" />
 
