@@ -675,114 +675,118 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
 
         {/* Welcome Mode - Google-style centered layout */}
         {isWelcomeMode ? (
-          <div className="flex-1 flex flex-col items-center justify-center px-4 animate-in fade-in duration-500">
+          <div className="flex-1 relative flex flex-col overflow-y-auto w-full">
             {/* Menu button in corner for welcome mode */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsNavOpen(true)}
-              className="absolute top-4 left-4 rounded-full transition-colors"
-              aria-label="Toggle navigation"
-            >
-              <Menu className="w-6 h-6" />
-            </Button>
-
-            {/* Notification bell in corner */}
-            <div className="absolute top-4 right-4">
-              <NotificationBell unreadCount={unreadCount} onNavigate={handleNavigate} />
-            </div>
-
-            {/* Logo and Branding */}
-            <div className="flex flex-col items-center mb-8 animate-in zoom-in-50 duration-500">
-              <div className="hover:scale-105 transition-transform duration-300 mb-2">
-                <SamiatiLogo size={80} className="scale-110" />
+            <div className="sticky top-0 left-0 w-full z-10 pointer-events-none p-4 flex justify-between items-start">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsNavOpen(true)}
+                className="rounded-full transition-colors pointer-events-auto bg-background/50 backdrop-blur-sm"
+                aria-label="Toggle navigation"
+              >
+                <Menu className="w-6 h-6" />
+              </Button>
+              <div className="pointer-events-auto">
+                <NotificationBell unreadCount={unreadCount} onNavigate={handleNavigate} />
               </div>
-              <p className="text-muted-foreground text-sm md:text-base font-medium text-center">
-                Experience your Culture
-              </p>
             </div>
 
-            {/* Centered Input Bar */}
-            <div className="w-full max-w-2xl animate-in slide-in-from-bottom-4 duration-500 delay-150">
-              <div ref={inputContainerRef} className="bg-background border border-border/40 rounded-[24px] px-4 py-3 flex flex-col gap-3 transition-all shadow-xl shadow-primary/5 focus-within:shadow-2xl focus-within:ring-1 focus-within:ring-primary/20">
+            <div className="flex-1 flex flex-col items-center justify-center min-h-full w-full px-4 -mt-20 pb-8 animate-in fade-in duration-500">
 
-                {/* Top Layer: Text Input */}
-                <div className="w-full">
-                  <textarea
-                    ref={textareaRef}
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
-                    onFocus={() => {
-                      setTimeout(() => {
-                        inputContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                      }, 500);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage();
-                      }
-                    }}
-                    placeholder="Type or Speak..."
-                    className="w-full bg-transparent border-none text-foreground placeholder-muted-foreground/70 focus:ring-0 outline-none text-base md:text-lg resize-none min-h-[40px] max-h-[160px] p-0 font-medium leading-relaxed"
-                    rows={1}
-                  />
+              {/* Logo and Branding */}
+              <div className="flex flex-col items-center mb-8 shrink-0">
+                <div className="hover:scale-105 transition-transform duration-300 mb-2">
+                  <SamiatiLogo size={80} className="scale-110" />
                 </div>
+                <p className="text-muted-foreground text-sm md:text-base font-medium text-center">
+                  Experience your Culture
+                </p>
+              </div>
 
-                {/* Bottom Layer: Actions */}
-                <div className="flex items-center justify-between w-full">
-                  {/* Left: Language Selector */}
-                  <LanguageSelector
-                    selectedLanguage={selectedLanguage}
-                    onSelect={handleLanguageSelect}
-                  />
+              {/* Centered Input Bar */}
+              <div className="w-full max-w-2xl shrink-0">
+                <div ref={inputContainerRef} className="bg-background border border-border/40 rounded-[24px] px-4 py-3 flex flex-col gap-3 transition-all shadow-xl shadow-primary/5 focus-within:shadow-2xl focus-within:ring-1 focus-within:ring-primary/20">
 
-                  {/* Right: Actions */}
-                  <div className="flex items-center gap-2">
-                    {/* Attachments Menu Popover */}
-                    <Popover open={isAttachmentMenuOpen} onOpenChange={setIsAttachmentMenuOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="rounded-full text-muted-foreground hover:text-primary transition-colors h-9 w-9 hover:bg-muted/50"
-                          aria-label="Add attachments"
-                        >
-                          <PlusCircle className="w-5 h-5" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent side="top" align="end" className="w-[180px] p-1.5 mb-3 rounded-2xl shadow-xl border-border bg-background">
-                        <AttachmentItem
-                          icon={<ImageIcon className="w-4 h-4 text-blue-500" />}
-                          label="Photo / Video"
-                          onClick={() => photoInputRef.current?.click()}
-                        />
-                        <AttachmentItem
-                          icon={<FileText className="w-4 h-4 text-orange-500" />}
-                          label="Document"
-                          onClick={() => documentInputRef.current?.click()}
-                        />
-                        <AttachmentItem
-                          icon={<Camera className="w-4 h-4 text-green-500" />}
-                          label="Live Camera"
-                          onClick={() => cameraInputRef.current?.click()}
-                        />
-                      </PopoverContent>
-                    </Popover>
+                  {/* Top Layer: Text Input */}
+                  <div className="w-full">
+                    <textarea
+                      ref={textareaRef}
+                      value={inputText}
+                      onChange={(e) => setInputText(e.target.value)}
+                      onFocus={() => {
+                        // Scroll to end (bottom) to maximize space above for the logo
+                        setTimeout(() => {
+                          inputContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                        }, 300);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }
+                      }}
+                      placeholder="Type or Speak..."
+                      className="w-full bg-transparent border-none text-foreground placeholder-muted-foreground/70 focus:ring-0 outline-none text-base md:text-lg resize-none min-h-[40px] max-h-[160px] p-0 font-medium leading-relaxed"
+                      rows={1}
+                    />
+                  </div>
 
-                    <Button
-                      size="icon"
-                      onClick={handleSendMessage}
-                      disabled={!inputText.trim()}
-                      className={cn(
-                        "w-9 h-9 rounded-full transition-all duration-300 shadow-sm transition-transform active:scale-95",
-                        inputText.trim()
-                          ? "bg-primary text-primary-foreground opacity-100 hover:scale-105"
-                          : "bg-muted text-muted-foreground opacity-50 cursor-not-allowed"
-                      )}
-                    >
-                      <ArrowUp className="w-5 h-5 stroke-[2.5]" />
-                    </Button>
+                  {/* Bottom Layer: Actions */}
+                  <div className="flex items-center justify-between w-full">
+                    {/* Left: Language Selector */}
+                    <LanguageSelector
+                      selectedLanguage={selectedLanguage}
+                      onSelect={handleLanguageSelect}
+                    />
+
+                    {/* Right: Actions */}
+                    <div className="flex items-center gap-2">
+                      {/* Attachments Menu Popover */}
+                      <Popover open={isAttachmentMenuOpen} onOpenChange={setIsAttachmentMenuOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="rounded-full text-muted-foreground hover:text-primary transition-colors h-9 w-9 hover:bg-muted/50"
+                            aria-label="Add attachments"
+                          >
+                            <PlusCircle className="w-5 h-5" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent side="top" align="end" className="w-[180px] p-1.5 mb-3 rounded-2xl shadow-xl border-border bg-background">
+                          <AttachmentItem
+                            icon={<ImageIcon className="w-4 h-4 text-blue-500" />}
+                            label="Photo / Video"
+                            onClick={() => photoInputRef.current?.click()}
+                          />
+                          <AttachmentItem
+                            icon={<FileText className="w-4 h-4 text-orange-500" />}
+                            label="Document"
+                            onClick={() => documentInputRef.current?.click()}
+                          />
+                          <AttachmentItem
+                            icon={<Camera className="w-4 h-4 text-green-500" />}
+                            label="Live Camera"
+                            onClick={() => cameraInputRef.current?.click()}
+                          />
+                        </PopoverContent>
+                      </Popover>
+
+                      <Button
+                        size="icon"
+                        onClick={handleSendMessage}
+                        disabled={!inputText.trim()}
+                        className={cn(
+                          "w-9 h-9 rounded-full transition-all duration-300 shadow-sm transition-transform active:scale-95",
+                          inputText.trim()
+                            ? "bg-primary text-primary-foreground opacity-100 hover:scale-105"
+                            : "bg-muted text-muted-foreground opacity-50 cursor-not-allowed"
+                        )}
+                      >
+                        <ArrowUp className="w-5 h-5 stroke-[2.5]" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
