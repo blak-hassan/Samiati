@@ -1,4 +1,7 @@
 ﻿"use client";
+
+export const dynamic = 'force-dynamic';
+
 import NotificationsScreen from "@/components/screens/NotificationsScreen";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useQuery, useMutation } from "convex/react";

@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import React, { use, useState, useEffect } from "react";
 import DirectMessageScreen from "@/components/screens/DirectMessageScreen";
 import { useNavigation } from "@/hooks/useNavigation";

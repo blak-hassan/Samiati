@@ -1,4 +1,7 @@
 ﻿"use client";
+
+export const dynamic = 'force-dynamic';
+
 import React, { use } from "react";
 import { useNavigation } from "@/hooks/useNavigation";
 import GroupScreen from "@/components/screens/GroupScreen";

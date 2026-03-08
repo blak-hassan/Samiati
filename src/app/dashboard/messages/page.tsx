@@ -1,4 +1,7 @@
 ﻿"use client";
+
+export const dynamic = 'force-dynamic';
+
 import DMListScreen from "@/components/screens/DMListScreen";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useQuery } from "convex/react";

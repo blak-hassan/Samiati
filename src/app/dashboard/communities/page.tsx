@@ -1,5 +1,7 @@
 ﻿"use client";
 
+export const dynamic = 'force-dynamic';
+
 import CommunitiesScreen from "@/components/screens/CommunitiesScreen";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useQuery } from "convex/react";
@@ -34,4 +36,3 @@ export default function CommunitiesPage() {
         />
     );
 }
-

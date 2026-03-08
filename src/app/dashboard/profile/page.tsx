@@ -1,4 +1,7 @@
 ﻿"use client";
+
+export const dynamic = 'force-dynamic';
+
 import ProfileScreen from "@/components/screens/ProfileScreen";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useUser } from "../../MockProviders";
