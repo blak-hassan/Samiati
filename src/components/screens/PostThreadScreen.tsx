@@ -36,7 +36,7 @@ import {
     PopoverTrigger,
     PopoverContent,
 } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import { cn, copyToClipboard } from "@/lib/utils";
 
 interface Props {
     navigate: (screen: Screen) => void;
@@ -155,7 +155,7 @@ const PostThreadScreen: React.FC<Props> = ({ goBack, post, onLike, onRepost, aut
         e.stopPropagation();
         setActiveMenuId(null);
         if (action === 'share') {
-            navigator.clipboard.writeText(`https://samiati.app/post/${post.id}`);
+            copyToClipboard(`https://samiati.app/post/${post.id}`);
             showToast('Link copied to clipboard');
         } else if (action === 'mute') {
             showToast(`Muted @${post.author.handle}`);

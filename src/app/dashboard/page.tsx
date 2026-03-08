@@ -27,7 +27,7 @@ export default function DashboardPage({ searchParams }: { searchParams: Promise<
         total: unreadCount,
         contributions: notifications.filter(n => !n.isRead && n.type === 'contribution').length,
         moderation: notifications.filter(n => !n.isRead && n.type === 'moderation').length,
-        mushenee: notifications.filter(n => !n.isRead && (n.type === 'comment' || n.type === 'like' || n.type === 'message')).length,
+
         watu: notifications.filter(n => !n.isRead && n.type === 'follow').length,
     };
 

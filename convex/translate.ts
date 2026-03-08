@@ -2,29 +2,43 @@
 import { v } from "convex/values";
 import { action } from "./_generated/server";
 
-
 // =============================================================================
-// LLAMA 3 TRANSLATION SERVICE (Hugging Face)
+// NLLB-200 TRANSLATION SERVICE (HuggingFace Inference API)
 // =============================================================================
-// Replaces Gemini (Rate Limited) and NLLB (Deprecated Endpoint).
-// Uses Meta-Llama-3-8B-Instruct via Hugging Face Serverless Inference.
+// Uses facebook/nllb-200-distilled-600M via HuggingFace Inference API
+// for proper multilingual translation with NLLB language codes.
 //
-// API: Hugging Face Router (OpenAI-compatible)
+// API: HuggingFace Inference API (Translation Pipeline)
+// MODEL: facebook/nllb-200-distilled-600M
 // KEY: HUGGINGFACE_API_KEY (Set in Convex Dashboard)
 // =============================================================================
 
-// =============================================================================
-// TRANSLATION SERVICE: Hugging Face (NLLB/Llama3)
-// =============================================================================
-// Uses Meta-Llama-3-8B-Instruct via Hugging Face Serverless Inference to
-// simulate NLLB translation behavior.
-//
-// API: Hugging Face Router (OpenAI-compatible)
-// KEY: HUGGINGFACE_API_KEY (Set in Convex Dashboard)
-// =============================================================================
+// Map short codes (used by frontend) to NLLB-200 BCP-47 codes
+const LANGUAGE_TO_NLLB: Record<string, string> = {
+    // NLLB codes (already correct)
+    'swh_Latn': 'swh_Latn',
+    'kik_Latn': 'kik_Latn',
+    'luo_Latn': 'luo_Latn',
+    'eng_Latn': 'eng_Latn',
+    'kam_Latn': 'kam_Latn',
+    'kln_Latn': 'kln_Latn',
+    'luy_Latn': 'luy_Latn',
+    'mer_Latn': 'mer_Latn',
+    'mas_Latn': 'mas_Latn',
+    // Short codes → NLLB codes
+    'sw': 'swh_Latn',
+    'ki': 'kik_Latn',
+    'luo': 'luo_Latn',
+    'en': 'eng_Latn',
+    'kam': 'kam_Latn',
+    'kln': 'kln_Latn',
+    'luy': 'luy_Latn',
+    'mer': 'mer_Latn',
+    'mas': 'mas_Latn',
+};
 
-// Map NLLB codes (used by frontend) to readable names for Llama 3 fallback
-const LANGUAGE_MAP: Record<string, string> = {
+// Human-readable names for logging
+const LANGUAGE_NAMES: Record<string, string> = {
     'swh_Latn': 'Swahili',
     'kik_Latn': 'Kikuyu',
     'luo_Latn': 'Luo',
@@ -34,33 +48,24 @@ const LANGUAGE_MAP: Record<string, string> = {
     'luy_Latn': 'Luhya',
     'mer_Latn': 'Meru',
     'mas_Latn': 'Maasai',
-    // Short codes
-    'sw': 'Swahili',
-    'ki': 'Kikuyu',
-    'luo': 'Luo',
-    'en': 'English',
-    'kam': 'Kamba',
-    'kln': 'Kalenjin',
-    'luy': 'Luhya',
-    'mer': 'Meru',
-    'mas': 'Maasai',
 };
-
-
 
 async function callNLLB(text: string, targetLang: string): Promise<string> {
     const apiKey = process.env.HUGGINGFACE_API_KEY;
-    const targetLangName = LANGUAGE_MAP[targetLang] || targetLang;
 
-    console.log(`[NLLB/Llama3 Fallback] Translating to ${targetLangName}...`);
+    // Resolve the NLLB language code
+    const nllbCode = LANGUAGE_TO_NLLB[targetLang] || targetLang;
+    const langName = LANGUAGE_NAMES[nllbCode] || nllbCode;
+
+    console.log(`[NLLB-200] Translating to ${langName} (${nllbCode})...`);
 
     if (!apiKey) {
         console.error("HUGGINGFACE_API_KEY is not set!");
-        return "N/A"; // API unavailable
+        return "N/A";
     }
 
     try {
-        const url = "https://router.huggingface.co/v1/chat/completions";
+        const url = "https://router.huggingface.co/hf-inference/models/facebook/nllb-200-distilled-600M";
 
         const response = await fetch(url, {
             method: "POST",
@@ -69,44 +74,37 @@ async function callNLLB(text: string, targetLang: string): Promise<string> {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                model: "meta-llama/Meta-Llama-3-8B-Instruct",
-                messages: [
-                    {
-                        role: "system",
-                        content: `You are a strict translation engine. Translate the user's input into ${targetLangName}.
-Rules:
-1. Output ONLY the translated text.
-2. NO explanations, notes, or "Here is the translation".
-3. NO quotes around the output.
-4. If the text is simple, keep it simple.
-`
-                    },
-                    {
-                        role: "user",
-                        content: text
-                    }
-                ],
-                max_tokens: 500,
-                temperature: 0.1,
+                inputs: text,
+                parameters: {
+                    src_lang: "eng_Latn",
+                    tgt_lang: nllbCode,
+                },
             }),
         });
 
         if (!response.ok) {
-            console.error(`[Fallback] API Error (${response.status}):`, await response.text());
+            const errorText = await response.text();
+            console.error(`[NLLB-200] API Error (${response.status}):`, errorText);
             return "N/A";
         }
 
         const result = await response.json();
-        const translatedText = result.choices?.[0]?.message?.content;
 
-        if (translatedText) {
-            return translatedText.replace(/^["']|["']$/g, '').trim();
-        } else {
-            return "N/A";
+        // HuggingFace translation pipeline returns: [{ translation_text: "..." }]
+        if (Array.isArray(result) && result[0]?.translation_text) {
+            return result[0].translation_text.trim();
         }
 
+        // Fallback: some models return { generated_text: "..." }
+        if (result?.generated_text) {
+            return result.generated_text.trim();
+        }
+
+        console.error("[NLLB-200] Unexpected response format:", JSON.stringify(result));
+        return "N/A";
+
     } catch (error) {
-        console.error("[Fallback] Failed:", error);
+        console.error("[NLLB-200] Failed:", error);
         return "N/A";
     }
 }

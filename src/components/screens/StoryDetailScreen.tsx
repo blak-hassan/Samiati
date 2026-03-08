@@ -39,7 +39,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { cn } from "@/lib/utils";
+import { cn, copyToClipboard } from "@/lib/utils";
 
 interface StoryParam {
   title: string;
@@ -104,7 +104,7 @@ const StoryDetailScreen: React.FC<Props> = ({ navigate, goBack, unreadCount = 0,
   const storyTitle = `${activeStory.title} - A Tale of Wisdom from Samiati`;
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(storyUrl).then(() => {
+    copyToClipboard(storyUrl).then(() => {
       setToastMessage("Link copied to clipboard!");
       setTimeout(() => setToastMessage(null), 3000);
       setIsShareOpen(false);

@@ -30,8 +30,8 @@ const SamiatiLogo: React.FC<SamiatiLogoProps> = ({ className, size = 48, variant
                 className="drop-shadow-md"
             >
                 <g>
-                    {/* Background: Orange Rounded Square */}
-                    <rect x="0" y="0" width="96" height="96" rx="16" fill="#cf6317" />
+                    {/* Background: Orange Circle */}
+                    <circle cx="48" cy="48" r="48" fill="#cf6317" />
 
                     {/* Icon: diversity_2 (centered) */}
                     <svg x="18" y="18" width="60" height="60" viewBox="0 -960 960 960">

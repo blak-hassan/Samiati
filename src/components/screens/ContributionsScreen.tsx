@@ -15,7 +15,7 @@ import { ModerationLogContent } from './ModerationLogScreen';
 import { useUser } from '@/app/MockProviders';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { cn, copyToClipboard } from '@/lib/utils';
 import {
     ArrowLeft,
     Plus,
@@ -450,7 +450,7 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
     const handleCopyLink = () => {
         if (!itemToShare) return;
         const shareUrl = `https://samiati.app/${itemToShare.type.toLowerCase()}/${itemToShare.id}`;
-        navigator.clipboard.writeText(shareUrl).then(() => {
+        copyToClipboard(shareUrl).then(() => {
             setToastMessage("Link copied to clipboard!");
             setTimeout(() => setToastMessage(null), 3000);
             setShareModalOpen(false);

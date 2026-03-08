@@ -3,10 +3,10 @@ import { v } from "convex/values";
 import { action } from "./_generated/server";
 
 // =============================================================================
-// HUGGING FACE CHAT SERVICE (Replaces Gemini)
+// QWEN CHAT SERVICE (HuggingFace Inference API)
 // =============================================================================
 // API: Hugging Face Serverless Inference API (OpenAI-compatible)
-// MODEL: meta-llama/Meta-Llama-3-8B-Instruct
+// MODEL: Qwen/Qwen2.5-0.5B-Instruct
 // KEY: HUGGINGFACE_API_KEY (Set in Convex Dashboard)
 // =============================================================================
 
@@ -44,9 +44,9 @@ export const sendMessage = action({
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    model: "meta-llama/Meta-Llama-3-8B-Instruct",
+                    model: "Qwen/Qwen2.5-0.5B-Instruct",
                     messages: apiMessages,
-                    max_tokens: 500, // Reasonable limit for chat
+                    max_tokens: 300,
                     temperature: 0.7,
                 }),
             });

@@ -38,8 +38,12 @@ import {
   Globe,
   Megaphone,
   Check,
+  CheckCircle2,
   Copy,
-  Loader2
+  Loader2,
+  Mic,
+  Square,
+  Volume2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,7 +65,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Card } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { cn, copyToClipboard } from "@/lib/utils";
 
 interface Props {
   user: User;
@@ -71,7 +75,7 @@ interface Props {
     total: number;
     contributions: number;
     moderation: number;
-    mushenee: number;
+
     watu: number;
   };
   activeConversation: Conversation | null;
@@ -117,6 +121,9 @@ const MESSAGES_PER_PAGE = 20;
 const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notificationCounts, activeConversation, onNewChat, onSaveChat, isDarkMode, toggleTheme }) => {
   const translate = useAction(api.translate.translateText);
   const sendMessageAction = useAction(api.chat.sendMessage);
+  const transcribeAudio = useAction(api.asr.transcribeAudio);
+  const synthesizeSpeech = useAction(api.tts.synthesizeSpeech);
+
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -134,6 +141,16 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
   // We'll use separate states for the two instances or just let them manage themselves if possible?
   // Language Selector now manages its own open state internally
 
+  // ASR State
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  // TTS State
+  const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
+  const [isSynthesizing, setIsSynthesizing] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Attachment State
   const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false);
@@ -150,9 +167,11 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
   const handleCopy = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
+    copyToClipboard(text);
     setCopiedMessageId(id);
-    setTimeout(() => setCopiedMessageId(null), 2000);
+    setTimeout(() => {
+      setCopiedMessageId(null);
+    }, 2000);
   };
 
   // Welcome Mode - true when no user messages exist (Google-style centered layout)
@@ -436,6 +455,118 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
     });
   };
 
+  const startRecording = async () => {
+    try {
+      // Check if the browser supports mediaDevices (requires HTTPS or localhost)
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Microphone access is not supported. Please ensure you use a secure connection (HTTPS) or localhost.");
+        return;
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        setIsTranscribing(true);
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+
+        // Convert Blob to Base64
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = async () => {
+          const base64data = reader.result as string;
+          const base64String = base64data.split(',')[1];
+
+          try {
+            const response = await transcribeAudio({ audioBase64: base64String });
+            if (response.text) {
+              setInputText(prev => prev ? `${prev} ${response.text}` : response.text);
+              // Auto-resize textarea
+              setTimeout(() => {
+                if (textareaRef.current) {
+                  textareaRef.current.style.height = 'auto';
+                  textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 100)}px`;
+                }
+              }, 0);
+            }
+          } catch (err) {
+            console.error("Transcription failed:", err);
+          } finally {
+            setIsTranscribing(false);
+          }
+        };
+
+        // Stop all tracks
+        stream.getTracks().forEach((track) => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.error("Failed to start recording:", err);
+      alert("Could not access microphone.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const handlePlayAudio = async (messageId: string, text: string, language: string) => {
+    if (playingMessageId === messageId) {
+      // Stop current audio
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+      setPlayingMessageId(null);
+      return;
+    }
+
+    setIsSynthesizing(messageId);
+
+    try {
+      // Language code for TTS is derived from selectedLanguage name/nllbCode mapping
+      const result = await synthesizeSpeech({
+        text,
+        language: selectedLanguage.code
+      });
+
+      if (result.audioBase64) {
+        const audioUrl = `data:${result.contentType};base64,${result.audioBase64}`;
+
+        if (audioRef.current) {
+          audioRef.current.pause();
+        }
+
+        const audio = new Audio(audioUrl);
+        audioRef.current = audio;
+
+        audio.onended = () => {
+          setPlayingMessageId(null);
+        };
+
+        audio.play();
+        setPlayingMessageId(messageId);
+      }
+    } catch (err) {
+      console.error("Failed to play audio:", err);
+    } finally {
+      setIsSynthesizing(null);
+    }
+  };
+
 
 
   const handleNewChatClick = () => {
@@ -615,9 +746,9 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
               <DrawerItem
                 icon={<MessagesSquare className="w-5 h-5" />}
                 label="Mushenee"
-                count={notificationCounts?.mushenee}
                 onClick={() => handleNavigate(Screen.MESSAGES)}
               />
+
               {user.role === 'moderator' || user.role === 'admin' && (
                 <DrawerItem
                   icon={<ShieldCheck className="w-5 h-5" />}
@@ -666,9 +797,6 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
                   </h1>
                 </div>
               </div>
-              <div className="flex items-center gap-1">
-                <NotificationBell unreadCount={unreadCount} onNavigate={handleNavigate} />
-              </div>
             </header>
           </div>
         )}
@@ -687,9 +815,7 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
               >
                 <Menu className="w-6 h-6" />
               </Button>
-              <div className="pointer-events-auto">
-                <NotificationBell unreadCount={unreadCount} onNavigate={handleNavigate} />
-              </div>
+              <div className="w-10" />
             </div>
 
             <div className="flex-1 flex flex-col items-center justify-center min-h-full w-full px-4 -mt-20 pb-8 animate-in fade-in duration-500">
@@ -705,8 +831,8 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
               </div>
 
               {/* Centered Input Bar */}
-              <div className="w-full max-w-2xl shrink-0">
-                <div ref={inputContainerRef} className="bg-background border border-border/40 rounded-[24px] px-4 py-3 flex flex-col gap-3 transition-all shadow-xl shadow-primary/5 focus-within:shadow-2xl focus-within:ring-1 focus-within:ring-primary/20">
+              <div className="w-full max-w-2xl shrink-0 px-2 sm:px-0">
+                <div ref={inputContainerRef} className="bg-background border border-border/40 rounded-[24px] px-3 sm:px-4 py-3 flex flex-col gap-2 sm:gap-3 transition-all shadow-xl shadow-primary/5 focus-within:shadow-2xl focus-within:ring-1 focus-within:ring-primary/20">
 
                   {/* Top Layer: Text Input */}
                   <div className="w-full">
@@ -741,7 +867,7 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
                     />
 
                     {/* Right: Actions */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                       {/* Attachments Menu Popover */}
                       <Popover open={isAttachmentMenuOpen} onOpenChange={setIsAttachmentMenuOpen}>
                         <PopoverTrigger asChild>
@@ -773,13 +899,37 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
                         </PopoverContent>
                       </Popover>
 
+                      {/* Microphone Button */}
+                      <Button
+                        size="icon"
+                        onClick={isRecording ? stopRecording : startRecording}
+                        disabled={isTranscribing}
+                        className={cn(
+                          "w-9 h-9 rounded-full transition-all duration-300 shadow-sm transition-transform active:scale-95",
+                          isTranscribing
+                            ? "bg-muted text-muted-foreground opacity-50 cursor-not-allowed"
+                            : isRecording
+                              ? "bg-red-500 text-white animate-pulse"
+                              : "bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted"
+                        )}
+                        aria-label="Toggle voice recording"
+                      >
+                        {isTranscribing ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : isRecording ? (
+                          <Square className="w-4 h-4 fill-current" />
+                        ) : (
+                          <Mic className="w-4 h-4" />
+                        )}
+                      </Button>
+
                       <Button
                         size="icon"
                         onClick={handleSendMessage}
-                        disabled={!inputText.trim()}
+                        disabled={!inputText.trim() || isTranscribing}
                         className={cn(
                           "w-9 h-9 rounded-full transition-all duration-300 shadow-sm transition-transform active:scale-95",
-                          inputText.trim()
+                          inputText.trim() && !isTranscribing
                             ? "bg-primary text-primary-foreground opacity-100 hover:scale-105"
                             : "bg-muted text-muted-foreground opacity-50 cursor-not-allowed"
                         )}
@@ -796,7 +946,7 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
           <>
             {/* Chat Area */}
             <main
-              className="flex-1 overflow-y-auto pt-20 px-4 pb-4 space-y-6 scroll-smooth overscroll-contain"
+              className="flex-1 overflow-y-auto overflow-x-hidden pt-20 px-4 pb-4 space-y-6 scroll-smooth overscroll-contain"
               ref={scrollRef}
               onScroll={handleScroll}
               style={{ WebkitOverflowScrolling: 'touch' }}
@@ -898,13 +1048,41 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
                     </div>
                   </div>
 
-                  {/* AI Actions Row: Timestamp | Thumbs | Copy | Feedback */}
+                  {/* AI Actions Row: Timestamp | Thumbs | Copy | Feedback | Audio */}
                   {msg.sender === 'ai' && (
-                    <div className="flex items-center gap-4 ml-11 mt-0.5 opacity-0 group-hover/msg:opacity-100 transition-opacity duration-200">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-2 ml-10 mt-2 mb-2 transition-opacity duration-200">
                       {/* Timestamp */}
                       <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider">
                         {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
+
+                      {/* Divider */}
+                      <div className="h-3 w-[1px] bg-border" />
+
+                      {/* TTS / Speaker Button */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handlePlayAudio(msg.id, msg.translatedText || msg.text, msg.targetLanguage || 'sw')}
+                        className={cn(
+                          "h-6 w-6 rounded-full transition-all",
+                          playingMessageId === msg.id
+                            ? "text-primary bg-primary/10 animate-pulse"
+                            : isSynthesizing === msg.id
+                              ? "text-muted-foreground opacity-50 cursor-not-allowed"
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                        )}
+                        disabled={isSynthesizing === msg.id}
+                        title={playingMessageId === msg.id ? "Stop audio" : "Listen"}
+                      >
+                        {isSynthesizing === msg.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : playingMessageId === msg.id ? (
+                          <Square className="w-3.5 h-3.5 fill-current" />
+                        ) : (
+                          <Volume2 className="w-3.5 h-3.5" />
+                        )}
+                      </Button>
 
                       {/* Divider */}
                       <div className="h-3 w-[1px] bg-border" />
@@ -1130,13 +1308,37 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
                       </PopoverContent>
                     </Popover>
 
+                    {/* Microphone Button */}
+                    <Button
+                      size="icon"
+                      onClick={isRecording ? stopRecording : startRecording}
+                      disabled={isTranscribing}
+                      className={cn(
+                        "w-9 h-9 rounded-full transition-all duration-300 shadow-sm transition-transform active:scale-95",
+                        isTranscribing
+                          ? "bg-muted text-muted-foreground opacity-50 cursor-not-allowed"
+                          : isRecording
+                            ? "bg-red-500 text-white animate-pulse"
+                            : "bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted"
+                      )}
+                      aria-label="Toggle voice recording"
+                    >
+                      {isTranscribing ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : isRecording ? (
+                        <Square className="w-4 h-4 fill-current" />
+                      ) : (
+                        <Mic className="w-4 h-4" />
+                      )}
+                    </Button>
+
                     <Button
                       size="icon"
                       onClick={handleSendMessage}
-                      disabled={!inputText.trim()}
+                      disabled={!inputText.trim() || isTranscribing}
                       className={cn(
                         "w-9 h-9 rounded-full transition-all duration-300 shadow-sm transition-transform active:scale-95",
-                        inputText.trim()
+                        inputText.trim() && !isTranscribing
                           ? "bg-primary text-primary-foreground opacity-100 hover:scale-105"
                           : "bg-muted text-muted-foreground opacity-50 cursor-not-allowed"
                       )}

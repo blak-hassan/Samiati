@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as asr from "../asr.js";
 import type * as bookmarks_mutations from "../bookmarks/mutations.js";
 import type * as bookmarks_queries from "../bookmarks/queries.js";
 import type * as chat from "../chat.js";
@@ -32,6 +33,7 @@ import type * as reports from "../reports.js";
 import type * as reposts_mutations from "../reposts/mutations.js";
 import type * as reposts_queries from "../reposts/queries.js";
 import type * as translate from "../translate.js";
+import type * as tts from "../tts.js";
 import type * as users_mutations from "../users/mutations.js";
 import type * as users_queries from "../users/queries.js";
 import type * as users_utils from "../users/utils.js";
@@ -43,6 +45,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  asr: typeof asr;
   "bookmarks/mutations": typeof bookmarks_mutations;
   "bookmarks/queries": typeof bookmarks_queries;
   chat: typeof chat;
@@ -67,6 +70,7 @@ declare const fullApi: ApiFromModules<{
   "reposts/mutations": typeof reposts_mutations;
   "reposts/queries": typeof reposts_queries;
   translate: typeof translate;
+  tts: typeof tts;
   "users/mutations": typeof users_mutations;
   "users/queries": typeof users_queries;
   "users/utils": typeof users_utils;

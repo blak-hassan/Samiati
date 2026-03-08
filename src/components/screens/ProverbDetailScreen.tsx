@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
 import { Screen } from '@/types';
 import { NotificationBell } from '@/components/shared/NotificationBell';
+import { copyToClipboard } from '@/lib/utils';
 
 interface Props {
   navigate: (screen: Screen) => void;
@@ -350,7 +351,7 @@ const ProverbDetailScreen: React.FC<Props> = ({ goBack, navigate, unreadCount = 
   };
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText("https://samiati.app/proverb/gaskiya-ta-fi-kwabo");
+    copyToClipboard("https://samiati.app/proverb/gaskiya-ta-fi-kwabo");
     setToastMessage("Link copied to clipboard!");
     setTimeout(() => setToastMessage(null), 3000);
     setIsShareOpen(false);
