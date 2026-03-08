@@ -1,11 +1,12 @@
 "use client";
 
+import { Suspense } from "react";
 import AddContributionScreen from "@/components/screens/AddContributionScreen";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useUser } from "../../MockProviders";
 import { useSearchParams } from "next/navigation";
 
-export default function AddContributionPage() {
+function AddContributionContent() {
     const { navigate, goBack } = useNavigation();
     const { setMyContributions } = useUser();
     const searchParams = useSearchParams();
@@ -41,5 +42,13 @@ export default function AddContributionPage() {
             onSave={handleSave}
             initialData={initialData}
         />
+    );
+}
+
+export default function AddContributionPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <AddContributionContent />
+        </Suspense>
     );
 }
