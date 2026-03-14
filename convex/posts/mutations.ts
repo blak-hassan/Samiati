@@ -1,6 +1,15 @@
 import { mutation } from "../_generated/server";
 import { v } from "convex/values";
-import { getCurrentUser } from "../users/utils";
+import { getCurrentUser, isGuestUser } from "../users/utils";
+
+// Input validation constants
+const MAX_CONTENT_LENGTH = 5000;
+const MAX_TITLE_LENGTH = 200;
+
+// Input sanitization helper
+function sanitizeInput(input: string): string {
+    return input.trim().slice(0, MAX_CONTENT_LENGTH);
+}
 
 // Create a new post
 export const create = mutation({
@@ -16,15 +25,37 @@ export const create = mutation({
     handler: async (ctx, args) => {
         const user = await getCurrentUser(ctx);
         if (!user) throw new Error("Unauthorized");
+        
+        // Check if user is a guest - guests cannot create posts
+        if (isGuestUser(user)) {
+            throw new Error("Guests cannot create posts. Please sign up to contribute.");
+        }
+        
+        // Validate content length
+        if (args.content.length > MAX_CONTENT_LENGTH) {
+            throw new Error(`Content exceeds maximum length of ${MAX_CONTENT_LENGTH} characters`);
+        }
+        
+        // Validate content is not empty after sanitization
+        const sanitizedContent = sanitizeInput(args.content);
+        if (!sanitizedContent) {
+            throw new Error("Content cannot be empty");
+        }
+        
+        // Validate type
+        const allowedTypes = ['standard', 'proverb', 'question', 'fireplace'];
+        if (!allowedTypes.includes(args.type)) {
+            throw new Error("Invalid post type");
+        }
 
         const postId = await ctx.db.insert("posts", {
-            content: args.content,
+            content: sanitizedContent,
             type: args.type,
             authorId: user._id,
             timestamp: Date.now(),
             image: args.image,
-            altText: args.altText,
-            languageTag: args.languageTag,
+            altText: args.altText?.slice(0, MAX_TITLE_LENGTH),
+            languageTag: args.languageTag?.slice(0, MAX_TITLE_LENGTH),
             isFireplace: args.isFireplace,
             stats: {
                 replies: 0,

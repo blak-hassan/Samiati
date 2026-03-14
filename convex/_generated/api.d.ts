@@ -19,6 +19,7 @@ import type * as communities_queries from "../communities/queries.js";
 import type * as contributions_mutations from "../contributions/mutations.js";
 import type * as contributions_queries from "../contributions/queries.js";
 import type * as crons from "../crons.js";
+import type * as diagnostic from "../diagnostic.js";
 import type * as dms_mutations from "../dms/mutations.js";
 import type * as dms_queries from "../dms/queries.js";
 import type * as files from "../files.js";
@@ -56,6 +57,7 @@ declare const fullApi: ApiFromModules<{
   "contributions/mutations": typeof contributions_mutations;
   "contributions/queries": typeof contributions_queries;
   crons: typeof crons;
+  diagnostic: typeof diagnostic;
   "dms/mutations": typeof dms_mutations;
   "dms/queries": typeof dms_queries;
   files: typeof files;

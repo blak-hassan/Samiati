@@ -24,7 +24,7 @@ export const transcribeAudio = action({
 
         if (!apiKey) {
             console.error("HUGGINGFACE_API_KEY is not set!");
-            return { text: "", error: "API key missing" };
+            return { text: "", error: "ERROR: API key not configured. Please set HUGGINGFACE_API_KEY in Convex Dashboard." };
         }
 
         console.log("[Paza Whisper] Transcribing audio...");
@@ -55,10 +55,10 @@ export const transcribeAudio = action({
 
                 // Handle model loading (common with HF free tier)
                 if (response.status === 503) {
-                    return { text: "", error: "Model is loading, please try again in a moment." };
+                    return { text: "", error: "ASR Model is loading, please try again in a moment." };
                 }
 
-                return { text: "", error: `API Error: ${response.status}` };
+                return { text: "", error: `ASR API Error: ${response.status}. Please try again.` };
             }
 
             const result = await response.json();
@@ -70,11 +70,11 @@ export const transcribeAudio = action({
             }
 
             console.error("[Paza Whisper] Unexpected response:", JSON.stringify(result));
-            return { text: "", error: "Unexpected response format" };
+            return { text: "", error: "ASR service returned an unexpected response format." };
 
         } catch (error) {
             console.error("[Paza Whisper] Failed:", error);
-            return { text: "", error: "Transcription failed" };
+            return { text: "", error: "Transcription failed due to a network error. Please check your connection." };
         }
     },
 });

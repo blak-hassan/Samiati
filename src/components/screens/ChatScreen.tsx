@@ -43,7 +43,8 @@ import {
   Loader2,
   Mic,
   Square,
-  Volume2
+  Volume2,
+  Activity
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +56,12 @@ import {
   SheetTitle,
   SheetTrigger
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { LanguageSelector, LANGUAGES, Language } from "@/components/chat/LanguageSelector";
 import {
   Popover,
@@ -123,6 +130,7 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
   const sendMessageAction = useAction(api.chat.sendMessage);
   const transcribeAudio = useAction(api.asr.transcribeAudio);
   const synthesizeSpeech = useAction(api.tts.synthesizeSpeech);
+  const diagnoseServices = useAction(api.diagnostic.diagnoseServices);
 
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -165,6 +173,25 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
 
   // Copy State
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+
+  // Diagnostic State
+  const [isRunningDiagnostics, setIsRunningDiagnostics] = useState(false);
+  const [diagnosticResults, setDiagnosticResults] = useState<Array<{service: string, status: string, message: string, details?: string}>>([]);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+
+  // Run diagnostics handler
+  const runDiagnostics = async () => {
+    setIsRunningDiagnostics(true);
+    setShowDiagnostics(true);
+    try {
+      const results = await diagnoseServices();
+      setDiagnosticResults(results);
+    } catch (error) {
+      console.error("Diagnostics failed:", error);
+      setDiagnosticResults([{ service: "Error", status: "error", message: "Failed to run diagnostics", details: String(error) }]);
+    }
+    setIsRunningDiagnostics(false);
+  };
 
   const handleCopy = (text: string, id: string) => {
     copyToClipboard(text);
@@ -417,6 +444,20 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
 
     const aiResponseText = await sendMessageAction({ messages: payload });
 
+    // Check if response is an error message
+    if (aiResponseText.startsWith && aiResponseText.startsWith("ERROR:")) {
+      console.error("Chat error:", aiResponseText);
+      // Display error to user but don't crash
+      setIsTyping(false);
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        sender: 'ai',
+        text: aiResponseText,
+        timestamp: new Date()
+      }]);
+      return;
+    }
+
     // Call translation if selected language is not English
     let translatedText = undefined;
     if (selectedLanguage.code !== 'en') {
@@ -426,15 +467,18 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
           targetLanguage: selectedLanguage.nllbCode
         });
 
-        // Backend now returns "N/A" on failure.
-        // If result is valid (including "N/A"), use it.
-        // We no longer fallback to original text here.
-        if (result) {
+        // Backend now returns descriptive error messages starting with "ERROR:" on failure.
+        // If result is valid (not an error), use it.
+        if (result && !result.startsWith("ERROR:")) {
           translatedText = result;
+        } else if (result?.startsWith("ERROR:")) {
+          // Log the error for debugging
+          console.error("Translation error:", result);
+          translatedText = "Translation unavailable";
         }
       } catch (error) {
         console.error("Translation failed:", error);
-        translatedText = "N/A";
+        translatedText = "Translation unavailable";
       }
     }
 
@@ -762,6 +806,11 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
 
             <div className="p-4 mt-auto">
               <DrawerItem
+                icon={<Activity className="w-5 h-5" />}
+                label="Diagnostics"
+                onClick={runDiagnostics}
+              />
+              <DrawerItem
                 icon={<Settings className="w-5 h-5" />}
                 label="Settings"
                 onClick={() => handleNavigate(Screen.SETTINGS)}
@@ -1048,16 +1097,9 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
                     </div>
                   </div>
 
-                  {/* AI Actions Row: Timestamp | Thumbs | Copy | Feedback | Audio */}
+                  {/* AI Actions Row: Thumbs | Copy | Feedback | Audio */}
                   {msg.sender === 'ai' && (
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-2 ml-10 mt-2 mb-2 transition-opacity duration-200">
-                      {/* Timestamp */}
-                      <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider">
-                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-
-                      {/* Divider */}
-                      <div className="h-3 w-[1px] bg-border" />
 
                       {/* TTS / Speaker Button */}
                       <Button
@@ -1131,15 +1173,15 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
                         )}
                       </Button>
 
-                      {/* Feedback Text Button */}
+                      {/* Feedback Button (Icon Only) */}
                       <Button
                         variant="ghost"
-                        size="sm"
+                        size="icon"
                         onClick={() => toggleCommentBox(msg.id)}
-                        className="h-6 px-2 text-[10px] font-bold text-muted-foreground hover:text-foreground uppercase tracking-wider gap-1.5 rounded-md hover:bg-muted/50"
+                        className="h-6 w-6 rounded-full hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-all"
+                        title="Feedback"
                       >
                         <MessageCircle className="w-3.5 h-3.5" />
-                        Feedback
                       </Button>
 
                     </div>
@@ -1353,6 +1395,49 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
         )
         }
       </div >
+
+      {/* Diagnostics Dialog */}
+      <Dialog open={showDiagnostics} onOpenChange={setShowDiagnostics}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>AI Services Diagnostics</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {isRunningDiagnostics ? (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Running diagnostics...</span>
+              </div>
+            ) : (
+              diagnosticResults.map((result, index) => (
+                <div 
+                  key={index} 
+                  className={`p-3 rounded-lg border ${
+                    result.status === 'ok' ? 'border-green-500 bg-green-500/10' :
+                    result.status === 'warning' ? 'border-yellow-500 bg-yellow-500/10' :
+                    'border-red-500 bg-red-500/10'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={`font-semibold ${
+                      result.status === 'ok' ? 'text-green-500' :
+                      result.status === 'warning' ? 'text-yellow-500' :
+                      'text-red-500'
+                    }`}>
+                      {result.status === 'ok' ? '✓' : result.status === 'warning' ? '⚠' : '✗'}
+                    </span>
+                    <span className="font-medium">{result.service}</span>
+                  </div>
+                  <p className="text-sm mt-1">{result.message}</p>
+                  {result.details && (
+                    <p className="text-xs mt-1 text-muted-foreground">{result.details}</p>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div >
   );
 };

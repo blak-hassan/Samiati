@@ -48,7 +48,7 @@ export const synthesizeSpeech = action({
 
         if (!apiKey) {
             console.error("HUGGINGFACE_API_KEY is not set!");
-            return { audioBase64: null, error: "API key missing" };
+            return { audioBase64: null, error: "ERROR: API key not configured. Please set HUGGINGFACE_API_KEY in Convex Dashboard." };
         }
 
         // Select the appropriate TTS model for the language
@@ -77,10 +77,10 @@ export const synthesizeSpeech = action({
 
                 // Handle model loading (common with HF free tier)
                 if (response.status === 503) {
-                    return { audioBase64: null, error: "Model is loading, please try again in a moment." };
+                    return { audioBase64: null, error: "TTS Model is loading, please try again in a moment." };
                 }
 
-                return { audioBase64: null, error: `API Error: ${response.status}` };
+                return { audioBase64: null, error: `TTS API Error: ${response.status}. Please try again.` };
             }
 
             // Response is raw audio binary (FLAC/WAV)
@@ -105,7 +105,7 @@ export const synthesizeSpeech = action({
 
         } catch (error) {
             console.error("[TTS] Failed:", error);
-            return { audioBase64: null, error: "Speech synthesis failed" };
+            return { audioBase64: null, error: "Speech synthesis failed due to a network error. Please check your connection." };
         }
     },
 });

@@ -24,13 +24,13 @@ export const sendMessage = action({
 
         if (!apiKey) {
             console.error("HUGGINGFACE_API_KEY is not set!");
-            return "N/A"; // API Key missing
+            return "ERROR: HuggingFace API key not configured. Please set HUGGINGFACE_API_KEY in Convex Dashboard.";
         }
 
         // System Prompt for Samiati
         const systemMessage = {
             role: "system",
-            content: "You are Samiati, a friend and conversational partner via text. Your goal is to chat naturally with the user. EXPERIMENTAL RULE: You must NEVER explain, define, or lecture about the language. ALWAYS reply in English. If the user says 'Hello' or 'Habari', you simply reply 'I am good' or 'Hello'. Keep your responses short, casual, and direct. Only explain if the user specifically asks 'What does this mean?'."
+            content: "You are Samiati, a friendly chat assistant. Your goal is to chat naturally with the user. Reply in English. Keep responses short, casual, and friendly. Never explain or define words unless the user explicitly asks."
         };
 
         // Prepare messages (prepend system message)
@@ -44,7 +44,7 @@ export const sendMessage = action({
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    model: "Qwen/Qwen2.5-0.5B-Instruct",
+                    model: "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
                     messages: apiMessages,
                     max_tokens: 300,
                     temperature: 0.7,
@@ -54,7 +54,7 @@ export const sendMessage = action({
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error(`HuggingFace API Error (${response.status}):`, errorText);
-                return "N/A"; // Provider Error
+                return `ERROR: HuggingFace API returned status ${response.status}. Check your API key and try again.`;
             }
 
             const result = await response.json();
@@ -64,7 +64,7 @@ export const sendMessage = action({
 
         } catch (error) {
             console.error("Chat Action execution failed:", error);
-            return "N/A"; // Network Error
+            return "ERROR: Network error while calling HuggingFace API. Please check your connection.";
         }
     },
 });

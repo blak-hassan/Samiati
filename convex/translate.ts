@@ -61,7 +61,7 @@ async function callNLLB(text: string, targetLang: string): Promise<string> {
 
     if (!apiKey) {
         console.error("HUGGINGFACE_API_KEY is not set!");
-        return "N/A";
+        return "ERROR: HuggingFace API key not configured. Please set HUGGINGFACE_API_KEY in Convex Dashboard.";
     }
 
     try {
@@ -85,7 +85,7 @@ async function callNLLB(text: string, targetLang: string): Promise<string> {
         if (!response.ok) {
             const errorText = await response.text();
             console.error(`[NLLB-200] API Error (${response.status}):`, errorText);
-            return "N/A";
+            return `ERROR: Translation API returned status ${response.status}. Please try again.`;
         }
 
         const result = await response.json();
@@ -101,11 +101,11 @@ async function callNLLB(text: string, targetLang: string): Promise<string> {
         }
 
         console.error("[NLLB-200] Unexpected response format:", JSON.stringify(result));
-        return "N/A";
+        return "ERROR: Translation service returned an unexpected response format.";
 
     } catch (error) {
         console.error("[NLLB-200] Failed:", error);
-        return "N/A";
+        return "ERROR: Translation failed due to a network error. Please check your connection.";
     }
 }
 
