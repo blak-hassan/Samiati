@@ -6,7 +6,7 @@ import { useAuth } from "@clerk/nextjs";
 
 export function useCurrentUser() {
   const { userId } = useAuth();
-  const user = useQuery(api.users.queries.getProfile);
+  const user = useQuery(api.users.queries.getProfile, {});
   
   return {
     user,
