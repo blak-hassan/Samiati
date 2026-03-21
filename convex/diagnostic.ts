@@ -35,16 +35,16 @@ export const diagnoseServices = action(async (ctx): Promise<DiagnosticResult[]> 
             details: `API key starts with: ${apiKey.substring(0, 7)}...`
         });
 
-        // 2. Test Chat Service (Qwen)
+        // 2. Test Chat Service
         try {
-            const chatResponse = await fetch("https://router.huggingface.co/v1/chat/completions", {
+            const chatResponse = await fetch("https://api-inference.huggingface.co/models/google/gemma-2b-it/v1/chat/completions", {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${apiKey}`,
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    model: "Qwen/Qwen2.5-0.5B-Instruct",
+                    model: "google/gemma-2b-it",
                     messages: [{ role: "user", content: "Hi" }],
                     max_tokens: 5,
                 }),
@@ -83,7 +83,7 @@ export const diagnoseServices = action(async (ctx): Promise<DiagnosticResult[]> 
 
         // 3. Test Translation Service (NLLB)
         try {
-            const translateResponse = await fetch("https://router.huggingface.co/hf-inference/models/facebook/nllb-200-distilled-600M", {
+            const translateResponse = await fetch("https://api-inference.huggingface.co/models/facebook/nllb-200-distilled-600M", {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${apiKey}`,

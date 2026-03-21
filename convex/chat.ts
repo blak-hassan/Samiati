@@ -3,10 +3,10 @@ import { v } from "convex/values";
 import { action } from "./_generated/server";
 
 // =============================================================================
-// QWEN CHAT SERVICE (HuggingFace Inference API)
+// CHAT SERVICE (HuggingFace Inference API)
 // =============================================================================
 // API: Hugging Face Serverless Inference API (OpenAI-compatible)
-// MODEL: Qwen/Qwen2.5-0.5B-Instruct
+// MODEL: google/gemma-2b-it
 // KEY: HUGGINGFACE_API_KEY (Set in Convex Dashboard)
 // =============================================================================
 
@@ -37,14 +37,15 @@ export const sendMessage = action({
         const apiMessages = [systemMessage, ...args.messages];
 
         try {
-            const response = await fetch("https://router.huggingface.co/v1/chat/completions", {
+            // Using google/gemma-2b-it which works on free tier
+            const response = await fetch("https://api-inference.huggingface.co/models/google/gemma-2b-it/v1/chat/completions", {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${apiKey}`,
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    model: "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+                    model: "google/gemma-2b-it",
                     messages: apiMessages,
                     max_tokens: 300,
                     temperature: 0.7,
@@ -54,7 +55,8 @@ export const sendMessage = action({
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error(`HuggingFace API Error (${response.status}):`, errorText);
-                return `ERROR: HuggingFace API returned status ${response.status}. Check your API key and try again.`;
+                // Return detailed error for debugging
+                return `ERROR: HuggingFace API returned status ${response.status}. Details: ${errorText.substring(0, 200)}`;
             }
 
             const result = await response.json();

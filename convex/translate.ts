@@ -65,7 +65,7 @@ async function callNLLB(text: string, targetLang: string): Promise<string> {
     }
 
     try {
-        const url = "https://router.huggingface.co/hf-inference/models/facebook/nllb-200-distilled-600M";
+        const url = "https://api-inference.huggingface.co/models/facebook/nllb-200-distilled-600M";
 
         const response = await fetch(url, {
             method: "POST",
