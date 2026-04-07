@@ -58,7 +58,8 @@ export const synthesizeSpeech = action({
         console.log(`[TTS] Synthesizing speech with ${modelId} for language: ${lang}`);
 
         try {
-            const url = `https://api-inference.huggingface.co/models/${modelId}`;
+            // Use router.huggingface.co for better reliability on free tier
+            const url = `https://router.huggingface.co/${modelId}`;
 
             const response = await fetch(url, {
                 method: "POST",
@@ -74,6 +75,16 @@ export const synthesizeSpeech = action({
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error(`[TTS] API Error (${response.status}):`, errorText);
+
+                // Handle 403 Forbidden specifically
+                if (response.status === 403) {
+                    return { audioBase64: null, error: "ERROR: TTS API access forbidden. This may be due to: (1) Invalid API key, (2) Model requires accepting terms at https://huggingface.co/models/" + modelId + ", or (3) API quota exceeded." };
+                }
+
+                // Handle 429 Rate Limit
+                if (response.status === 429) {
+                    return { audioBase64: null, error: "ERROR: TTS API rate limit exceeded. Please wait a moment and try again." };
+                }
 
                 // Handle model loading (common with HF free tier)
                 if (response.status === 503) {

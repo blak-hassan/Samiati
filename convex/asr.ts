@@ -37,7 +37,8 @@ export const transcribeAudio = action({
                 bytes[i] = binaryString.charCodeAt(i);
             }
 
-            const url = "https://api-inference.huggingface.co/models/microsoft/paza-whisper-large-v3-turbo";
+            // Use router.huggingface.co for better reliability on free tier
+            const url = "https://router.huggingface.co/microsoft/paza-whisper-large-v3-turbo";
 
             const response = await fetch(url, {
                 method: "POST",
@@ -52,6 +53,16 @@ export const transcribeAudio = action({
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error(`[Paza Whisper] API Error (${response.status}):`, errorText);
+
+                // Handle 403 Forbidden specifically
+                if (response.status === 403) {
+                    return { text: "", error: "ERROR: ASR API access forbidden. This may be due to: (1) Invalid API key, (2) Model requires accepting terms at https://huggingface.co/models/microsoft/paza-whisper-large-v3-turbo, or (3) API quota exceeded." };
+                }
+
+                // Handle 429 Rate Limit
+                if (response.status === 429) {
+                    return { text: "", error: "ERROR: ASR API rate limit exceeded. Please wait a moment and try again." };
+                }
 
                 // Handle model loading (common with HF free tier)
                 if (response.status === 503) {

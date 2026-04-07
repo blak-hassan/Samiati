@@ -35,16 +35,16 @@ export const diagnoseServices = action(async (ctx): Promise<DiagnosticResult[]> 
             details: `API key starts with: ${apiKey.substring(0, 7)}...`
         });
 
-        // 2. Test Chat Service
+        // 2. Test Chat Service (Phi-2)
         try {
-            const chatResponse = await fetch("https://api-inference.huggingface.co/models/google/gemma-2b-it/v1/chat/completions", {
+            const chatResponse = await fetch("https://router.huggingface.co/microsoft/phi-2/v1/chat/completions", {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${apiKey}`,
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    model: "google/gemma-2b-it",
+                    model: "microsoft/phi-2",
                     messages: [{ role: "user", content: "Hi" }],
                     max_tokens: 5,
                 }),
@@ -52,21 +52,29 @@ export const diagnoseServices = action(async (ctx): Promise<DiagnosticResult[]> 
 
             if (chatResponse.ok) {
                 results.push({
-                    service: "Chat (Qwen)",
+                    service: "Chat (Phi-2)",
                     status: "ok",
                     message: "Chat service is working"
                 });
             } else if (chatResponse.status === 503) {
                 results.push({
-                    service: "Chat (Qwen)",
+                    service: "Chat (Phi-2)",
                     status: "warning",
                     message: "Model is loading, please retry in a moment",
                     details: "Free tier models may take time to load"
                 });
+            } else if (chatResponse.status === 400) {
+                const errorText = await chatResponse.text();
+                results.push({
+                    service: "Chat (Phi-2)",
+                    status: "error",
+                    message: "Bad Request (400) - Model may not be available or requires different format",
+                    details: `Error: ${errorText.substring(0, 200)}. Try: (1) Check if model is available at https://huggingface.co/microsoft/phi-2, (2) Accept model terms if required, (3) Try google/gemma-2b-it instead`
+                });
             } else {
                 const errorText = await chatResponse.text();
                 results.push({
-                    service: "Chat (Qwen)",
+                    service: "Chat (Phi-2)",
                     status: "error",
                     message: `API returned status ${chatResponse.status}`,
                     details: errorText.substring(0, 200)
@@ -74,7 +82,7 @@ export const diagnoseServices = action(async (ctx): Promise<DiagnosticResult[]> 
             }
         } catch (error) {
             results.push({
-                service: "Chat (Qwen)",
+                service: "Chat (Phi-2)",
                 status: "error",
                 message: "Failed to connect to chat service",
                 details: String(error)
@@ -83,7 +91,7 @@ export const diagnoseServices = action(async (ctx): Promise<DiagnosticResult[]> 
 
         // 3. Test Translation Service (NLLB)
         try {
-            const translateResponse = await fetch("https://api-inference.huggingface.co/models/facebook/nllb-200-distilled-600M", {
+            const translateResponse = await fetch("https://router.huggingface.co/facebook/nllb-200-distilled-600M", {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${apiKey}`,
@@ -128,7 +136,7 @@ export const diagnoseServices = action(async (ctx): Promise<DiagnosticResult[]> 
         // 4. Test ASR Service (Paza Whisper)
         try {
             // Just check if the model endpoint is reachable (won't actually transcribe)
-            const asrResponse = await fetch("https://api-inference.huggingface.co/models/microsoft/paza-whisper-large-v3-turbo", {
+            const asrResponse = await fetch("https://router.huggingface.co/microsoft/paza-whisper-large-v3-turbo", {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${apiKey}`,
@@ -170,7 +178,7 @@ export const diagnoseServices = action(async (ctx): Promise<DiagnosticResult[]> 
 
         // 5. Test TTS Service (MMS-TTS)
         try {
-            const ttsResponse = await fetch("https://api-inference.huggingface.co/models/facebook/mms-tts-eng", {
+            const ttsResponse = await fetch("https://router.huggingface.co/facebook/mms-tts-eng", {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${apiKey}`,

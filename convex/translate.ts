@@ -65,7 +65,8 @@ async function callNLLB(text: string, targetLang: string): Promise<string> {
     }
 
     try {
-        const url = "https://api-inference.huggingface.co/models/facebook/nllb-200-distilled-600M";
+        // Use router.huggingface.co for better reliability on free tier
+        const url = "https://router.huggingface.co/facebook/nllb-200-distilled-600M";
 
         const response = await fetch(url, {
             method: "POST",
@@ -85,6 +86,17 @@ async function callNLLB(text: string, targetLang: string): Promise<string> {
         if (!response.ok) {
             const errorText = await response.text();
             console.error(`[NLLB-200] API Error (${response.status}):`, errorText);
+            
+            // Handle 403 Forbidden specifically
+            if (response.status === 403) {
+                return "ERROR: Translation API access forbidden. This may be due to: (1) Invalid API key, (2) Model requires accepting terms at https://huggingface.co/models/facebook/nllb-200-distilled-600M, or (3) API quota exceeded.";
+            }
+            
+            // Handle 429 Rate Limit
+            if (response.status === 429) {
+                return "ERROR: Translation API rate limit exceeded. Please wait a moment and try again.";
+            }
+            
             return `ERROR: Translation API returned status ${response.status}. Please try again.`;
         }
 
