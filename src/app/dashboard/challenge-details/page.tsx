@@ -3,10 +3,10 @@
 import React, { use } from "react";
 import ChallengeDetailsScreen from "@/components/screens/ChallengeDetailsScreen";
 import { useNavigation } from "@/hooks/useNavigation";
-import { Screen } from "@/types";
+import { RouteSearchParams, Screen } from "@/types";
 
 
-export default function ChallengeDetailsPage({ searchParams }: { searchParams: Promise<any> }) {
+export default function ChallengeDetailsPage({ searchParams }: { searchParams: Promise<RouteSearchParams> }) {
     const { navigate, goBack } = useNavigation();
     const resolvedSearchParams = use(searchParams);
 

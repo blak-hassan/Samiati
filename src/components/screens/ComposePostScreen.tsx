@@ -1,6 +1,6 @@
 ﻿"use client";
 import React, { useState, useRef, useEffect } from 'react';
-import { Screen, User } from '@/types';
+import { NavigateFn, Screen, User } from '@/types';
 import {
   X,
   Send,
@@ -31,10 +31,21 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 interface Props {
-  navigate: (screen: Screen) => void;
+  navigate: NavigateFn;
   goBack: () => void;
-  onPost: (content: string, image?: string, postData?: any) => void;
+  onPost: (content: string, image?: string, postData?: PostPayload) => void;
   user: User;
+}
+
+interface PostPayload {
+  visibility: 'Public' | 'Unlisted' | 'Followers' | 'Direct';
+  cw?: string;
+  poll?: {
+    options: { id: string; label: string; votes: number }[];
+    totalVotes: number;
+    endsAt: string;
+    userVotedOptionId: string | null;
+  };
 }
 
 const ComposePostScreen: React.FC<Props> = ({ navigate, goBack, onPost, user }) => {
@@ -75,7 +86,7 @@ const ComposePostScreen: React.FC<Props> = ({ navigate, goBack, onPost, user }) 
     if (!text.trim() && !image && !showPoll) return;
 
     // Structure post data
-    const postData: any = {
+    const postData: PostPayload = {
       visibility,
       cw: showCw && cw.trim() ? cw : undefined,
     };

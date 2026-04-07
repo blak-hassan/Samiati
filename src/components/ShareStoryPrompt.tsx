@@ -59,7 +59,7 @@ export const ShareStoryPrompt: React.FC<ShareStoryPromptProps> = ({
 
                 <div className="max-w-md mx-auto mb-8">
                     <p className="text-sm text-muted-foreground italic min-h-[48px] flex items-center justify-center text-center animate-in fade-in duration-500 px-8 leading-relaxed">
-                        "{currentPrompt}"
+                        &quot;{currentPrompt}&quot;
                     </p>
                 </div>
 
@@ -86,7 +86,7 @@ export const ShareStoryPrompt: React.FC<ShareStoryPromptProps> = ({
                         ref={typesScrollRef}
                         className="flex overflow-x-auto no-scrollbar gap-3 px-1 py-1 snap-x snap-mandatory scroll-smooth"
                     >
-                        {CONTRIBUTION_TYPES.map((type: any) => (
+                        {CONTRIBUTION_TYPES.map((type) => (
                             <div key={type.id} className="snap-center shrink-0">
                                 <QuickActionButton
                                     icon={<span className="material-symbols-outlined">{type.icon}</span>}

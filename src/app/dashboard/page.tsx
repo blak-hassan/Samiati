@@ -1,18 +1,13 @@
 "use client";
 
-import React, { useEffect, useState, use } from "react";
+import React, { useState, use } from "react";
 import ChatScreen from "@/components/screens/ChatScreen";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useUser } from "../MockProviders";
-import { User, Screen, Conversation, NotificationItem } from "@/types";
+import { User, Screen, Conversation, Message, RouteSearchParams } from "@/types";
 import { localConversationService } from "@/services/localConversationService";
-import {
-    INITIAL_NOTIFICATIONS,
-    INITIAL_CONVERSATIONS,
-    INITIAL_MESSAGES_CHATS,
-} from "@/data/mock";
 
-export default function DashboardPage({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+export default function DashboardPage({ searchParams }: { searchParams: Promise<RouteSearchParams> }) {
     const { navigate } = useNavigation();
     const { user: clerkUser, notifications, unreadCount } = useUser();
 
@@ -20,7 +15,17 @@ export default function DashboardPage({ searchParams }: { searchParams: Promise<
     const resolvedSearchParams = use(searchParams);
     const chatId = typeof resolvedSearchParams.chatId === 'string' ? resolvedSearchParams.chatId : null;
 
-    const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
+    const [activeConversation, setActiveConversation] = useState<Conversation | null>(() => {
+        if (chatId) {
+            localConversationService.setActiveConversationId(chatId);
+            return localConversationService.getConversation(chatId) || null;
+        }
+
+        const lastActiveId = localConversationService.getActiveConversationId();
+        return lastActiveId
+            ? localConversationService.getConversation(lastActiveId) || null
+            : null;
+    });
 
     // Calculate unread counts
     const notificationCounts = {
@@ -31,25 +36,7 @@ export default function DashboardPage({ searchParams }: { searchParams: Promise<
         watu: notifications.filter(n => !n.isRead && n.type === 'follow').length,
     };
 
-    // Load conversation on mount or when chatId changes
-    useEffect(() => {
-        if (chatId) {
-            const conversation = localConversationService.getConversation(chatId);
-            setActiveConversation(conversation || null);
-            localConversationService.setActiveConversationId(chatId);
-        } else {
-            // Try to restore last active conversation on refresh
-            const lastActiveId = localConversationService.getActiveConversationId();
-            if (lastActiveId) {
-                const lastConversation = localConversationService.getConversation(lastActiveId);
-                setActiveConversation(lastConversation || null);
-            } else {
-                setActiveConversation(null);
-            }
-        }
-    }, [chatId]);
-
-    const handleSaveConversation = (messages: any[]) => {
+    const handleSaveConversation = (messages: Message[]) => {
         if (activeConversation) {
             const updated = {
                 ...activeConversation,

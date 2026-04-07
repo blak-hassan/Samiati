@@ -1,6 +1,7 @@
 ﻿"use client";
 import React, { useState, useEffect, useRef } from 'react';
 import { Screen, Post } from '@/types';
+import { PollComponent } from '@/components/social/PollComponent';
 import {
     ArrowLeft,
     MoreVertical,
@@ -46,72 +47,6 @@ interface Props {
     onRepost: (postId: string) => void;
     autoFocusReply?: boolean;
 }
-
-const PollComponent = ({ poll }: { poll: Post['poll'] }) => {
-    if (!poll) return null;
-    const [localPoll, setLocalPoll] = useState(poll);
-
-    const handleVote = (optionId: string) => {
-        if (localPoll.userVotedOptionId) return;
-        setLocalPoll(prev => ({
-            ...prev,
-            totalVotes: prev.totalVotes + 1,
-            userVotedOptionId: optionId,
-            options: prev.options.map(opt =>
-                opt.id === optionId ? { ...opt, votes: opt.votes + 1 } : opt
-            )
-        }));
-    };
-
-    return (
-        <div className="mt-4 flex flex-col gap-3">
-            {localPoll.options.map(option => {
-                const percentage = localPoll.totalVotes > 0
-                    ? Math.round((option.votes / localPoll.totalVotes) * 100)
-                    : 0;
-                const isSelected = localPoll.userVotedOptionId === option.id;
-
-                return (
-                    <div
-                        key={option.id}
-                        onClick={() => handleVote(option.id)}
-                        className={cn(
-                            "relative h-11 rounded-xl overflow-hidden cursor-pointer group transition-all border border-border/50 bg-muted/20",
-                            !localPoll.userVotedOptionId && "hover:bg-muted/40 hover:border-primary/30"
-                        )}
-                    >
-                        {localPoll.userVotedOptionId && (
-                            <div
-                                className={cn(
-                                    "absolute inset-y-0 left-0 transition-all duration-700",
-                                    isSelected ? "bg-primary/30" : "bg-muted"
-                                )}
-                                style={{ width: `${percentage}%` }}
-                            />
-                        )}
-
-                        <div className="absolute inset-0 flex items-center justify-between px-4">
-                            <span className={cn(
-                                "text-sm font-bold z-10 flex items-center gap-2",
-                                isSelected ? "text-primary" : "text-foreground"
-                            )}>
-                                {localPoll.userVotedOptionId && isSelected && <CheckCircle2 className="w-4 h-4" />}
-                                {option.label}
-                            </span>
-                            {localPoll.userVotedOptionId && (
-                                <span className="font-black text-xs text-muted-foreground z-10 font-mono">{percentage}%</span>
-                            )}
-                        </div>
-                    </div>
-                );
-            })}
-            <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2 mt-1 px-1">
-                <Users className="w-3 h-3" />
-                {localPoll.totalVotes} votes • Ends in {localPoll.endsAt}
-            </div>
-        </div>
-    );
-};
 
 const PostThreadScreen: React.FC<Props> = ({ goBack, post, onLike, onRepost, autoFocusReply }) => {
     const [replyText, setReplyText] = useState('');

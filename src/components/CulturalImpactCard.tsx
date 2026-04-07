@@ -53,7 +53,7 @@ export const CulturalImpactCard: React.FC<CulturalImpactCardProps> = ({
             </div>
 
             <p className="text-xs text-muted-foreground mt-4 text-center italic">
-                "Every word you save is a gift to future generations"
+                &quot;Every word you save is a gift to future generations&quot;
             </p>
         </div>
     );

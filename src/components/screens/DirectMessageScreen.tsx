@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Screen, Message } from '@/types';
+import { NavigateFn, Screen, Message } from '@/types';
 // Mock service removed - using Convex via parent page
 import { cn } from "@/lib/utils";
 import {
@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 
 interface Props {
-  navigate: (screen: Screen, params?: any) => void;
+  navigate: NavigateFn;
   goBack: () => void;
   chatId?: string;
   chatUser?: {
@@ -34,7 +34,7 @@ interface Props {
 
 const DirectMessageScreen: React.FC<Props> = ({ navigate, goBack, chatId, chatUser, initialMessages, onSendMessage }) => {
   const [activeChatId, setActiveChatId] = useState<string | null>(chatId || null);
-  const [messages, setMessages] = useState<any[]>(initialMessages || []); // Use prop
+  const [messages, setMessages] = useState<Message[]>(() => initialMessages || []);
   const [inputText, setInputText] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAttachmentOpen, setIsAttachmentOpen] = useState(false);
@@ -48,13 +48,6 @@ const DirectMessageScreen: React.FC<Props> = ({ navigate, goBack, chatId, chatUs
   const menuRef = useRef<HTMLDivElement>(null);
   const attachmentRef = useRef<HTMLDivElement>(null);
   const recordingInterval = useRef<NodeJS.Timeout | null>(null);
-
-  // Sync with prop updates (streaming)
-  useEffect(() => {
-    if (initialMessages) {
-      setMessages(initialMessages);
-    }
-  }, [initialMessages]);
 
   /* Mock Init logic removed - reliance on parent for data */
   /*
@@ -144,6 +137,7 @@ const DirectMessageScreen: React.FC<Props> = ({ navigate, goBack, chatId, chatUs
   };
 
   const user = chatUser || { name: 'Chat', avatar: '', isOnline: false };
+  const displayMessages = initialMessages || messages;
 
   return (
     <div className="flex flex-col h-full bg-stone-100 dark:bg-background transition-colors duration-300">
@@ -169,7 +163,7 @@ const DirectMessageScreen: React.FC<Props> = ({ navigate, goBack, chatId, chatUs
       >
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[radial-gradient(#000000_1px,transparent_1px)] dark:bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:16px_16px]"></div>
 
-        {messages.map((msg) => (
+        {displayMessages.map((msg) => (
           <div key={msg.id} className={cn("flex w-full relative z-1", msg.senderId === 'me' ? 'justify-end' : 'justify-start')}>
             <div
               className={cn(

@@ -1,9 +1,9 @@
 ﻿"use client";
 import React, { useState } from 'react';
-import { Screen, ChatPreview } from '@/types';
+import { ChatPreview, NavigateFn, Screen } from '@/types';
 
 interface Props {
-  navigate: (screen: Screen, params?: any) => void;
+  navigate: NavigateFn;
   goBack: () => void;
   onCreateCommunity?: (community: ChatPreview) => void;
 }
@@ -55,7 +55,7 @@ const NewCommunityScreen: React.FC<Props> = ({ navigate, goBack, onCreateCommuni
                     <span className="material-symbols-outlined text-5xl">check</span>
                 </div>
                 <h2 className="text-2xl font-bold text-stone-900 dark:text-white mb-2">Community Created!</h2>
-                <p className="text-stone-600 dark:text-text-muted mb-10">"{name}" is ready for members.</p>
+                <p className="text-stone-600 dark:text-text-muted mb-10">&quot;{name}&quot; is ready for members.</p>
 
                 <div className="w-full bg-stone-50 dark:bg-white/5 rounded-2xl p-5 text-left mb-8 shadow-sm">
                     <h3 className="font-bold text-stone-900 dark:text-white mb-4 text-sm uppercase tracking-wide flex items-center gap-2">

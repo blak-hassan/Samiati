@@ -5,6 +5,7 @@ import AddContributionScreen from "@/components/screens/AddContributionScreen";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useUser } from "../../MockProviders";
 import { useSearchParams } from "next/navigation";
+import { ContributionItem } from "@/types";
 
 function AddContributionContent() {
     const { navigate, goBack } = useNavigation();
@@ -13,7 +14,7 @@ function AddContributionContent() {
 
     // Attempt to get initialData from params
     const initialDataRaw = searchParams.get('initialData');
-    let initialData: any;
+    let initialData: ContributionItem | undefined;
     if (initialDataRaw) {
         try {
             initialData = JSON.parse(initialDataRaw);
@@ -22,7 +23,7 @@ function AddContributionContent() {
         }
     }
 
-    const handleSave = (newItem: any) => {
+    const handleSave = (newItem: ContributionItem) => {
         setMyContributions(prev => {
             const index = prev.findIndex(c => c.id === newItem.id);
             if (index !== -1) {

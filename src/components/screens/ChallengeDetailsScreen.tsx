@@ -1,6 +1,6 @@
 ﻿
 import React, { useState } from 'react';
-import { Screen, User, Challenge } from '@/types';
+import { Challenge, NavigateFn, Screen, User } from '@/types';
 import { ProjectHero } from '@/components/changa/ProjectHero';
 import { SquadList } from '@/components/changa/SquadList';
 import { AccentRecorder } from '@/components/changa/inputs/AccentRecorder';
@@ -8,7 +8,7 @@ import { DialectMapper } from '@/components/changa/inputs/DialectMapper';
 import { TotemUploader } from '@/components/changa/inputs/TotemUploader';
 
 interface Props {
-  navigate: (screen: Screen, params?: any) => void;
+  navigate: NavigateFn;
   goBack: () => void;
   onViewProfile?: (user: User) => void;
   unreadCount?: number;
@@ -34,6 +34,11 @@ const DEFAULT_CHALLENGE: Challenge = {
 const ChallengeDetailsScreen: React.FC<Props> = ({ navigate, goBack, challenge }) => {
   const activeChallenge = challenge || DEFAULT_CHALLENGE;
   const [activeTab, setActiveTab] = useState<'board' | 'squad' | 'discussion'>('board');
+  const tabs: Array<{ label: string; key: 'board' | 'squad' | 'discussion' }> = [
+    { label: 'Project Board', key: 'board' },
+    { label: 'The Squad', key: 'squad' },
+    { label: 'War Room', key: 'discussion' },
+  ];
 
   const renderInput = () => {
     switch (activeChallenge.type) {
@@ -67,16 +72,15 @@ const ChallengeDetailsScreen: React.FC<Props> = ({ navigate, goBack, challenge }
           <div className="lg:col-span-2 space-y-8">
             {/* Tabs */}
             <div className="flex border-b border-stone-200 dark:border-white/10">
-              {['Project Board', 'The Squad', 'War Room'].map((tab) => {
-                const key = tab === 'Project Board' ? 'board' : tab === 'The Squad' ? 'squad' : 'discussion';
-                const isActive = activeTab === key;
+              {tabs.map((tab) => {
+                const isActive = activeTab === tab.key;
                 return (
                   <button
-                    key={tab}
-                    onClick={() => setActiveTab(key as any)}
+                    key={tab.label}
+                    onClick={() => setActiveTab(tab.key)}
                     className={`px-6 py-4 font-bold text-sm transition-colors relative ${isActive ? 'text-[#cf6317]' : 'text-stone-400 hover:text-stone-600 dark:hover:text-stone-200'}`}
                   >
-                    {tab}
+                    {tab.label}
                     {isActive && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#cf6317]" />}
                   </button>
                 )

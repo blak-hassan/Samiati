@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Screen, Community } from '@/types';
+import { Community, NavigateFn, Screen } from '@/types';
 import { useFuzzySearch } from '@/hooks/useFuzzySearch';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import { CommunityCard } from '@/components/social/CommunityCard';
 import { INITIAL_COMMUNITIES } from '@/data/mock';
 
 interface Props {
-    navigate: (screen: Screen, params?: any) => void;
+    navigate: NavigateFn;
     goBack: () => void;
     communities?: Community[]; // New prop
 }

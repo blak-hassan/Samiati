@@ -7,16 +7,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { MediaSelector } from '@/components/media/MediaSelector';
 import { AudioRecorder } from '@/components/media/AudioRecorder';
 import { MediaPreview } from '@/components/media/MediaPreview';
 import { IconRenderer } from '@/components/shared/IconRenderer';
-import { Sparkles, BookOpen, ChevronDown, ChevronLeft, ChevronRight, Plus, Mic, Image, Music, Video, Eye, Upload, ArrowRight, Clock, Users, Trophy, CheckCircle, ArrowLeft } from 'lucide-react';
+import { Trophy } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -64,7 +61,7 @@ const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave, init
       id: a.id,
       file: new File([], a.name, { type: a.type }), // Mock file object
       previewUrl: a.url,
-      type: a.type as any
+      type: a.type as Attachment["type"]
     })) || []
   );
   const fileInputRef = useRef<HTMLInputElement>(null);

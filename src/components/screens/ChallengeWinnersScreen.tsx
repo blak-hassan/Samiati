@@ -87,7 +87,7 @@ const ChallengeWinnersScreen: React.FC<Props> = ({ navigate, goBack, onViewProfi
                 <div className="bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-xl p-4 flex items-center justify-between">
                     <div>
                         <p className="text-sm font-bold text-primary dark:text-primary">Your Result</p>
-                        <p className="text-stone-900 dark:text-white">You didn't participate in this challenge.</p>
+                        <p className="text-stone-900 dark:text-white">You didn&apos;t participate in this challenge.</p>
                     </div>
                     <span className="material-symbols-outlined text-3xl text-primary/50">sentiment_dissatisfied</span>
                 </div>

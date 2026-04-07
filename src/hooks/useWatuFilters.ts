@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useFuzzySearch } from './useFuzzySearch';
 
 export interface Person {
@@ -47,18 +47,15 @@ export function useWatuFilters(people: Person[]) {
         return REGION_LANGUAGES_MAP[selectedRegion] || REGION_LANGUAGES_MAP['All'];
     }, [selectedRegion]);
 
-    // Reset selected language if it's not available in the new region
-    useEffect(() => {
-        if (!availableLanguages.includes(selectedLanguage)) {
-            setSelectedLanguage('All');
-        }
-    }, [selectedRegion, availableLanguages, selectedLanguage]);
+    const effectiveSelectedLanguage = availableLanguages.includes(selectedLanguage)
+        ? selectedLanguage
+        : 'All';
 
     // Filter and sort people
     // 1. First apply categorical filters
     const categoryFiltered = useMemo(() => {
         return people.filter(person => {
-            const languageMatch = selectedLanguage === 'All' || person.languages.includes(selectedLanguage);
+            const languageMatch = effectiveSelectedLanguage === 'All' || person.languages.includes(effectiveSelectedLanguage);
             const regionMatch = selectedRegion === 'All' || person.region === selectedRegion;
             const roleMatch = selectedRole === 'All' || person.role === selectedRole;
 
@@ -71,7 +68,7 @@ export function useWatuFilters(people: Person[]) {
 
             return languageMatch && regionMatch && roleMatch && activityMatch;
         });
-    }, [people, selectedLanguage, selectedRegion, selectedRole, selectedActivity]);
+    }, [effectiveSelectedLanguage, people, selectedRegion, selectedRole, selectedActivity]);
 
     // 2. Apply Fuzzy Search
     // Import need to be added at top, but for now I'm changing the hook body
@@ -81,7 +78,7 @@ export function useWatuFilters(people: Person[]) {
 
     // 3. Sort
     const filteredPeople = useMemo(() => {
-        let filtered = [...searchFiltered];
+        const filtered = [...searchFiltered];
         if (sortBy === 'Alphabetical') {
             filtered.sort((a, b) => a.name.localeCompare(b.name));
         } else if (sortBy === 'Most Followed') {
@@ -107,17 +104,17 @@ export function useWatuFilters(people: Person[]) {
 
     const activeFilterCount = useMemo(() => {
         let count = 0;
-        if (selectedLanguage !== 'All') count++;
+        if (effectiveSelectedLanguage !== 'All') count++;
         if (selectedRegion !== 'All') count++;
         if (selectedRole !== 'All') count++;
         if (selectedActivity !== 'All') count++;
         if (sortBy !== 'Recommended') count++;
         if (searchQuery !== '') count++;
         return count;
-    }, [selectedLanguage, selectedRegion, selectedRole, selectedActivity, sortBy, searchQuery]);
+    }, [effectiveSelectedLanguage, selectedRegion, selectedRole, selectedActivity, sortBy, searchQuery]);
 
     return {
-        selectedLanguage,
+        selectedLanguage: effectiveSelectedLanguage,
         setSelectedLanguage,
         selectedRegion,
         setSelectedRegion,

@@ -9,8 +9,8 @@ interface PollComponentProps {
 }
 
 export const PollComponent: React.FC<PollComponentProps> = ({ poll }) => {
-    if (!poll) return null;
     const [localPoll, setLocalPoll] = useState(poll);
+    if (!poll || !localPoll) return null;
 
     const handleVote = (optionId: string) => {
         if (localPoll.userVotedOptionId) return; // Already voted
@@ -31,7 +31,6 @@ export const PollComponent: React.FC<PollComponentProps> = ({ poll }) => {
                 const percentage = localPoll.totalVotes > 0
                     ? Math.round((option.votes / localPoll.totalVotes) * 100)
                     : 0;
-                const isWinner = localPoll.userVotedOptionId && Math.max(...localPoll.options.map(o => o.votes)) === option.votes;
                 const isSelected = localPoll.userVotedOptionId === option.id;
 
                 return (

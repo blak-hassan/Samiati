@@ -3,11 +3,17 @@
 import React, { use } from "react";
 import VideoCallScreen from "@/components/screens/VideoCallScreen";
 import { useNavigation } from "@/hooks/useNavigation";
+import { RouteSearchParams } from "@/types";
 
-export default function VideoCallPage({ searchParams }: { searchParams: Promise<any> }) {
-    const { navigate, goBack } = useNavigation();
+type CallChatUser = {
+    name: string;
+    avatar: string;
+};
+
+export default function VideoCallPage({ searchParams }: { searchParams: Promise<RouteSearchParams> }) {
+    const { goBack } = useNavigation();
     const resolvedSearchParams = use(searchParams);
-    const chatUser = resolvedSearchParams.chatUser ? JSON.parse(resolvedSearchParams.chatUser as string) : undefined;
+    const chatUser = resolvedSearchParams.chatUser ? (JSON.parse(resolvedSearchParams.chatUser as string) as CallChatUser) : undefined;
 
     return (
         <VideoCallScreen

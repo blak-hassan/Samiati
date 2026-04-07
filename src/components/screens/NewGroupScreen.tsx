@@ -1,11 +1,11 @@
 ﻿"use client";
 
 import React, { useState, useRef } from 'react';
-import { Screen, ChatPreview } from '@/types';
+import { ChatPreview, NavigateFn, Screen } from '@/types';
 import { useFuzzySearch } from '@/hooks/useFuzzySearch';
 
 interface Props {
-    navigate: (screen: Screen, params?: any) => void;
+    navigate: NavigateFn;
     goBack: () => void;
     onCreateGroup?: (group: ChatPreview) => void;
 }

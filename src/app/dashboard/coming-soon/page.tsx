@@ -21,7 +21,7 @@ export default function ComingSoonPage() {
                 </div>
                 <h2 className="text-2xl font-black mb-2 tracking-tight">Under Construction</h2>
                 <p className="text-muted-foreground font-medium max-w-sm">
-                    We're working hard to bring this cultural preservation feature to life. Stay tuned!
+                    We&apos;re working hard to bring this cultural preservation feature to life. Stay tuned!
                 </p>
                 <Button onClick={goBack} className="mt-8 px-8 rounded-full font-bold">
                     Go Back

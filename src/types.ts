@@ -64,6 +64,10 @@ export enum Screen {
   GROUP_VIEW = 'GROUP_VIEW'
 }
 
+export type NavigationParams = Record<string, unknown>;
+export type NavigateFn = (screen: Screen, params?: NavigationParams) => void;
+export type RouteSearchParams = Record<string, string | string[] | undefined>;
+
 export interface User {
   name: string;
   handle: string;

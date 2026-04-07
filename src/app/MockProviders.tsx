@@ -5,9 +5,19 @@ import { LanguageSkill, ContributionItem, NotificationItem, Challenge } from "@/
 import { INITIAL_LANGUAGES_STATE, INITIAL_CONTRIBUTIONS, INITIAL_NOTIFICATIONS } from "@/data/mock";
 import { MOCK_CHALLENGES } from "@/data/mockChallenges";
 
+interface MockUser {
+  id: string;
+  fullName: string;
+  username: string;
+  imageUrl: string;
+  primaryEmailAddress: {
+    emailAddress: string;
+  };
+}
+
 // --- Mock Clerk ---
 interface UserContextType {
-  user: any;
+  user: MockUser | null;
   isLoaded: boolean;
   isSignedIn: boolean;
   languages: LanguageSkill[];
@@ -138,12 +148,12 @@ export const ConvexProviderWithClerk = ({ children }: { children: ReactNode }) =
   return <>{children}</>;
 };
 
-export const useQuery = (name: string, args?: any) => {
+export const useQuery = (_name: string, _args?: unknown) => {
   return null; // Return null as default for mock queries
 };
 
-export const useMutation = (name: string) => {
-  return async (args?: any) => {
+export const useMutation = (_name: string) => {
+  return async (_args?: unknown) => {
     // Mock mutation call
     return null;
   };

@@ -1,28 +1,22 @@
 "use client";
 
-import React, { useState, useEffect, use } from 'react';
+import React, { use } from 'react';
 import { notFound } from 'next/navigation';
-import { Screen, User, NotificationItem, Conversation, Message, LanguageSkill, ChatPreview, ContributionItem, Post } from '@/types';
+import { ChatPreview, RouteSearchParams, Screen, User } from '@/types';
 import { useNavigation } from "@/hooks/useNavigation";
 import { useUser } from "../../MockProviders";
 
 // Mock Data
 import {
-    INITIAL_NOTIFICATIONS,
     INITIAL_CONVERSATIONS,
-    INITIAL_MESSAGES_CHATS,
-    INITIAL_SOCIAL_POSTS,
     INITIAL_LANGUAGES_STATE,
-    INITIAL_CONTRIBUTIONS
 } from "@/data/mock";
 
 // Screen Imports
-import ChatScreen from '@/components/screens/ChatScreen';
 import ChallengeDetailsScreen from '@/components/screens/ChallengeDetailsScreen';
 import ChallengeWinnersScreen from '@/components/screens/ChallengeWinnersScreen';
 import ProfileScreen from '@/components/screens/ProfileScreen';
 import EditProfileScreen from '@/components/screens/EditProfileScreen';
-import SettingsScreen from '@/components/screens/SettingsScreen';
 import SettingsAccountScreen from '@/components/screens/SettingsAccountScreen';
 import SettingsNotificationsScreen from '@/components/screens/SettingsNotificationsScreen';
 import SettingsPrivacyScreen from '@/components/screens/SettingsPrivacyScreen';
@@ -41,15 +35,11 @@ import StoryDetailScreen from '@/components/screens/StoryDetailScreen';
 import WordDetailScreen from '@/components/screens/WordDetailScreen';
 import ModerationDashboardScreen from '@/components/screens/ModerationDashboardScreen';
 import ConfirmationScreen from '@/components/screens/ConfirmationScreen';
-import AddContributionScreen from '@/components/screens/AddContributionScreen';
 import SuggestChallengeScreen from '@/components/screens/SuggestChallengeScreen';
 import SuggestLinkScreen from '@/components/screens/SuggestLinkScreen';
 import ChangePasswordScreen from '@/components/screens/ChangePasswordScreen';
-import PeopleToFollowScreen from '@/components/screens/PeopleToFollowScreen';
 import AllAchievementsScreen from '@/components/screens/AllAchievementsScreen';
 import ManageLanguagesScreen from '@/components/screens/ManageLanguagesScreen';
-import MessagesScreen from '@/components/screens/MessagesScreen';
-import DMListScreen from '@/components/screens/DMListScreen';
 import PostThreadScreen from '@/components/screens/PostThreadScreen';
 import DirectMessageScreen from '@/components/screens/DirectMessageScreen';
 import NewGroupScreen from '@/components/screens/NewGroupScreen';
@@ -63,7 +53,7 @@ import TermsOfServiceScreen from '@/components/screens/TermsOfServiceScreen';
 import PrivacyPolicyScreen from '@/components/screens/PrivacyPolicyScreen';
 // import ResetPasswordFlow from '@/components/screens/ResetPasswordFlow'; // Usually auth flow, but check logic
 
-export default function DashboardCatchAllPage({ params, searchParams }: { params: Promise<{ slug: string }>, searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+export default function DashboardCatchAllPage({ params, searchParams }: { params: Promise<{ slug: string }>, searchParams: Promise<RouteSearchParams> }) {
     const { navigate, goBack } = useNavigation();
     const { user: clerkUser, languages, setLanguages, notifications, unreadCount, markAllAsRead, markAsRead } = useUser();
 
@@ -78,22 +68,8 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
     const screenKey = slug.replace(/-/g, '_').toUpperCase();
     const screen = Screen[screenKey as keyof typeof Screen];
 
-    // State management (Local for now, similar to App.tsx)
-    const [isDarkMode, setIsDarkMode] = useState(true);
-    const toggleTheme = () => setIsDarkMode(!isDarkMode);
-
-    const [socialPosts, setSocialPosts] = useState<Post[]>([]);
-    const [conversations, setConversations] = useState<Conversation[]>([]);
-    const [messageChats, setMessageChats] = useState<ChatPreview[]>([]);
-
     const { myContributions, setMyContributions } = useUser();
-
-    useEffect(() => {
-        // Initialize state on client side to avoid hydration mismatch
-        setSocialPosts(INITIAL_SOCIAL_POSTS);
-        setConversations(INITIAL_CONVERSATIONS);
-        setMessageChats(INITIAL_MESSAGES_CHATS);
-    }, []);
+    const conversations = INITIAL_CONVERSATIONS;
 
     // Transform Clerk User to App User
     const appUser: User = clerkUser ? {
@@ -114,11 +90,9 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
     }
 
     // Helper handlers
-    const handleViewProfile = (u: User) => { };
-    const handleLikePost = (postId: string) => { }; // Mock
-    const handleRepost = (postId: string) => { }; // Mock
-    const handleNewChat = () => navigate(Screen.HOME_CHAT);
-    const handleSaveChat = (msgs: any) => { };
+    const handleViewProfile = (_user: User) => { };
+    const handleLikePost = (_postId: string) => { };
+    const handleRepost = (_postId: string) => { };
     const handleMarkAllRead = () => {
         markAllAsRead();
     };
@@ -128,9 +102,7 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
             navigate(targetScreen);
         }
     };
-    const handleJoinFireplace = (post: any) => { };
-    const handleAddChat = (chat: any) => { };
-    const handleSignOut = () => { };
+    const handleAddChat = (_chat: ChatPreview) => { };
 
     // Render logic adapted from App.tsx
     switch (screen) {

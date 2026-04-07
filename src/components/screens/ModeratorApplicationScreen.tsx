@@ -43,8 +43,8 @@ const ModeratorApplicationScreen: React.FC<Props> = ({ navigate, goBack, userId 
             await new Promise(resolve => setTimeout(resolve, 1000));
 
             setIsSubmitted(true);
-        } catch (err: any) {
-            setError(err.message || 'Failed to submit application');
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Failed to submit application');
         } finally {
             setIsSubmitting(false);
         }
@@ -73,7 +73,7 @@ const ModeratorApplicationScreen: React.FC<Props> = ({ navigate, goBack, userId 
 
                     <p className="text-stone-600 dark:text-text-muted text-center max-w-md mb-8">
                         Thank you for your interest in becoming a moderator. Your application is pending review by our admin team.
-                        We'll notify you once a decision has been made.
+                        We&apos;ll notify you once a decision has been made.
                     </p>
 
                     <button
@@ -110,7 +110,7 @@ const ModeratorApplicationScreen: React.FC<Props> = ({ navigate, goBack, userId 
                     </h2>
 
                     <p className="text-stone-600 dark:text-text-muted max-w-md mx-auto">
-                        Moderators play a vital role in maintaining our community's cultural integrity and ensuring
+                        Moderators play a vital role in maintaining our community&apos;s cultural integrity and ensuring
                         respectful dialogue across all languages and traditions.
                     </p>
                 </div>
@@ -213,7 +213,7 @@ const ModeratorApplicationScreen: React.FC<Props> = ({ navigate, goBack, userId 
 
                 {/* Disclaimer */}
                 <p className="text-xs text-stone-500 dark:text-text-muted/60 text-center">
-                    By applying, you agree to uphold Samiati's community guidelines and moderation policies.
+                    By applying, you agree to uphold Samiati&apos;s community guidelines and moderation policies.
                     Applications are reviewed by our admin team and approval is not guaranteed.
                 </p>
             </main>

@@ -7,7 +7,7 @@ import { useNavigation } from "@/hooks/useNavigation";
 import { useUser } from "../../MockProviders";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { User } from "@/types";
+import { LanguageSkill, User } from "@/types";
 
 export default function ProfilePage() {
     const { navigate, goBack } = useNavigation();
@@ -26,7 +26,7 @@ export default function ProfilePage() {
         badges: profile.badges,
         followerCount: profile.followerCount,
         followingCount: profile.followingCount,
-        languages: profile.languages as any,
+        languages: profile.languages as LanguageSkill[] | undefined,
         role: profile.role,
     } : {
         name: clerkUser?.fullName || "Guest",

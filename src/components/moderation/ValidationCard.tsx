@@ -260,7 +260,7 @@ export const ValidationCard: React.FC<Props> = ({
                                     </div>
                                     {review.comment && (
                                         <p className="text-[11px] text-stone-600 dark:text-text-muted leading-relaxed italic bg-black/5 dark:bg-black/20 p-2 rounded-lg">
-                                            "{review.comment}"
+                                            &quot;{review.comment}&quot;
                                         </p>
                                     )}
                                     <p className="text-[8px] text-stone-400 dark:text-text-muted/40 mt-1">

@@ -6,14 +6,15 @@ import { Screen } from "../types";
 export const useNavigation = () => {
     const router = useRouter();
 
-    const navigate = (screen: Screen, params?: any) => {
+    const navigate = (screen: Screen, params?: Record<string, unknown>) => {
         // Construct query string if params exist
         let queryString = "";
         if (params) {
             const searchParams = new URLSearchParams();
             Object.keys(params).forEach(key => {
-                if (typeof params[key] === 'string') searchParams.set(key, params[key]);
-                else searchParams.set(key, JSON.stringify(params[key]));
+                const value = params[key];
+                if (typeof value === 'string') searchParams.set(key, value);
+                else searchParams.set(key, JSON.stringify(value));
             });
             queryString = "?" + searchParams.toString();
         }
@@ -23,7 +24,7 @@ export const useNavigation = () => {
             case Screen.SIGN_IN: router.push("/"); break; // Home is sign in
             case Screen.SIGN_UP: router.push("/"); break; // Home is sign in/up
             case Screen.HOME_CHAT: router.push("/dashboard" + queryString); break;
-            case Screen.FORGOT_PASSWORD: router.push("/auth/forgot-password"); break;
+            case Screen.FORGOT_PASSWORD: router.push("/forgot-password"); break;
             case Screen.RESET_LINK_SENT: router.push("/auth/reset-link-sent"); break;
             case Screen.SET_NEW_PASSWORD: router.push("/auth/set-new-password"); break;
             case Screen.PASSWORD_CHANGED: router.push("/auth/password-changed"); break;

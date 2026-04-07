@@ -17,21 +17,19 @@ const guestRoutes = [
 
 function isPublicRoute(req: NextRequest): boolean {
   const path = req.nextUrl.pathname;
-  return publicRoutes.some(route => 
-    path === route || path.startsWith(route)
+  return publicRoutes.some((route) =>
+    route === "/" ? path === route : path === route || path.startsWith(`${route}/`)
   );
 }
 
 function isGuestRoute(req: NextRequest): boolean {
   const path = req.nextUrl.pathname;
-  return guestRoutes.some(route => 
-    path === route || path.startsWith(route)
+  return guestRoutes.some((route) =>
+    path === route || path.startsWith(`${route}/`)
   );
 }
 
 export default clerkMiddleware(async (auth, req: NextRequest) => {
-  const path = req.nextUrl.pathname;
-  
   // If the route is public, allow access without authentication
   if (isPublicRoute(req)) {
     return NextResponse.next();

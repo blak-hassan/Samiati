@@ -7,6 +7,7 @@ import { useNavigation } from "@/hooks/useNavigation";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { Community } from "@/types";
+import { Doc } from "../../../../convex/_generated/dataModel";
 
 export default function CommunitiesPage() {
     const { navigate, goBack } = useNavigation();
@@ -15,7 +16,7 @@ export default function CommunitiesPage() {
     // TODO: Add category filter state if needed, for now fetch all
     const communitiesData = useQuery(api.communities.queries.list, {});
 
-    const communities: Community[] = (communitiesData || []).map((c: any) => ({
+    const communities: Community[] = ((communitiesData || []) as (Doc<"communities"> & { role?: Community["role"] })[]).map((c) => ({
         id: c._id,
         name: c.name,
         description: c.description,

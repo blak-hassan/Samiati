@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import React, { useState } from 'react';
-import { Screen, Community, Post } from '@/types';
+import { Community, NavigateFn, Post, Screen } from '@/types';
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, MoreHorizontal, Bell, Search, Users, Info } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -10,7 +10,7 @@ import { PostCard } from '@/components/social/PostCard';
 import { INITIAL_SOCIAL_POSTS } from '@/data/mock';
 
 interface Props {
-    navigate: (screen: Screen, params?: any) => void;
+    navigate: NavigateFn;
     goBack: () => void;
     community: Community;
 }

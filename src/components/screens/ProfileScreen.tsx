@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useMemo } from 'react';
-import { Screen, User, LanguageSkill } from '@/types';
+import { NavigateFn, Screen, User, LanguageSkill } from '@/types';
 import { NotificationBell } from '@/components/shared/NotificationBell';
 import {
   ArrowLeft,
@@ -38,7 +38,7 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   user: User;
-  navigate: (screen: Screen, params?: any) => void;
+  navigate: NavigateFn;
   goBack: () => void;
   unreadCount?: number;
   isOwnProfile?: boolean;
@@ -175,7 +175,7 @@ const ProfileScreen: React.FC<Props> = ({ user, navigate, goBack, unreadCount = 
               <StickyNote className="w-8 h-8 rotate-12" />
             </div>
             <p className="text-foreground/90 leading-relaxed text-sm relative z-10 px-4 py-2">
-              "{user.bio}"
+              &quot;{user.bio}&quot;
             </p>
           </Card>
         )}
@@ -520,4 +520,3 @@ const ProfileScreen: React.FC<Props> = ({ user, navigate, goBack, unreadCount = 
 };
 
 export default ProfileScreen;
-

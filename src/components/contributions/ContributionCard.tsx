@@ -1,12 +1,12 @@
 import React from 'react';
-import { ContributionItem, User, Screen } from '@/types';
+import { ContributionItem, NavigateFn, Screen, User } from '@/types';
 import { IconRenderer } from '@/components/shared/IconRenderer';
 import { CommentItem } from './CommentItem';
 
 interface ContributionCardProps {
     item: ContributionItem;
     listType: 'my' | 'saved' | 'moderation';
-    navigate: (screen: Screen, params?: any) => void;
+    navigate: NavigateFn;
     onViewProfile: (user: User) => void;
     handleVote: (e: React.MouseEvent, id: string, voteType: 'up' | 'down', listType: 'my' | 'saved' | 'moderation') => void;
     toggleComments: (e: React.MouseEvent, id: string, listType: 'my' | 'saved' | 'moderation') => void;

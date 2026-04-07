@@ -8,9 +8,18 @@ import { useNavigation } from "@/hooks/useNavigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { Id } from "../../../../convex/_generated/dataModel";
-import { Message } from "@/types";
+import { Message, RouteSearchParams } from "@/types";
 
-export default function DirectMessagePage({ searchParams }: { searchParams: Promise<any> }) {
+type DirectMessageRecord = {
+    _id: string;
+    content: string;
+    timestamp: number;
+    senderId: string;
+    isRead: boolean;
+    image?: string;
+};
+
+export default function DirectMessagePage({ searchParams }: { searchParams: Promise<RouteSearchParams> }) {
     const { navigate, goBack } = useNavigation();
     const resolvedSearchParams = use(searchParams);
 
@@ -64,7 +73,7 @@ export default function DirectMessagePage({ searchParams }: { searchParams: Prom
     };
 
     // Mapping messages
-    const messages: Message[] = (messagesData || []).map((m: any) => ({
+    const messages: Message[] = ((messagesData || []) as DirectMessageRecord[]).map((m) => ({
         id: m._id,
         text: m.content,
         sender: m.isMe ? 'user' : 'other', // Need logic to determine this. isMe isn't in schema return.

@@ -124,7 +124,7 @@ const SavedConversationsScreen: React.FC<Props> = ({
                     {['All', 'Pinned', 'Recent'].map((tab) => (
                         <button
                             key={tab}
-                            onClick={() => setActiveTab(tab as any)}
+                            onClick={() => setActiveTab(tab as 'All' | 'Pinned' | 'Recent')}
                             className={cn(
                                 "px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 border",
                                 activeTab === tab

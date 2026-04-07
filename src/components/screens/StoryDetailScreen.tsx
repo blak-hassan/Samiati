@@ -1,6 +1,6 @@
 ﻿"use client";
 import React, { useState, useEffect, useRef } from 'react';
-import { Screen, User } from '@/types';
+import { NavigateFn, User } from '@/types';
 import { NotificationBell } from '@/components/shared/NotificationBell';
 import {
   ArrowLeft,
@@ -12,7 +12,6 @@ import {
   BookOpen,
   Headphones,
   Pause,
-  X,
   Link2,
   CheckCircle2,
   MessageCircle,
@@ -21,9 +20,6 @@ import {
   Mail,
   Clock,
   Calendar,
-  Play,
-  Volume2,
-  Trophy,
   ChevronRight,
   Info
 } from "lucide-react";
@@ -52,11 +48,19 @@ interface StoryParam {
 }
 
 interface Props {
-  navigate: (screen: Screen, params?: any) => void;
+  navigate: NavigateFn;
   goBack: () => void;
   unreadCount?: number;
   story?: StoryParam;
   onViewProfile: (user: User) => void;
+}
+
+interface ContextWordProps {
+  activeId: string | null;
+  explanation: string;
+  id: string;
+  onToggle: (id: string) => void;
+  text: string;
 }
 
 const DEFAULT_STORY: StoryParam = {
@@ -80,6 +84,39 @@ const RELATED_STORIES: StoryParam[] = [
   { title: "The Magic Drum", author: "Kofi", type: 'Fable', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDKkfM9WqTPsqCfuM1KQIQ1QzsbiAaq2rab_EQ2MwL_8b9sbJ3-mIl3CjDCR888PPrsBNhkpl7tkden40rCqo3pJe3Sepe18k46KUvejTidyoAK941vcqejBnqRrcfC5hPZop_XFQ7S9jkteso1RvDSjv8s1JfGwGhOYE1uQ1M1J93quDxOniTqTNGD-1WZq2GOu_Z1EpzGjMzNeyvhYbuIwiqYK1TDLfGX5mpdg--_df6DoewiFO-RhrraeKpwY7MetQ94avb6spo' }
 ];
 
+function ContextWord({ activeId, explanation, id, onToggle, text }: ContextWordProps) {
+  const isActive = activeId === id;
+
+  return (
+    <span className="relative inline-block">
+      <span
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle(id);
+        }}
+        className={cn(
+          "cursor-pointer border-b-[2px] border-dashed transition-all duration-300 px-0.5 -mx-0.5",
+          isActive
+            ? 'border-primary text-primary font-black bg-primary/10 rounded-sm'
+            : 'border-muted-foreground/30 hover:border-primary hover:text-primary'
+        )}
+      >
+        {text}
+      </span>
+      {isActive && (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-72 bg-foreground text-background text-xs p-5 rounded-2xl shadow-2xl z-40 animate-in fade-in zoom-in-95 duration-300 font-sans cursor-default border border-background/10 backdrop-blur-xl">
+          <div className="flex items-center gap-2 mb-2 text-primary opacity-80 uppercase tracking-widest font-black text-[9px]">
+            <Info className="w-3 h-3" />
+            Definition
+          </div>
+          <p className="leading-relaxed font-medium tracking-tight">{explanation}</p>
+          <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-foreground"></div>
+        </div>
+      )}
+    </span>
+  );
+}
+
 const StoryDetailScreen: React.FC<Props> = ({ navigate, goBack, unreadCount = 0, story, onViewProfile }) => {
   const [showMeaning, setShowMeaning] = useState<string | null>(null);
   const [isShareOpen, setIsShareOpen] = useState(false);
@@ -96,8 +133,6 @@ const StoryDetailScreen: React.FC<Props> = ({ navigate, goBack, unreadCount = 0,
     if (scrollRef.current) {
       scrollRef.current.scrollTo(0, 0);
     }
-    // Reset bookmark state when story changes
-    setIsBookmarked(false);
   }, [activeStory.title]);
 
   const storyUrl = `https://samiati.app/story/${activeStory.title.toLowerCase().replace(/\s+/g, '-')}`;
@@ -154,37 +189,8 @@ const StoryDetailScreen: React.FC<Props> = ({ navigate, goBack, unreadCount = 0,
     });
   };
 
-  const ContextWord = ({ id, text, explanation }: { id: string, text: string, explanation: string }) => {
-    const isActive = activeContextWord === id;
-
-    return (
-      <span className="relative inline-block">
-        <span
-          onClick={(e) => {
-            e.stopPropagation();
-            setActiveContextWord(isActive ? null : id);
-          }}
-          className={cn(
-            "cursor-pointer border-b-[2px] border-dashed transition-all duration-300 px-0.5 -mx-0.5",
-            isActive
-              ? 'border-primary text-primary font-black bg-primary/10 rounded-sm'
-              : 'border-muted-foreground/30 hover:border-primary hover:text-primary'
-          )}
-        >
-          {text}
-        </span>
-        {isActive && (
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-72 bg-foreground text-background text-xs p-5 rounded-2xl shadow-2xl z-40 animate-in fade-in zoom-in-95 duration-300 font-sans cursor-default border border-background/10 backdrop-blur-xl">
-            <div className="flex items-center gap-2 mb-2 text-primary opacity-80 uppercase tracking-widest font-black text-[9px]">
-              <Info className="w-3 h-3" />
-              Definition
-            </div>
-            <p className="leading-relaxed font-medium tracking-tight">{explanation}</p>
-            <div className="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-foreground"></div>
-          </div>
-        )}
-      </span>
-    );
+  const handleToggleContextWord = (id: string) => {
+    setActiveContextWord((currentId) => (currentId === id ? null : id));
   };
 
   return (
@@ -252,10 +258,10 @@ const StoryDetailScreen: React.FC<Props> = ({ navigate, goBack, unreadCount = 0,
           {isDefaultStory ? (
             <div className="prose dark:prose-invert max-w-none text-lg text-stone-800 dark:text-stone-200 leading-relaxed font-serif">
               <p className="first-letter:text-5xl first-letter:font-bold first-letter:text-primary first-letter:mr-3 first-letter:float-left mb-6">
-                Long ago, <ContextWord id="anansi" text="Kwaku Anansi" explanation="A West African trickster god, often depicted as a spider, known for his wisdom, wit, and ability to outsmart more powerful opponents." />, the spider, was known for his cleverness and his mischief. But in those days, stories did not belong to the people on earth; they belonged to <ContextWord id="nyame" text="Nyame" explanation="The Supreme Being in Akan religion, often referred to as the Sky God who sees all and possesses all wisdom." />, the Sky God.
+                Long ago, <ContextWord activeId={activeContextWord} id="anansi" onToggle={handleToggleContextWord} text="Kwaku Anansi" explanation="A West African trickster god, often depicted as a spider, known for his wisdom, wit, and ability to outsmart more powerful opponents." />, the spider, was known for his cleverness and his mischief. But in those days, stories did not belong to the people on earth; they belonged to <ContextWord activeId={activeContextWord} id="nyame" onToggle={handleToggleContextWord} text="Nyame" explanation="The Supreme Being in Akan religion, often referred to as the Sky God who sees all and possesses all wisdom." />, the Sky God.
               </p>
               <p className="mb-6">
-                One day, Anansi decided he wanted the stories. He spun a web up to the sky and climbed until he reached Nyame's throne.
+                One day, Anansi decided he wanted the stories. He spun a web up to the sky and climbed until he reached Nyame&apos;s throne.
               </p>
 
               {/* Cultural Insight Block */}
@@ -265,18 +271,18 @@ const StoryDetailScreen: React.FC<Props> = ({ navigate, goBack, unreadCount = 0,
                   Cultural Insight
                 </div>
                 <p className="text-base text-foreground leading-relaxed italic m-0 opacity-80">
-                  <span className="font-black text-primary tracking-widest uppercase mr-1">Nyame</span> represents the supreme being in Akan religion. The "Sky God" is often associated with the sun and the moon, watching over all earthly matters.
+                  <span className="font-black text-primary tracking-widest uppercase mr-1">Nyame</span> represents the supreme being in Akan religion. The &quot;Sky God&quot; is often associated with the sun and the moon, watching over all earthly matters.
                 </p>
               </Card>
 
               <p className="mb-6">
-                "Oh great Nyame," Anansi called out. "I wish to buy your stories!"
+                &quot;Oh great Nyame,&quot; Anansi called out. &quot;I wish to buy your stories!&quot;
               </p>
               <p className="mb-6">
-                Nyame laughed, a sound like rolling thunder. "My stories? They are expensive, little spider. Many great kings have tried to buy them and failed."
+                Nyame laughed, a sound like rolling thunder. &quot;My stories? They are expensive, little spider. Many great kings have tried to buy them and failed.&quot;
               </p>
               <p className="mb-6">
-                "Tell me the price," Anansi said confidently.
+                &quot;Tell me the price,&quot; Anansi said confidently.
               </p>
 
               {/* Proverb Spotlight */}
@@ -287,7 +293,7 @@ const StoryDetailScreen: React.FC<Props> = ({ navigate, goBack, unreadCount = 0,
                 <Card className="relative py-12 px-10 bg-muted/20 rounded-[32px] text-center border-4 border-dashed border-muted-foreground/10 transition-all group-hover:border-primary/30 group-hover:bg-primary/5 active:scale-[0.98] shadow-none">
                   <Quote className="w-12 h-12 text-muted-foreground/20 absolute top-6 left-8 rotate-180 opacity-40" />
                   <p className="text-3xl font-black text-foreground tracking-tighter italic relative z-10 leading-tight">
-                    "Tikro nko agyina"
+                    &quot;Tikro nko agyina&quot;
                   </p>
                   <div className="mt-6 flex flex-col items-center gap-2">
                     <Separator className="w-12 h-1 bg-primary/20 rounded-full" />
@@ -302,7 +308,7 @@ const StoryDetailScreen: React.FC<Props> = ({ navigate, goBack, unreadCount = 0,
                 <div className={`overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] ${showMeaning === 'p1' ? 'max-h-60 opacity-100 mt-6 translate-y-0' : 'max-h-0 opacity-0 -translate-y-4'}`}>
                   <div className="bg-primary text-white p-8 rounded-[24px] shadow-2xl shadow-primary/30 font-sans text-center border-4 border-white/20">
                     <p className="font-black uppercase tracking-[0.2em] text-[10px] mb-3 opacity-70">The Meaning</p>
-                    <p className="text-2xl font-black tracking-tight leading-tight">"One head does not go into council."</p>
+                    <p className="text-2xl font-black tracking-tight leading-tight">&quot;One head does not go into council.&quot;</p>
                     <Separator className="w-10 h-1 bg-white/30 mx-auto my-4 rounded-full" />
                     <p className="text-sm font-medium opacity-90 italic tracking-tight font-serif leading-relaxed">Wisdom is best sought together; two heads are better than one.</p>
                   </div>
@@ -310,7 +316,7 @@ const StoryDetailScreen: React.FC<Props> = ({ navigate, goBack, unreadCount = 0,
               </div>
 
               <p className="mb-6">
-                And so, the great quest began. Anansi had to capture the <ContextWord id="python" text="python" explanation="Onini the Python: One of the impossible tasks. Represents a challenge requiring patience and strategy." />, the <ContextWord id="leopard" text="leopard" explanation="Osebo the Leopard: Known for his terrible teeth. Represents a challenge requiring courage to face a fierce opponent." />, and the <ContextWord id="hornets" text="hornets" explanation="Mmmboro the Hornets: Known for their painful sting. Represents a challenge requiring quick wit to handle a swarm of problems." />. Through wit and trickery, rather than strength, the little spider succeeded where the strong had failed. He proved that wisdom is greater than force.
+                And so, the great quest began. Anansi had to capture the <ContextWord activeId={activeContextWord} id="python" onToggle={handleToggleContextWord} text="python" explanation="Onini the Python: One of the impossible tasks. Represents a challenge requiring patience and strategy." />, the <ContextWord activeId={activeContextWord} id="leopard" onToggle={handleToggleContextWord} text="leopard" explanation="Osebo the Leopard: Known for his terrible teeth. Represents a challenge requiring courage to face a fierce opponent." />, and the <ContextWord activeId={activeContextWord} id="hornets" onToggle={handleToggleContextWord} text="hornets" explanation="Mmmboro the Hornets: Known for their painful sting. Represents a challenge requiring quick wit to handle a swarm of problems." />. Through wit and trickery, rather than strength, the little spider succeeded where the strong had failed. He proved that wisdom is greater than force.
               </p>
               <p>
                 From that day on, the stories were given to Anansi to share with the world. That is why we tell them today, weaving our words just as he wove his web.

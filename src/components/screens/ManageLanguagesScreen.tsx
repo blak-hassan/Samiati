@@ -1,10 +1,10 @@
 ﻿"use client";
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Screen, LanguageSkill } from '@/types';
+import { NavigateFn, Screen, LanguageSkill } from '@/types';
 
 interface Props {
-  navigate: (screen: Screen) => void;
+  navigate: NavigateFn;
   goBack: () => void;
   languages: LanguageSkill[];
   onUpdateLanguages: (languages: LanguageSkill[]) => void;
@@ -261,7 +261,7 @@ const ManageLanguagesScreen: React.FC<Props> = ({ navigate, goBack, languages, o
                 label="Proficiency"
                 value={newLangLevel}
                 options={['Learning', 'Conversational', 'Fluent', 'Native']}
-                onChange={(val) => setNewLangLevel(val as any)}
+                onChange={(val) => setNewLangLevel(val as typeof newLangLevel)}
               />
 
               <div className="pt-4">

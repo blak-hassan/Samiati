@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +29,7 @@ export default function ForgotPasswordPage() {
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1500));
       setIsSubmitted(true);
-    } catch (err) {
+    } catch {
       setError("Failed to send reset link. Please try again.");
     } finally {
       setIsLoading(false);
@@ -57,7 +56,7 @@ export default function ForgotPasswordPage() {
             </p>
             
             <p className="text-sm text-muted-foreground mb-6">
-              Didn't receive the email? Check your spam folder or{" "}
+              Didn&apos;t receive the email? Check your spam folder or{" "}
               <button 
                 onClick={() => setIsSubmitted(false)}
                 className="text-primary hover:underline font-medium"
@@ -93,7 +92,7 @@ export default function ForgotPasswordPage() {
               Forgot password?
             </h1>
             <p className="text-muted-foreground text-sm">
-              No worries, we'll send you reset instructions.
+              No worries, we&apos;ll send you reset instructions.
             </p>
           </div>
 

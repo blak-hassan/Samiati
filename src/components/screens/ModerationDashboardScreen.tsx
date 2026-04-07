@@ -362,7 +362,7 @@ const ModerationDashboardScreen: React.FC<Props> = ({
                         ].map(status => (
                           <button
                             key={status.label}
-                            onClick={() => { setSelectedStatus(status.value as any); setShowFilterMenu(false); }}
+                            onClick={() => { setSelectedStatus(status.value as 'pending' | 'approved' | 'rejected' | null); setShowFilterMenu(false); }}
                             className={`px-3 py-2 rounded-lg text-[10px] font-bold text-center transition-all border ${selectedStatus === status.value ? 'bg-stone-900 text-white border-stone-900' : status.color} hover:opacity-80`}
                           >
                             {status.label}
@@ -461,7 +461,7 @@ const ModerationDashboardScreen: React.FC<Props> = ({
               </div>
               <h3 className="text-lg font-black text-stone-900 dark:text-white mb-2">No matching contributions</h3>
               <p className="text-sm text-stone-500 dark:text-text-muted leading-relaxed max-w-xs">
-                We couldn't find any items matching your current filters. Try adjusting your language or type settings.
+                We couldn&apos;t find any items matching your current filters. Try adjusting your language or type settings.
               </p>
               <button
                 onClick={() => {

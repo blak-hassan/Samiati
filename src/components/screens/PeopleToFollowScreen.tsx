@@ -1,6 +1,6 @@
 ﻿"use client";
 import React, { useState, useEffect, useRef } from 'react';
-import { Screen, User, ContributionItem, Community } from '@/types';
+import { Community, ContributionItem, NavigateFn, Screen, User } from '@/types';
 import { INITIAL_COMMUNITIES } from '@/data/mock';
 import { Person, useWatuFilters } from '@/hooks/useWatuFilters';
 import { WatuHeader } from '@/components/watu/WatuHeader';
@@ -10,7 +10,7 @@ import { WatuEmptyState } from '@/components/watu/WatuEmptyState';
 import { UserPlus, Users, QrCode, Share2 } from 'lucide-react';
 
 interface Props {
-  navigate: (screen: Screen, params?: any) => void;
+  navigate: NavigateFn;
   goBack: () => void;
   onViewProfile: (user: User) => void;
   initialFilter?: string;
@@ -98,6 +98,7 @@ const PeopleToFollowScreen: React.FC<Props> = ({ navigate, goBack, onViewProfile
 
   const [people, setPeople] = useState<Person[]>(MOCK_PEOPLE);
   const [activeCommunityTab, setActiveCommunityTab] = useState<'All' | 'People' | 'Communities'>('All');
+  const communityTabs: Array<'All' | 'People' | 'Communities'> = ['All', 'People', 'Communities'];
   const [communities, setCommunities] = useState<Community[]>(INITIAL_COMMUNITIES);
 
   // Scroll Header Logic
@@ -191,10 +192,10 @@ const PeopleToFollowScreen: React.FC<Props> = ({ navigate, goBack, onViewProfile
           {/* People / Communities Toggle */}
           {!isSelectContactMode && (
             <div className="px-4 py-2 flex items-center gap-2">
-              {['All', 'People', 'Communities'].map(tab => (
+              {communityTabs.map(tab => (
                 <button
                   key={tab}
-                  onClick={() => setActiveCommunityTab(tab as any)}
+                  onClick={() => setActiveCommunityTab(tab)}
                   className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${activeCommunityTab === tab
                     ? 'bg-stone-900 dark:bg-white text-white dark:text-stone-900 border-stone-900 dark:border-white'
                     : 'bg-transparent text-stone-500 dark:text-stone-400 border-stone-200 dark:border-white/10 hover:border-stone-400 dark:hover:border-white/30'

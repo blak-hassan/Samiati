@@ -42,7 +42,7 @@ export const add = mutation({
                         message: `${user.name} replied to your post`,
                         time: Date.now(),
                         isRead: false,
-                        targetScreen: "POST_DETAILS", // Placeholder
+                        targetScreen: "POST_THREAD",
                         metadata: { postId: post._id, commentId }
                     });
                 }

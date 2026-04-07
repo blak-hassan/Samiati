@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Screen, ChatPreview } from '@/types';
+import { Screen, ChatPreview, NavigateFn } from '@/types';
 import { useFuzzySearch } from '@/hooks/useFuzzySearch';
 import {
   ArrowLeft,
@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 interface Props {
-  navigate: (screen: Screen, params?: any) => void;
+  navigate: NavigateFn;
   goBack: () => void;
   // chats from Convex - now required for proper functionality
   chats?: ChatPreview[];

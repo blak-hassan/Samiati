@@ -51,14 +51,14 @@ const ResetPasswordFlow: React.FC<Props> = ({ screen, navigate }) => {
           <span className="material-symbols-outlined text-5xl">mark_email_read</span>
         </div>
         <h1 className="text-2xl font-bold text-stone-900 dark:text-white mb-2">Link Sent!</h1>
-        <p className="text-center text-stone-600 dark:text-stone-400 max-w-xs mb-8">We've sent a password reset link to your email address. Please check your inbox and spam folder.</p>
+        <p className="text-center text-stone-600 dark:text-stone-400 max-w-xs mb-8">We&apos;ve sent a password reset link to your email address. Please check your inbox and spam folder.</p>
         
         <div className="w-full max-w-xs space-y-4">
           <button onClick={() => navigate(Screen.SET_NEW_PASSWORD)} className="w-full bg-primary hover:bg-primary-hover text-white font-bold py-3.5 rounded-xl transition-colors">
             Return to Sign In
           </button>
           <p className="text-center text-sm text-stone-600 dark:text-stone-400">
-            Didn't receive it? <button className="text-primary font-bold hover:underline">Resend Link</button>
+            Didn&apos;t receive it? <button className="text-primary font-bold hover:underline">Resend Link</button>
           </p>
         </div>
         {/* Simulating clicking the link from email goes to Set New Password */}

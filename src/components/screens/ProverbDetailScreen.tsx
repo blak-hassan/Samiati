@@ -1,12 +1,12 @@
 ﻿"use client";
 
 import React, { useState, useEffect, useRef, memo } from 'react';
-import { Screen } from '@/types';
+import { NavigateFn, Screen } from '@/types';
 import { NotificationBell } from '@/components/shared/NotificationBell';
 import { copyToClipboard } from '@/lib/utils';
 
 interface Props {
-  navigate: (screen: Screen) => void;
+  navigate: NavigateFn;
   goBack: () => void;
   unreadCount?: number;
 }
@@ -146,10 +146,10 @@ const RELATED_CONTENT = [
 ];
 
 // Audio Player Component - Isolated to prevent re-renders of the main screen
-const AudioPlayer = memo(({ totalTime = 143 }: { totalTime?: number }) => {
+const AudioPlayer = memo(function AudioPlayer({ totalTime = 143 }: { totalTime?: number }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(16); // 0:16 in seconds, matching screenshot
-  const progressInterval = useRef<any>(null);
+  const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

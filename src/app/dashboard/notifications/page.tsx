@@ -7,7 +7,7 @@ import { useNavigation } from "@/hooks/useNavigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { NotificationItem, Screen } from "@/types";
-import { Id } from "../../../../convex/_generated/dataModel";
+import { Doc, Id } from "../../../../convex/_generated/dataModel";
 
 export default function NotificationsPage() {
     const { navigate, goBack } = useNavigation();
@@ -18,9 +18,9 @@ export default function NotificationsPage() {
     const markRead = useMutation(api.notifications.mutations.markAsRead);
 
     // Map Convex data to Frontend type
-    const notifications: NotificationItem[] = (notificationsData || []).map((n: any) => ({
+    const notifications: NotificationItem[] = ((notificationsData || []) as Doc<"notifications">[]).map((n) => ({
         id: n._id,
-        type: n.type as any, // Cast or map if needed
+        type: n.type as NotificationItem["type"],
         title: n.title,
         message: n.message,
         time: new Date(n.time).toISOString(), // Or just use n.time depending on type definition

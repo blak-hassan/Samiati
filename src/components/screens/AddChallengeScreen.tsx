@@ -1,10 +1,10 @@
 
 import React, { useState } from 'react';
-import { Screen, ChallengeType, InputType, ChallengeInputField } from '@/types';
+import { NavigateFn, Screen, ChallengeType, InputType, ChallengeInputField } from '@/types';
 import { useUser } from '@/app/MockProviders';
 
 interface Props {
-  navigate: (screen: Screen, params?: any) => void;
+  navigate: NavigateFn;
   goBack: () => void;
 }
 

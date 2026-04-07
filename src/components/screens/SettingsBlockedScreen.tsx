@@ -47,7 +47,7 @@ const SettingsBlockedScreen: React.FC<Props> = ({ goBack }) => {
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-stone-500 dark:text-text-muted">
             <span className="material-symbols-outlined text-4xl mb-2 opacity-50">block</span>
-            <p>You haven't blocked anyone yet.</p>
+            <p>You haven&apos;t blocked anyone yet.</p>
           </div>
         )}
         <p className="text-xs text-stone-500 dark:text-text-muted px-2">

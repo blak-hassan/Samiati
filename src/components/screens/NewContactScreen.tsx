@@ -1,8 +1,8 @@
 import React from 'react';
-import { Screen } from '@/types';
+import { NavigateFn, Screen } from '@/types';
 
 interface Props {
-  navigate: (screen: Screen, params?: any) => void;
+  navigate: NavigateFn;
   goBack: () => void;
 }
 

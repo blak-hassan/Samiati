@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Screen, User, ContributionItem, Comment, LanguageSkill } from '@/types';
+import { NavigateFn, Screen, User, ContributionItem, Comment, LanguageSkill } from '@/types';
 
 import { CulturalImpactCard } from '@/components/CulturalImpactCard';
 import { ContributionStreakBadge } from '@/components/ContributionStreakBadge';
@@ -44,7 +44,7 @@ import {
 import { IconRenderer } from '@/components/shared/IconRenderer';
 
 interface Props {
-    navigate: (screen: Screen, params?: any) => void;
+    navigate: NavigateFn;
     goBack: () => void;
     initialTab?: 'My Changa' | 'Moderation' | 'Challenges' | 'Saved';
     initialTypeFilter?: string;
@@ -352,7 +352,7 @@ const PAST_CHALLENGES = [
 
 const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = 'My Changa', initialTypeFilter, onViewProfile, unreadCount = 0, myContributions = [], setMyContributions, languages = [] }) => {
     const { challenges } = useUser();
-    const [activeTab, setActiveTab] = useState<'My Changa' | 'Moderation' | 'Challenges' | 'Saved'>(initialTab as any || 'My Changa');
+    const [activeTab, setActiveTab] = useState<'My Changa' | 'Moderation' | 'Challenges' | 'Saved'>(initialTab || 'My Changa');
     const [moderationView, setModerationView] = useState<'dashboard' | 'history'>('dashboard');
 
     // Filters for My Contributions
@@ -1022,7 +1022,7 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                                     color: 'bg-stone-500',
                                     action: () => handleSocialShare('email')
                                 },
-                            ].map((platform: any) => (
+                            ].map((platform) => (
                                 <button key={platform.name} onClick={platform.action} className="flex flex-col items-center gap-2 group">
                                     {platform.src ? (
                                         <img

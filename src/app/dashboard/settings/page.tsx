@@ -4,7 +4,7 @@ import SettingsScreen from "@/components/screens/SettingsScreen";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useUser, useClerk } from "../../MockProviders";
 import { useState, useEffect } from "react";
-import { User } from "@/types";
+import { Screen, User } from "@/types";
 
 export default function SettingsPage() {
     const { navigate, goBack } = useNavigation();
@@ -43,7 +43,7 @@ export default function SettingsPage() {
             navigate={navigate}
             goBack={goBack}
             onSignOut={() => {
-                signOut(() => navigate('WELCOME' as any)); // Redirect to welcome after signout
+                signOut(() => navigate(Screen.WELCOME)); // Redirect to welcome after signout
             }}
             isDarkMode={isDarkMode}
             toggleTheme={toggleTheme}

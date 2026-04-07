@@ -87,9 +87,10 @@ const MOCK_ACTIONS: ModerationAction[] = [
 
 
 export const ModerationLogContent: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded = false }) => {
-    const [actions] = useState<ModerationAction[]>(MOCK_ACTIONS);
-    const [filterAction, setFilterAction] = useState<string>('All');
-    const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [actions] = useState<ModerationAction[]>(MOCK_ACTIONS);
+  const [filterAction, setFilterAction] = useState<string>('All');
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [referenceTime] = useState(() => Date.now());
 
     const filteredActions = actions.filter(action =>
         filterAction === 'All' || action.action === filterAction
@@ -116,7 +117,7 @@ export const ModerationLogContent: React.FC<{ isEmbedded?: boolean }> = ({ isEmb
     };
 
     const formatTimestamp = (timestamp: number) => {
-        const diff = Date.now() - timestamp;
+        const diff = referenceTime - timestamp;
         const minutes = Math.floor(diff / (1000 * 60));
         const hours = Math.floor(diff / (1000 * 60 * 60));
         const days = Math.floor(diff / (1000 * 60 * 60 * 24));

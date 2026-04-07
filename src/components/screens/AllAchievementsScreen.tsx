@@ -1,11 +1,12 @@
 ﻿"use client";
 
 import React, { useState } from 'react';
-import { Screen } from '@/types';
-
 interface Props {
   goBack: () => void;
 }
+
+const FILTER_TABS = ['All', 'Earned', 'In Progress'] as const;
+type AchievementFilter = typeof FILTER_TABS[number];
 
 interface Achievement {
   id: string;
@@ -34,7 +35,7 @@ const ACHIEVEMENTS: Achievement[] = [
 ];
 
 const AllAchievementsScreen: React.FC<Props> = ({ goBack }) => {
-  const [filter, setFilter] = useState<'All' | 'Earned' | 'In Progress'>('All');
+  const [filter, setFilter] = useState<AchievementFilter>('All');
 
   const filteredAchievements = ACHIEVEMENTS.filter(a => {
     if (filter === 'Earned') return a.isUnlocked;
@@ -69,10 +70,10 @@ const AllAchievementsScreen: React.FC<Props> = ({ goBack }) => {
 
         {/* Filter Tabs */}
         <div className="flex bg-stone-200 dark:bg-white/5 rounded-lg p-1">
-          {['All', 'Earned', 'In Progress'].map(tab => (
+          {FILTER_TABS.map(tab => (
             <button
               key={tab}
-              onClick={() => setFilter(tab as any)}
+              onClick={() => setFilter(tab)}
               className={`flex-1 py-2 rounded-md text-sm font-bold transition-all ${
                 filter === tab 
                   ? 'bg-white dark:bg-surface-dark text-stone-900 dark:text-white shadow-sm' 

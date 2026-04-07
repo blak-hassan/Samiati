@@ -7,7 +7,7 @@ export const ProverbCard = ({ data }: { data: NonNullable<Post['proverbData']> }
     <div className="relative pl-6 py-2 my-3 group cursor-pointer hover:bg-stone-50 dark:hover:bg-white/5 rounded-r-lg transition-colors">
         <Quote className="absolute left-0 top-2 w-4 h-4 text-primary/40 rotate-180" />
         <div className="text-lg font-serif italic text-stone-800 dark:text-stone-200 leading-relaxed">
-            "{data.original}"
+            &quot;{data.original}&quot;
         </div>
         <div className="mt-2 text-sm font-medium text-stone-500 dark:text-stone-400 border-l-2 border-primary/20 pl-3">
             {data.translation}

@@ -8,9 +8,9 @@ import GroupScreen from "@/components/screens/GroupScreen";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { Id } from "../../../../convex/_generated/dataModel";
-import { Community } from "@/types";
+import { Community, RouteSearchParams } from "@/types";
 
-export default function GroupViewPage({ searchParams }: { searchParams: Promise<any> }) {
+export default function GroupViewPage({ searchParams }: { searchParams: Promise<RouteSearchParams> }) {
     const { navigate, goBack } = useNavigation();
     const resolvedSearchParams = use(searchParams);
 
