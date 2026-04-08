@@ -229,13 +229,28 @@ export interface Comment {
   isReplying?: boolean;
 }
 
+export type ContributionStatus = 'Live' | 'Under Review' | 'Needs Revision' | 'Declined';
+export type ModerationStatus = 'pending' | 'approved' | 'needs_revision' | 'rejected';
+
+export interface ModerationReview {
+  moderator: {
+    id: string;
+    name: string;
+    avatar: string;
+    handle?: string;
+  };
+  action: 'approved' | 'critiqued' | 'rejected';
+  comment?: string;
+  timestamp: number;
+}
+
 export interface ContributionItem {
   id: string;
   type: 'Story' | 'Word' | 'Proverb' | 'Song' | 'Phrases' | 'Translate Paragraphs' | string;
   title: string;
   subtitle: string;
   // For 'My Contributions'
-  status?: 'Live' | 'Under Review' | 'Declined';
+  status?: ContributionStatus;
   statusColor?: string;
   dotColor?: string;
   // For 'Following'
@@ -256,6 +271,15 @@ export interface ContributionItem {
   content?: string;
   translation?: string;
   context?: string;
+  authorId?: string;
+  challengeId?: string;
+  language?: string;
+  languageCode?: string;
+  moderationStatus?: ModerationStatus;
+  reviewHistory?: ModerationReview[];
+  moderatorNotes?: string;
+  createdAt?: number;
+  reviewedAt?: number;
 }
 
 export interface Community {
@@ -341,19 +365,10 @@ export interface ValidationItem {
   };
 
   // Moderation history
-  reviews: {
-    moderator: {
-      id: string;
-      name: string;
-      avatar: string;
-    };
-    action: 'approved' | 'critiqued' | 'rejected';
-    comment?: string;
-    timestamp: number;
-  }[];
+  reviews: ModerationReview[];
 
   // Status
-  status: 'pending' | 'approved' | 'needs_revision' | 'rejected';
+  status: ModerationStatus;
   timestamp: string; // Using string to match Post timestamp format
 }
 

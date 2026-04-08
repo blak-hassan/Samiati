@@ -17,6 +17,7 @@ export default function ContributionsPage({ searchParams }: { searchParams: Prom
             goBack={goBack}
             initialTab={resolvedSearchParams.initialTab || "My Changa"}
             initialTypeFilter={resolvedSearchParams.typeFilter}
+            initialStatusFilter={resolvedSearchParams.statusFilter || "All"}
             onViewProfile={() => {}}
             myContributions={myContributions}
             setMyContributions={setMyContributions}

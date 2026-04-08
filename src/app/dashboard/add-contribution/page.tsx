@@ -9,7 +9,7 @@ import { ContributionItem } from "@/types";
 
 function AddContributionContent() {
     const { navigate, goBack } = useNavigation();
-    const { setMyContributions } = useUser();
+    const { saveContribution } = useUser();
     const searchParams = useSearchParams();
 
     // Attempt to get initialData from params
@@ -24,16 +24,7 @@ function AddContributionContent() {
     }
 
     const handleSave = (newItem: ContributionItem) => {
-        setMyContributions(prev => {
-            const index = prev.findIndex(c => c.id === newItem.id);
-            if (index !== -1) {
-                // Update existing
-                const updated = [...prev];
-                updated[index] = newItem;
-                return updated;
-            }
-            return [newItem, ...prev]; // Create new
-        });
+        saveContribution(newItem);
     };
 
     return (

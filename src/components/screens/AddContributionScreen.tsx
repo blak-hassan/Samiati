@@ -220,7 +220,7 @@ const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave, init
     }
 
     setIsSubmitting(false);
-    navigate(Screen.CONTRIBUTIONS);
+    navigate(Screen.CONTRIBUTIONS, { initialTab: 'My Changa', statusFilter: 'Under Review' });
   };
 
   return (
@@ -530,7 +530,7 @@ const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave, init
             <IconRenderer name="groups" size={16} className="text-primary mt-0.5" />
             <div className="space-y-1">
               <p className="font-black text-[10px] uppercase tracking-widest text-foreground">Community Verification</p>
-              <p className="text-[11px] text-muted-foreground leading-relaxed font-medium">After you submit, the community will review and vote on this Changa for final approval.</p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed font-medium">After you submit, moderators review the changa before it moves to live, needs revision, or declined.</p>
             </div>
           </div>
         </section>

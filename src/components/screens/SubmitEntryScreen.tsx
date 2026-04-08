@@ -1,12 +1,13 @@
 
-import React from 'react';
-import { Screen, Challenge } from '@/types';
+import React, { useMemo, useState } from 'react';
+import { Challenge, ContributionItem, NavigateFn, Screen } from '@/types';
 import { AccentRecorder } from '../changa/inputs/AccentRecorder';
 import { DialectMapper } from '../changa/inputs/DialectMapper';
 import { TotemUploader } from '../changa/inputs/TotemUploader';
+import { useUser } from '@/app/MockProviders';
 
 interface Props {
-  navigate: (screen: Screen) => void;
+  navigate: NavigateFn;
   goBack: () => void;
   challenge?: Challenge;
 }
@@ -24,7 +25,54 @@ const DEFAULT_CHALLENGE: Challenge = {
 };
 
 const SubmitEntryScreen: React.FC<Props> = ({ navigate, goBack, challenge }) => {
+  const { saveContribution } = useUser();
   const activeChallenge = challenge || DEFAULT_CHALLENGE;
+  const [textEntry, setTextEntry] = useState('');
+
+  const prompt = useMemo(() => {
+    switch (activeChallenge.type) {
+      case 'ACCENT': return 'Record the phrase "Good Morning" in your accent.';
+      case 'DIALECT': return 'Pin the location where "Sheng" originated.';
+      case 'TOTEM': return 'Upload a photo of a cultural artifact.';
+      default: return activeChallenge.description;
+    }
+  }, [activeChallenge.description, activeChallenge.type]);
+
+  const buildContribution = (): ContributionItem => {
+    const entryTitle = textEntry.trim() || `${activeChallenge.title} submission`;
+
+    return {
+      id: `submission-${Date.now()}`,
+      type: activeChallenge.type === 'TRANSLATION' ? 'Translate Paragraphs' : activeChallenge.type,
+      title: entryTitle,
+      subtitle: `${activeChallenge.title} • Submitted on ${new Date().toLocaleDateString()}`,
+      status: 'Under Review',
+      statusColor: 'text-warning',
+      dotColor: 'bg-warning',
+      icon:
+        activeChallenge.type === 'ACCENT' ? 'mic' :
+          activeChallenge.type === 'DIALECT' ? 'location_on' :
+            activeChallenge.type === 'TOTEM' ? 'photo_camera' : 'history_edu',
+      likes: 0,
+      dislikes: 0,
+      commentsCount: 0,
+      userVote: null,
+      comments: [],
+      showComments: false,
+      content: textEntry.trim() || prompt,
+      context: `Submitted to ${activeChallenge.title}`,
+      challengeId: activeChallenge.id,
+      language: 'Swahili',
+      languageCode: 'sw',
+      reviewHistory: [],
+      createdAt: Date.now(),
+    };
+  };
+
+  const handleSubmit = () => {
+    saveContribution(buildContribution());
+    navigate(Screen.CONTRIBUTIONS, { initialTab: 'My Changa', statusFilter: 'Under Review' });
+  };
 
   const renderInput = () => {
     switch (activeChallenge.type) {
@@ -42,20 +90,13 @@ const SubmitEntryScreen: React.FC<Props> = ({ navigate, goBack, challenge }) => 
               <label className="text-stone-900 dark:text-white font-bold">Your Entry</label>
             </div>
             <textarea
+              value={textEntry}
+              onChange={(event) => setTextEntry(event.target.value)}
               className="w-full flex-1 min-h-[150px] bg-stone-50 dark:bg-black/20 border-2 border-stone-200 dark:border-white/10 rounded-xl p-4 text-lg text-stone-900 dark:text-white placeholder-stone-400 dark:placeholder-text-muted focus:ring-0 focus:border-primary outline-none resize-none transition-colors"
               placeholder="Type your contribution here..."
             ></textarea>
           </div>
         );
-    }
-  };
-
-  const getPrompt = () => {
-    switch (activeChallenge.type) {
-      case 'ACCENT': return 'Record the phrase "Good Morning" in your accent.';
-      case 'DIALECT': return 'Pin the location where "Sheng" originated.';
-      case 'TOTEM': return 'Upload a photo of a cultural artifact.';
-      default: return activeChallenge.description;
     }
   };
 
@@ -84,7 +125,7 @@ const SubmitEntryScreen: React.FC<Props> = ({ navigate, goBack, challenge }) => 
               Step 1 / 1
             </span>
             <h1 className="text-2xl font-bold text-stone-900 dark:text-white mb-2 leading-tight">
-              {getPrompt()}
+              {prompt}
             </h1>
             <p className="text-stone-500 dark:text-[#A8A29E]">
               Ensure your submission is accurate and follows community guidelines.
@@ -106,7 +147,7 @@ const SubmitEntryScreen: React.FC<Props> = ({ navigate, goBack, challenge }) => 
             <p className="text-xs text-[#cf6317] font-bold">+50 XP</p>
           </div>
           <button
-            onClick={() => navigate(Screen.IDEA_SUBMITTED)} // Using existing success screen for now
+            onClick={handleSubmit}
             className="flex-1 sm:flex-none sm:w-64 bg-[#cf6317] hover:bg-[#b05210] text-white font-bold py-4 rounded-xl shadow-lg shadow-[#cf6317]/20 transition-all active:scale-[0.98] flex justify-center items-center gap-2"
           >
             Submit Entry <span className="material-symbols-outlined">send</span>

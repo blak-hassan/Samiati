@@ -81,9 +81,13 @@ export const ContributionCard: React.FC<ContributionCardProps> = ({
                         </div>
                     </div>
                     {listType === 'my' && (
-                        <div className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest ${item.status === 'Live' ? 'bg-rasta-green/10 text-rasta-green' :
-                                item.status === 'Under Review' ? 'bg-rasta-gold/10 text-rasta-gold' :
-                                    'bg-rasta-red/10 text-rasta-red'
+                        <div className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest ${item.status === 'Live'
+                                ? 'bg-rasta-green/10 text-rasta-green'
+                                : item.status === 'Under Review'
+                                    ? 'bg-rasta-gold/10 text-rasta-gold'
+                                    : item.status === 'Needs Revision'
+                                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300'
+                                        : 'bg-rasta-red/10 text-rasta-red'
                             }`}>
                             {item.status}
                         </div>
@@ -102,6 +106,17 @@ export const ContributionCard: React.FC<ContributionCardProps> = ({
                         <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                             {item.attachments.length} Attachment{item.attachments.length > 1 ? 's' : ''}
                         </span>
+                    </div>
+                )}
+                {listType === 'my' && item.moderatorNotes && (item.status === 'Needs Revision' || item.status === 'Declined') && (
+                    <div className={`mt-3 rounded-xl border px-3 py-2 text-sm ${item.status === 'Needs Revision'
+                            ? 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100'
+                            : 'border-rasta-red/20 bg-rasta-red/5 text-rasta-red'
+                        }`}>
+                        <p className="text-[10px] font-black uppercase tracking-widest mb-1">
+                            {item.status === 'Needs Revision' ? 'Moderator Feedback' : 'Decline Reason'}
+                        </p>
+                        <p>{item.moderatorNotes}</p>
                     </div>
                 )}
             </div>

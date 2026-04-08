@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import React, { useState, useMemo } from 'react';
-import { Screen, ValidationItem, LanguageHealth } from '@/types';
+import { Screen, LanguageHealth } from '@/types';
 import { useFuzzySearch } from '@/hooks/useFuzzySearch';
 import { NotificationBell } from '@/components/shared/NotificationBell';
 import {
@@ -20,16 +20,17 @@ import {
 } from 'lucide-react';
 
 // XP Service for gamification
-import { calculateXP, RARE_LANGUAGES } from '@/services/xpService';
+import { calculateXP } from '@/services/xpService';
 
 // New Components
 import { LanguageHealthWidget } from '@/components/moderation/LanguageHealthWidget';
 import { ValidationCard } from '@/components/moderation/ValidationCard';
 import { CritiqueModal } from '@/components/moderation/CritiqueModal';
 import { ReportModal } from '@/components/moderation/ReportModal';
+import { useUser } from '@/app/MockProviders';
 
 // Mock Data
-import { INITIAL_LANGUAGE_HEALTH, INITIAL_VALIDATION_ITEMS } from '@/data/mock';
+import { INITIAL_LANGUAGE_HEALTH } from '@/data/mock';
 
 interface Props {
   navigate: (screen: Screen) => void;
@@ -38,16 +39,15 @@ interface Props {
   isEmbedded?: boolean;
 }
 
-const CURRENT_USER_ID = 'u_current'; // Simulated current user
-
 const ModerationDashboardScreen: React.FC<Props> = ({
   navigate,
   goBack,
   unreadCount = 0,
   isEmbedded = false
 }) => {
+  const { moderationItems, reviewContribution, voteOnModerationItem, user } = useUser();
+  const currentUserId = user?.id || 'u_current';
   // State
-  const [items, setItems] = useState<ValidationItem[]>(INITIAL_VALIDATION_ITEMS);
   const [languages] = useState<LanguageHealth[]>(INITIAL_LANGUAGE_HEALTH);
   const [searchQuery, setSearchQuery] = useState('');
   const [toastMessage, setToastMessage] = useState<{ text: string, type: 'success' | 'warning' | 'error' } | null>(null);
@@ -55,7 +55,7 @@ const ModerationDashboardScreen: React.FC<Props> = ({
   // Filter States
   const [selectedLanguageCode, setSelectedLanguageCode] = useState<string | null>(null);
   const [activeType, setActiveType] = useState<string>('All');
-  const [selectedStatus, setSelectedStatus] = useState<'pending' | 'approved' | 'rejected' | null>(null);
+  const [selectedStatus, setSelectedStatus] = useState<'pending' | 'approved' | 'needs_revision' | 'rejected' | null>(null);
   const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
 
@@ -73,22 +73,22 @@ const ModerationDashboardScreen: React.FC<Props> = ({
   // Derived Stats
   const stats = useMemo(() => {
     return {
-      pending: items.filter(i => i.status === 'pending').length,
-      validated: items.filter(i => i.status === 'approved' || i.status === 'rejected' || i.status === 'needs_revision').length,
-      approved: items.filter(i => i.status === 'approved').length,
+      pending: moderationItems.filter(i => i.status === 'pending').length,
+      validated: moderationItems.filter(i => i.status === 'approved' || i.status === 'rejected' || i.status === 'needs_revision').length,
+      approved: moderationItems.filter(i => i.status === 'approved').length,
       totalLanguages: languages.filter(l => l.isUserModerator).length
     };
-  }, [items, languages]);
+  }, [moderationItems, languages]);
 
 
 
   // Filtering Logic
   // 1. Basic Filtering (Status, Type, Language, Permissions)
   const basicFilteredItems = useMemo(() => {
-    return items.filter(item => {
+    return moderationItems.filter(item => {
       // Only show languages the user is a moderator for OR items the user authored
       const isUserModeratorForLang = languages.find(l => l.code === item.languageCode)?.isUserModerator;
-      const isAuthoredByUser = item.author.id === CURRENT_USER_ID;
+      const isAuthoredByUser = item.author.id === currentUserId;
 
       if (!isUserModeratorForLang && !isAuthoredByUser) return false;
 
@@ -98,13 +98,13 @@ const ModerationDashboardScreen: React.FC<Props> = ({
       if (selectedStatus) {
         if (selectedStatus === 'approved' && item.status !== 'approved') return false;
         if (selectedStatus === 'pending' && item.status !== 'pending') return false;
-        if (selectedStatus === 'rejected' && (item.status === 'rejected' || item.status === 'needs_revision')) return true;
+        if (selectedStatus === 'needs_revision' && item.status !== 'needs_revision') return false;
         if (selectedStatus === 'rejected' && item.status !== 'rejected') return false;
       }
 
       return true;
     });
-  }, [items, languages, selectedLanguageCode, activeType, selectedStatus]);
+  }, [moderationItems, languages, selectedLanguageCode, activeType, selectedStatus, currentUserId]);
 
   // 2. Fuzzy Search
   const searchKeys = useMemo(() => ['content.original', 'content.translation', 'author.name', 'type'], []);
@@ -119,134 +119,37 @@ const ModerationDashboardScreen: React.FC<Props> = ({
 
   // Handlers
   const handleApprove = (id: string) => {
-    // Find the item to calculate XP
-    const approvedItem = items.find(item => item.id === id);
+    const approvedItem = moderationItems.find(item => item.id === id);
 
     if (approvedItem) {
-      // Calculate XP earned for this contribution
       const hasAudio = !!approvedItem.content.audioUrl;
-      const isRareLanguage = RARE_LANGUAGES.some(
-        lang => lang.toLowerCase() === approvedItem.language.toLowerCase()
-      );
-      // For demo, assume it's not the first language contribution
       const xpEarned = calculateXP(approvedItem.type, hasAudio, false, approvedItem.language);
-
-      setItems(prev => prev.map(item =>
-        item.id === id ? {
-          ...item,
-          status: 'approved',
-          reviews: [
-            ...item.reviews,
-            {
-              moderator: { id: CURRENT_USER_ID, name: 'You', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBeLXbWz4AzkUBDUb3vYkhuHrvvC9EFxb7YuDTFXSRV6e6T547HBjftD2_M3MWQ23u8DdygDU3-kcrmReHHcg1xuI2vz_fBK_UAfIaTV6tCpEh1xW7vkPs6qjbSwVjkqUkPXcPuBDRL_I0E_dA3ckyiMN2POsZ3M2E57RwaQqNiSED1NzWUTMmbbesb_Ko-z2BYoXtkkWP0lVOyL0aKlkzlpsNevnW1dPGKRZ5SxqpNtu6pvvjeFLtIUcElhd54x2R98mDwi_k8K4w' },
-              action: 'approved',
-              timestamp: Date.now()
-            }
-          ]
-        } : item
-      ));
-
-      // Show XP earned in toast with contribution type
+      reviewContribution(id, 'approved');
       showToast(`✨ Approved! Author earned +${xpEarned} XP for ${approvedItem.type}`, 'success');
     }
   };
 
   const handleVote = (id: string, direction: 'up' | 'down' | null) => {
-    setItems(prev => prev.map(item => {
-      if (item.id !== id) return item;
-
-      let newUpvotes = item.sentiment.upvotes;
-      let newDownvotes = item.sentiment.downvotes;
-      const oldVote = item.sentiment.userVote;
-
-      // Remove old vote effect
-      if (oldVote === 'up') newUpvotes--;
-      if (oldVote === 'down') newDownvotes--;
-
-      // Apply new vote
-      if (direction === 'up') newUpvotes++;
-      if (direction === 'down') newDownvotes++;
-
-      // POST APPROVAL LOGIC:
-      // Criteria: 10 Upvotes = Auto-Approve
-      // This allows the community to push high-quality content live without moderator intervention.
-      let newStatus = item.status;
-      if (newUpvotes >= 10 && newStatus === 'pending') {
-        newStatus = 'approved';
-        // Calculate XP for community-approved content
-        const hasAudio = !!item.content.audioUrl;
-        const xpEarned = calculateXP(item.type, hasAudio, false, item.language);
-        showToast(`🎉 Community consensus! Author earned +${xpEarned} XP`, 'success');
-      }
-
-      return {
-        ...item,
-        status: newStatus,
-        sentiment: {
-          ...item.sentiment,
-          upvotes: newUpvotes,
-          downvotes: newDownvotes,
-          userVote: direction
-        }
-      };
-    }));
+    voteOnModerationItem(id, direction);
   };
 
   const handleCritique = (id: string, comment: string) => {
-    setItems(prev => prev.map(item =>
-      item.id === id ? {
-        ...item,
-        status: 'needs_revision',
-        reviews: [
-          ...item.reviews,
-          {
-            moderator: { id: CURRENT_USER_ID, name: 'You', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBeLXbWz4AzkUBDUb3vYkhuHrvvC9EFxb7YuDTFXSRV6e6T547HBjftD2_M3MWQ23u8DdygDU3-kcrmReHHcg1xuI2vz_fBK_UAfIaTV6tCpEh1xW7vkPs6qjbSwVjkqUkPXcPuBDRL_I0E_dA3ckyiMN2POsZ3M2E57RwaQqNiSED1NzWUTMmbbesb_Ko-z2BYoXtkkWP0lVOyL0aKlkzlpsNevnW1dPGKRZ5SxqpNtu6pvvjeFLtIUcElhd54x2R98mDwi_k8K4w' },
-            action: 'critiqued',
-            comment,
-            timestamp: Date.now()
-          }
-        ]
-      } : item
-    ));
+    reviewContribution(id, 'critiqued', comment);
     setCritiqueModal({ isOpen: false, itemId: null, title: '' });
     showToast('Feedback submitted to author.', 'warning');
   };
 
   const handleReport = (id: string, reason: string, details?: string) => {
-    setItems(prev => prev.map(item => {
-      if (item.id !== id) return item;
-
-      // AUTO-SUSPENSION LOGIC:
-      // Criteria: 2 Flags = Auto-Reject/Suspend
-      // High-risk content is hidden immediately when multiple users or a moderator flags it.
-      // In this frontend implementation, a moderator report is an instant rejection.
-      const newStatus = 'rejected';
-      showToast(`Content flagged for quality: ${reason}`, 'error');
-
-      return {
-        ...item,
-        status: newStatus,
-        reviews: [
-          ...item.reviews,
-          {
-            moderator: { id: CURRENT_USER_ID, name: 'You', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBeLXbWz4AzkUBDUb3vYkhuHrvvC9EFxb7YuDTFXSRV6e6T547HBjftD2_M3MWQ23u8DdygDU3-kcrmReHHcg1xuI2vz_fBK_UAfIaTV6tCpEh1xW7vkPs6qjbSwVjkqUkPXcPuBDRL_I0E_dA3ckyiMN2POsZ3M2E57RwaQqNiSED1NzWUTMmbbesb_Ko-z2BYoXtkkWP0lVOyL0aKlkzlpsNevnW1dPGKRZ5SxqpNtu6pvvjeFLtIUcElhd54x2R98mDwi_k8K4w' },
-            action: 'rejected',
-            comment: reason + (details ? `: ${details}` : ''),
-            timestamp: Date.now()
-          }
-        ]
-      };
-    }));
+    reviewContribution(id, 'rejected', reason + (details ? `: ${details}` : ''));
     setReportModal({ isOpen: false, itemId: null });
+    showToast(`Content flagged for quality: ${reason}`, 'error');
   };
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
-    // Simulate API call
     setTimeout(() => {
-      setItems(INITIAL_VALIDATION_ITEMS); // Reset to initial state or fetch new data
       setIsRefreshing(false);
       showToast('Contributions refreshed', 'success');
     }, 1500);
@@ -354,15 +257,16 @@ const ModerationDashboardScreen: React.FC<Props> = ({
                     <div className="p-4 border-b border-black/5 dark:border-white/5 bg-black/5 dark:bg-black/20">
                       <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-3">Status</p>
                       <div className="grid grid-cols-2 gap-2 mb-4">
-                        {[
+                          {[
                           { label: 'Pending', value: 'pending', color: 'bg-rasta-gold/20 text-rasta-gold border-rasta-gold/20' },
                           { label: 'Approved', value: 'approved', color: 'bg-primary/20 text-primary border-primary/20' },
+                          { label: 'Needs Revision', value: 'needs_revision', color: 'bg-amber-100 text-amber-700 border-amber-200' },
                           { label: 'Validated', value: null, color: 'bg-rasta-green/20 text-rasta-green border-rasta-green/20' },
                           { label: 'Rejected', value: 'rejected', color: 'bg-rasta-red/20 text-rasta-red border-rasta-red/20' }
                         ].map(status => (
                           <button
                             key={status.label}
-                            onClick={() => { setSelectedStatus(status.value as 'pending' | 'approved' | 'rejected' | null); setShowFilterMenu(false); }}
+                            onClick={() => { setSelectedStatus(status.value as 'pending' | 'approved' | 'needs_revision' | 'rejected' | null); setShowFilterMenu(false); }}
                             className={`px-3 py-2 rounded-lg text-[10px] font-bold text-center transition-all border ${selectedStatus === status.value ? 'bg-stone-900 text-white border-stone-900' : status.color} hover:opacity-80`}
                           >
                             {status.label}
@@ -417,7 +321,7 @@ const ModerationDashboardScreen: React.FC<Props> = ({
               )}
               {selectedStatus && (
                 <button onClick={() => setSelectedStatus(null)} className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-100 dark:bg-white/10 text-stone-600 dark:text-white text-[10px] font-black rounded-lg border border-stone-200 dark:border-white/10 animate-in fade-in zoom-in">
-                  {selectedStatus.charAt(0).toUpperCase() + selectedStatus.slice(1)} <X className="size-3" />
+                  {selectedStatus === 'needs_revision' ? 'Needs Revision' : selectedStatus.charAt(0).toUpperCase() + selectedStatus.slice(1)} <X className="size-3" />
                 </button>
               )}
             </div>
@@ -444,7 +348,7 @@ const ModerationDashboardScreen: React.FC<Props> = ({
               <ValidationCard
                 key={item.id}
                 item={item}
-                currentUserId={CURRENT_USER_ID}
+                currentUserId={currentUserId}
                 isUserModerator={languages.find(l => l.code === item.languageCode)?.isUserModerator || false}
                 onApprove={handleApprove}
                 onCritique={() => setCritiqueModal({ isOpen: true, itemId: item.id, title: item.content.original })}

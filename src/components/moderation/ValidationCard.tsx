@@ -9,11 +9,9 @@ import {
     CheckCircle,
     Flag,
     ChevronDown,
-    ChevronUp,
     ThumbsUp,
     ThumbsDown,
     Clock,
-    ExternalLink,
     BookOpen,
     Languages,
     Quote,
@@ -49,31 +47,15 @@ export const ValidationCard: React.FC<Props> = ({
     const [showHistory, setShowHistory] = useState(false);
     const isAuthor = item.author.id === currentUserId;
 
-    // Local state for optimistic UI updates on voting
-    const [localVote, setLocalVote] = useState<'up' | 'down' | null>(item.sentiment.userVote || null);
-    const [localVotes, setLocalVotes] = useState({
+    const localVote = item.sentiment.userVote || null;
+    const localVotes = {
         up: item.sentiment.upvotes,
-        down: item.sentiment.downvotes
-    });
+        down: item.sentiment.downvotes,
+    };
 
     const handleVote = (direction: 'up' | 'down') => {
-        if (localVote === direction) {
-            // Toggle off
-            setLocalVote(null);
-            setLocalVotes(prev => ({
-                ...prev,
-                [direction]: prev[direction] - 1
-            }));
-            onVote(item.id, null);
-        } else {
-            // Switch vote
-            setLocalVotes(prev => ({
-                up: direction === 'up' ? prev.up + 1 : (localVote === 'up' ? prev.up - 1 : prev.up),
-                down: direction === 'down' ? prev.down + 1 : (localVote === 'down' ? prev.down - 1 : prev.down)
-            }));
-            setLocalVote(direction);
-            onVote(item.id, direction);
-        }
+        if (isAuthor) return;
+        onVote(item.id, localVote === direction ? null : direction);
     };
 
     const getTypeIcon = (type: string) => {
@@ -153,8 +135,9 @@ export const ValidationCard: React.FC<Props> = ({
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <button
+                            disabled={isAuthor}
                             onClick={() => handleVote('up')}
-                            className={`flex items-center gap-1.5 transition-colors ${localVote === 'up' ? 'text-primary' : 'text-stone-400 dark:text-text-muted hover:text-primary'}`}
+                            className={`flex items-center gap-1.5 transition-colors ${localVote === 'up' ? 'text-primary' : 'text-stone-400 dark:text-text-muted hover:text-primary'} ${isAuthor ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                             <ThumbsUp className={`size-4 ${localVote === 'up' ? 'fill-current' : ''}`} />
                             <span className={`text-xs font-bold ${localVote === 'up' ? 'text-primary' : 'text-stone-600 dark:text-text-muted'}`}>
@@ -163,8 +146,9 @@ export const ValidationCard: React.FC<Props> = ({
                         </button>
 
                         <button
+                            disabled={isAuthor}
                             onClick={() => handleVote('down')}
-                            className={`flex items-center gap-1.5 transition-colors ${localVote === 'down' ? 'text-rasta-red' : 'text-stone-400 dark:text-text-muted hover:text-rasta-red'}`}
+                            className={`flex items-center gap-1.5 transition-colors ${localVote === 'down' ? 'text-rasta-red' : 'text-stone-400 dark:text-text-muted hover:text-rasta-red'} ${isAuthor ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                             <ThumbsDown className={`size-4 ${localVote === 'down' ? 'fill-current' : ''}`} />
                             <span className={`text-xs font-bold ${localVote === 'down' ? 'text-rasta-red' : 'text-stone-600 dark:text-text-muted'}`}>

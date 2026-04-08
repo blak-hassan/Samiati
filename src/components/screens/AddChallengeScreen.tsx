@@ -67,6 +67,14 @@ const AddChallengeScreen: React.FC<Props> = ({ navigate, goBack }) => {
     handleNext();
   };
 
+  const getChallengeTitle = () => {
+    if (formData.title.trim()) return formData.title.trim();
+    if (customMission.trim()) return customMission.trim();
+
+    const projectType = PROJECT_TYPES.find((project) => project.type === selectedType);
+    return projectType ? projectType.label : 'New Project';
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-[#FAF9F6] dark:bg-[#2b1e19] text-stone-900 dark:text-white transition-colors duration-300 font-display">
       {/* Header */}
@@ -343,18 +351,19 @@ const AddChallengeScreen: React.FC<Props> = ({ navigate, goBack }) => {
             onClick={step === 3 ? () => {
               const newChallenge = {
                 id: `new-${Date.now()}`,
-                title: formData.title || 'New Project',
+                title: getChallengeTitle(),
                 description: formData.goalDescription || `A collaborative ${selectedType?.toLowerCase()} project.`,
                 type: selectedType!,
-                goalCount: 0,
+                goalCount: formData.goalCount,
                 goalDescription: formData.goalDescription,
                 inputSchema: formData.inputSchema,
                 currentCount: 0,
                 goalMetric: 'Entries',
+                deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
                 image: 'https://images.unsplash.com/photo-1544985335-7c2a74c10648?auto=format&fit=crop&q=80&w=2000'
               };
               addChallenge(newChallenge);
-              navigate(Screen.CONTRIBUTIONS, { tab: 'Challenges' }); // Navigate to Contributions with Challenges tab
+              navigate(Screen.CONTRIBUTIONS, { initialTab: 'Challenges' });
             } : handleNext}
             className="w-full bg-[#cf6317] hover:bg-[#b05210] text-white font-bold py-4 rounded-xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2"
           >

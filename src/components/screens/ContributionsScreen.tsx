@@ -48,6 +48,7 @@ interface Props {
     goBack: () => void;
     initialTab?: 'My Changa' | 'Moderation' | 'Challenges' | 'Saved';
     initialTypeFilter?: string;
+    initialStatusFilter?: string;
     onViewProfile: (user: User) => void;
     unreadCount?: number;
     myContributions?: ContributionItem[];
@@ -350,13 +351,13 @@ const PAST_CHALLENGES = [
     }
 ];
 
-const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = 'My Changa', initialTypeFilter, onViewProfile, unreadCount = 0, myContributions = [], setMyContributions, languages = [] }) => {
+const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = 'My Changa', initialTypeFilter, initialStatusFilter = 'All', onViewProfile, unreadCount = 0, myContributions = [], setMyContributions, languages = [] }) => {
     const { challenges } = useUser();
     const [activeTab, setActiveTab] = useState<'My Changa' | 'Moderation' | 'Challenges' | 'Saved'>(initialTab || 'My Changa');
     const [moderationView, setModerationView] = useState<'dashboard' | 'history'>('dashboard');
 
     // Filters for My Contributions
-    const [myStatusFilter, setMyStatusFilter] = useState('All');
+    const [myStatusFilter, setMyStatusFilter] = useState(initialStatusFilter);
 
     // Scroll Header Logic
     const [isHeaderVisible, setIsHeaderVisible] = useState(true);
@@ -752,13 +753,14 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
 
                     {/* Status Filter Tabs */}
                     <div className="flex gap-2 overflow-x-auto no-scrollbar mb-2 px-1 py-1">
-                        {['All', 'Live', 'Under Review', 'Declined'].map(tab => {
+                        {['All', 'Live', 'Under Review', 'Needs Revision', 'Declined'].map(tab => {
                             const isActive = myStatusFilter === tab;
                             let activeStyles = "bg-primary text-white"; // Default brown
 
                             if (isActive) {
                                 if (tab === 'Live') activeStyles = "bg-rasta-green text-white";
                                 else if (tab === 'Under Review') activeStyles = "bg-rasta-gold text-yellow-950"; // Darker text for readability
+                                else if (tab === 'Needs Revision') activeStyles = "bg-amber-400 text-stone-950";
                                 else if (tab === 'Declined') activeStyles = "bg-rasta-red text-white";
                             }
 
