@@ -16,17 +16,17 @@ export default function CommunitiesPage() {
     // TODO: Add category filter state if needed, for now fetch all
     const communitiesData = useQuery(api.communities.queries.list, {});
 
-    const communities: Community[] = ((communitiesData || []) as (Doc<"communities"> & { role?: Community["role"] })[]).map((c) => ({
+    const communities: Community[] = ((communitiesData || []) as (Doc<"communities"> & { role?: Community["role"]; category?: Community["category"] })[]).map((c) => ({
         id: c._id,
         name: c.name,
         description: c.description,
         memberCount: c.memberCount,
-        avatar: c.avatar || "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=800&auto=format&fit=crop&q=60", // Fallback
-        coverImage: c.coverImage || "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=800&auto=format&fit=crop&q=60", // Fallback
+        avatar: c.avatar || "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=800&auto=format&fit=crop&q=60",
+        coverImage: c.coverImage || "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=800&auto=format&fit=crop&q=60",
         isPrivate: c.isPrivate,
-        category: c.category,
+        category: (c.category as Community["category"]) || "General",
         role: c.role || 'member',
-        members: [] // Placeholder, list query doesn't return members
+        members: []
     }));
 
     return (

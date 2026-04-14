@@ -83,11 +83,8 @@ const SettingsScreen: React.FC<Props> = ({ navigate, goBack, onSignOut, isDarkMo
                     </div>
                 </Card>
 
-                {/* General Settings */}
-                <div className="space-y-3 px-1">
-                    <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] ml-2">Personalization</h3>
-                    <Card className="bg-muted/10 border-border/50 rounded-[32px] overflow-hidden shadow-none">
 
+                <Card className="bg-muted/10 border-border/50 rounded-[32px] overflow-hidden shadow-none">
                         <button onClick={() => navigate(Screen.SETTINGS_NOTIFICATIONS)} className="w-full flex items-center gap-4 p-5 hover:bg-muted/30 transition-all border-b border-border/30 last:border-0 group">
                             <div className="w-10 h-10 rounded-2xl bg-rasta-red/10 text-rasta-red flex items-center justify-center group-hover:scale-110 transition-transform">
                                 <Bell className="w-5 h-5 fill-current" />
@@ -98,23 +95,6 @@ const SettingsScreen: React.FC<Props> = ({ navigate, goBack, onSignOut, isDarkMo
                             </div>
                             <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
                         </button>
-                        <button onClick={() => navigate(Screen.SETTINGS_PRIVACY)} className="w-full flex items-center gap-4 p-5 hover:bg-muted/30 transition-all border-b border-border/30 last:border-0 group">
-                            <div className="w-10 h-10 rounded-2xl bg-rasta-green/10 text-rasta-green flex items-center justify-center group-hover:scale-110 transition-transform">
-                                <Shield className="w-5 h-5 fill-current" />
-                            </div>
-                            <div className="flex-1 text-left">
-                                <p className="text-sm font-black text-foreground tracking-tight">Data & Privacy</p>
-                                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest opacity-60">Visibility, Blocked users, Tracking</p>
-                            </div>
-                            <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
-                        </button>
-                    </Card>
-                </div>
-
-                {/* App Experience */}
-                <div className="space-y-3 px-1">
-                    <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] ml-2">App Experience</h3>
-                    <Card className="bg-muted/10 border-border/50 rounded-[32px] overflow-hidden shadow-none">
                         <div className="flex items-center justify-between p-5 border-b border-border/30 last:border-0 group">
                             <div className="flex items-center gap-4">
                                 <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -127,17 +107,6 @@ const SettingsScreen: React.FC<Props> = ({ navigate, goBack, onSignOut, isDarkMo
                             </div>
                             <Switch checked={isDarkMode} onCheckedChange={toggleTheme} className="data-[state=checked]:bg-primary" />
                         </div>
-
-
-                    </Card>
-                </div>
-
-
-
-                {/* Support */}
-                <div className="space-y-3 px-1">
-                    <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] ml-2">Support & Info</h3>
-                    <Card className="bg-muted/10 border-border/50 rounded-[32px] overflow-hidden shadow-none">
                         <button onClick={() => navigate(Screen.SETTINGS_HELP)} className="w-full flex items-center gap-4 p-5 hover:bg-muted/30 transition-all border-b border-border/30 last:border-0 group">
                             <div className="w-10 h-10 rounded-2xl bg-rasta-gold/10 text-rasta-gold flex items-center justify-center group-hover:scale-110 transition-transform">
                                 <HelpCircle className="w-5 h-5 fill-current" />
@@ -148,18 +117,7 @@ const SettingsScreen: React.FC<Props> = ({ navigate, goBack, onSignOut, isDarkMo
                             </div>
                             <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
                         </button>
-                        <button onClick={() => navigate(Screen.SETTINGS_ABOUT)} className="w-full flex items-center gap-4 p-5 hover:bg-muted/30 transition-all border-b border-border/30 last:border-0 group">
-                            <div className="w-10 h-10 rounded-2xl bg-stone-500/10 text-stone-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                <Info className="w-5 h-5 fill-current" />
-                            </div>
-                            <div className="flex-1 text-left">
-                                <p className="text-sm font-black text-foreground tracking-tight">About</p>
-                                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest opacity-60">Terms, Privacy Policy, Build Info</p>
-                            </div>
-                            <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
-                        </button>
-                    </Card>
-                </div>
+                </Card>
 
                 <div className="pt-4">
                     <Button
@@ -171,8 +129,6 @@ const SettingsScreen: React.FC<Props> = ({ navigate, goBack, onSignOut, isDarkMo
                         Log Out
                     </Button>
                 </div>
-
-                <p className="text-center text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/40 py-6">Samiati v1.0.0 • Build 240</p>
             </main>
         </div>
     );

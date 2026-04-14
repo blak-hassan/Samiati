@@ -44,7 +44,6 @@ export const useNavigation = () => {
             case Screen.SETTINGS_PRIVACY: router.push("/dashboard/settings/privacy" + queryString); break;
             case Screen.MANAGE_LANGUAGES: router.push("/dashboard/settings/languages" + queryString); break;
             case Screen.SETTINGS_HELP: router.push("/dashboard/settings/help" + queryString); break;
-            case Screen.SETTINGS_ABOUT: router.push("/dashboard/settings/about" + queryString); break;
             case Screen.SETTINGS_BLOCKED: router.push("/dashboard/settings/blocked" + queryString); break;
             case Screen.SETTINGS_MUTED: router.push("/dashboard/settings/muted" + queryString); break;
             case Screen.SETTINGS_DATA: router.push("/dashboard/settings/data" + queryString); break;

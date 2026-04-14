@@ -80,6 +80,7 @@ const persistStoredState = <T,>(key: string, value: T) => {
   if (typeof window === "undefined") return;
 
   try {
+    console.log(`Persisting ${key}:`, value);
     localStorage.setItem(key, JSON.stringify(value));
   } catch (error) {
     console.error(`Failed to persist ${key} to localStorage`, error);
@@ -189,23 +190,28 @@ export const ClerkProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const saveContribution = (item: ContributionItem) => {
-    const normalized = normalizeContributionItem(item, {
-      id: mockUser.id,
-      name: mockUser.fullName,
-      handle: mockUser.username,
-      avatar: mockUser.imageUrl,
-    });
+    try {
+      const normalized = normalizeContributionItem(item, {
+        id: mockUser.id,
+        name: mockUser.fullName,
+        handle: mockUser.username,
+        avatar: mockUser.imageUrl,
+      });
 
-    setMyContributions((prev) => {
-      const index = prev.findIndex((contribution) => contribution.id === normalized.id);
-      if (index === -1) return [normalized, ...prev];
+      setMyContributions((prev) => {
+        const index = prev.findIndex((contribution) => contribution.id === normalized.id);
+        if (index === -1) return [normalized, ...prev];
 
-      const updated = [...prev];
-      updated[index] = normalized;
-      return updated;
-    });
+        const updated = [...prev];
+        updated[index] = normalized;
+        return updated;
+      });
 
-    return normalized;
+      return normalized;
+    } catch (error) {
+      console.error("Error saving contribution:", error);
+      return item;
+    }
   };
 
   const reviewContribution = (

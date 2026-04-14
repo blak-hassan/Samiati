@@ -24,7 +24,7 @@ const SettingsNotificationsScreen: React.FC<Props> = ({ goBack }) => {
   const [changa, setChanga] = useState(true);
   const [moderation, setModeration] = useState(true);
 
-  const [watu, setWatu] = useState(true);
+  const [kaendelee, setKaendelee] = useState(true);
 
   const [emailDigest, setEmailDigest] = useState(false);
 
@@ -50,7 +50,7 @@ const SettingsNotificationsScreen: React.FC<Props> = ({ goBack }) => {
               <Toggle label="Changa" checked={changa} onChange={() => setChanga(!changa)} />
               <Toggle label="Moderation" checked={moderation} onChange={() => setModeration(!moderation)} />
 
-              <Toggle label="Watu" checked={watu} onChange={() => setWatu(!watu)} />
+              <Toggle label="Kaendelee" checked={kaendelee} onChange={() => setKaendelee(!kaendelee)} />
             </div>
           </div>
 

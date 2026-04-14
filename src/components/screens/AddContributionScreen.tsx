@@ -33,7 +33,7 @@ interface Attachment {
 }
 
 interface Props {
-  navigate: (screen: Screen) => void;
+  navigate: (screen: Screen, params?: Record<string, unknown>) => void;
   goBack: () => void;
   onSave?: (item: ContributionItem) => void;
   initialData?: ContributionItem;

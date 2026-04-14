@@ -11,13 +11,16 @@ export default function ContributionsPage({ searchParams }: { searchParams: Prom
     const { languages, myContributions, setMyContributions } = useUser();
     const resolvedSearchParams = use(searchParams);
 
+    const initialTab = (resolvedSearchParams.initialTab as 'My Changa' | 'Challenges' | 'Moderation' | 'Saved') || "My Changa";
+    const initialStatusFilter = (resolvedSearchParams.statusFilter as string) || "All";
+
     return (
         <ContributionsScreen
             navigate={navigate}
             goBack={goBack}
-            initialTab={resolvedSearchParams.initialTab || "My Changa"}
-            initialTypeFilter={resolvedSearchParams.typeFilter}
-            initialStatusFilter={resolvedSearchParams.statusFilter || "All"}
+            initialTab={initialTab}
+            initialTypeFilter={resolvedSearchParams.typeFilter as string | undefined}
+            initialStatusFilter={initialStatusFilter}
             onViewProfile={() => {}}
             myContributions={myContributions}
             setMyContributions={setMyContributions}

@@ -9,8 +9,13 @@ export default function PostThreadPage({ searchParams }: { searchParams: Promise
     const { navigate, goBack } = useNavigation();
     const resolvedSearchParams = use(searchParams);
 
-    const post = resolvedSearchParams.post ? (JSON.parse(resolvedSearchParams.post as string) as Post) : undefined;
+    const postParam = resolvedSearchParams.post;
+    const post = (postParam && typeof postParam === 'string') ? (JSON.parse(postParam) as Post) : undefined;
     const autoFocusReply = resolvedSearchParams.autoFocusReply === 'true';
+
+    if (!post) {
+        return <div className="p-4">Post not found</div>;
+    }
 
     return (
         <PostThreadScreen

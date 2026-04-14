@@ -33,7 +33,7 @@ export default function ProfilePage() {
         handle: clerkUser?.username ? `@${clerkUser.username}` : "@guest",
         avatar: clerkUser?.imageUrl || "",
         isGuest: false,
-        bio: "Welcome to my profile!",
+        bio: "",
         xp: 0,
         level: 1,
         badges: [],

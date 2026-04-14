@@ -13,7 +13,14 @@ type CallChatUser = {
 export default function VideoCallPage({ searchParams }: { searchParams: Promise<RouteSearchParams> }) {
     const { goBack } = useNavigation();
     const resolvedSearchParams = use(searchParams);
-    const chatUser = resolvedSearchParams.chatUser ? (JSON.parse(resolvedSearchParams.chatUser as string) as CallChatUser) : undefined;
+    const chatUserParam = resolvedSearchParams.chatUser;
+    const chatUser = (chatUserParam && typeof chatUserParam === 'string') 
+        ? (JSON.parse(chatUserParam) as CallChatUser) 
+        : undefined;
+
+    if (!chatUser) {
+        return <div className="p-4">User not found</div>;
+    }
 
     return (
         <VideoCallScreen

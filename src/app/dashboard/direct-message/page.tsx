@@ -73,13 +73,13 @@ export default function DirectMessagePage({ searchParams }: { searchParams: Prom
     };
 
     // Mapping messages
+    // Note: We can't determine 'isMe' without current user ID, defaulting to 'other' for now
     const messages: Message[] = ((messagesData || []) as DirectMessageRecord[]).map((m) => ({
         id: m._id,
         text: m.content,
-        sender: m.isMe ? 'user' : 'other', // Need logic to determine this. isMe isn't in schema return.
-        // We need current user ID to check sender.
+        sender: 'other',
         timestamp: new Date(m.timestamp),
-        feedback: undefined // unimplemented
+        feedback: undefined
     }));
 
     return (

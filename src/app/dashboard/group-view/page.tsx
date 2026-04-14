@@ -15,7 +15,8 @@ export default function GroupViewPage({ searchParams }: { searchParams: Promise<
     const resolvedSearchParams = use(searchParams);
 
     // Try to get community from params (passed from list)
-    const paramCommunity = resolvedSearchParams.community ? JSON.parse(resolvedSearchParams.community) : null;
+    const communityParam = resolvedSearchParams.community;
+    const paramCommunity = communityParam && typeof communityParam === 'string' ? JSON.parse(communityParam) : null;
     const communityId = paramCommunity?.id || resolvedSearchParams.groupId;
 
     // Fetch fresh data

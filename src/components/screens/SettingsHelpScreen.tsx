@@ -12,19 +12,21 @@ interface Props {
 const FAQItem = ({ question, answer }: { question: string, answer: string }) => {
     const [isOpen, setIsOpen] = useState(false);
     return (
-        <div className="border-b border-stone-100 dark:border-white/5 last:border-0">
+        <div className="bg-white dark:bg-surface-dark rounded-xl mb-3 shadow-sm border border-stone-100 dark:border-white/5 overflow-hidden">
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex items-center justify-between p-4 hover:bg-stone-50 dark:hover:bg-white/5 transition-colors text-left"
+                className="w-full flex items-center justify-between p-5 hover:bg-stone-50 dark:hover:bg-white/5 transition-all duration-200 text-left group"
             >
-                <span className="font-medium text-stone-900 dark:text-white">{question}</span>
-                <span className={`material-symbols-outlined text-stone-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>expand_more</span>
+                <span className="font-semibold text-stone-900 dark:text-white pr-4">{question}</span>
+                <span className={`material-symbols-outlined text-stone-400 transition-all duration-300 ${isOpen ? 'rotate-180 text-primary' : 'group-hover:text-stone-600 dark:group-hover:text-stone-300'}`}>expand_more</span>
             </button>
-            {isOpen && (
-                <div className="p-4 pt-0 text-sm text-stone-600 dark:text-text-muted leading-relaxed">
-                    {answer}
+            <div className={`grid transition-all duration-300 ease-in-out ${isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                <div className="overflow-hidden">
+                    <div className="p-5 pt-0 text-sm text-stone-600 dark:text-text-muted leading-relaxed">
+                        {answer}
+                    </div>
                 </div>
-            )}
+            </div>
         </div>
     );
 };
@@ -34,14 +36,6 @@ const SettingsHelpScreen: React.FC<Props> = ({ goBack, navigate }) => {
     const [conversation, setConversation] = useState<Message[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
-
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    };
-
-    useEffect(() => {
-        scrollToBottom();
-    }, [conversation, isLoading]);
 
     const handleAsk = async () => {
         if (!query.trim()) return;
@@ -87,43 +81,61 @@ const SettingsHelpScreen: React.FC<Props> = ({ goBack, navigate }) => {
 
     return (
         <div className="flex flex-col h-full bg-stone-50 dark:bg-background-dark transition-colors duration-300">
-            <header className="flex-none flex items-center p-4 bg-stone-50 dark:bg-background-dark z-10 border-stone-200 dark:border-white/5">
+            <header className="flex-none flex items-center px-5 py-4 bg-stone-50 dark:bg-background-dark z-10 border-b border-stone-100 dark:border-white/5">
                 <button onClick={goBack} className="p-2 -ml-2 text-stone-900 dark:text-white rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
                     <span className="material-symbols-outlined">arrow_back</span>
                 </button>
-                <h1 className="text-lg font-bold text-stone-900 dark:text-white ml-2">Help Center</h1>
+                <h1 className="text-lg font-bold text-stone-900 dark:text-white ml-2">Frequently Asked Questions</h1>
             </header>
 
-            <main className="flex-1 overflow-y-auto p-4 scroll-smooth">
+            {/* Top Input Bar */}
+            <div className="flex-none p-4 bg-stone-50 dark:bg-background-dark border-b border-stone-100 dark:border-white/5">
+                <div className="max-w-2xl mx-auto">
+                    <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <span className="material-symbols-outlined text-primary">auto_awesome</span>
+                        </div>
+                        <input
+                            type="text"
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleAsk()}
+                            placeholder={conversation.length === 0 ? "Ask about Samiati..." : "Type your message..."}
+                            disabled={isLoading}
+                            className="w-full bg-white dark:bg-surface-dark border border-stone-200 dark:border-white/10 rounded-2xl py-4 pl-12 pr-14 text-stone-900 dark:text-white placeholder-stone-400 focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-70 text-base"
+                        />
+                        <button
+                            onClick={handleAsk}
+                            disabled={!query.trim() || isLoading}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 bg-primary text-white rounded-xl hover:bg-primary-hover transition-all duration-200 disabled:opacity-0 disabled:pointer-events-none shadow-md hover:shadow-lg"
+                        >
+                            <span className="material-symbols-outlined text-base">arrow_upward</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <main className="flex-1 overflow-y-auto px-5 py-6 scroll-smooth">
 
                 {/* Initial Content - Only show if no conversation yet */}
                 {conversation.length === 0 && (
-                    <div className="space-y-6 mb-6">
+                    <div className="max-w-2xl mx-auto space-y-0 mb-8">
                         <div>
-                            <h3 className="text-xs font-bold text-stone-500 dark:text-text-muted uppercase tracking-wider mb-2 ml-2">Frequently Asked Questions</h3>
-                            <div className="bg-white dark:bg-surface-dark rounded-2xl shadow-sm border border-stone-200 dark:border-white/5 overflow-hidden">
-                                <FAQItem question="How do I earn XP?" answer="You earn XP by contributing words, stories, verifying content, and completing daily challenges." />
-                                <FAQItem question="Can I change my language?" answer="Yes, go to Settings > App Experience > Language to change your app interface language." />
-                                <FAQItem question="Is Samiati free?" answer="Samiati is free to use. We offer a Samiati+ subscription for additional features like unlimited offline downloads." />
-                                <FAQItem question="How do I report content?" answer="Tap the '...' menu on any post or comment and select 'Report'. Our moderation team will review it." />
+
+                            <div className="space-y-0">
+                                <FAQItem question="What can I do with Samiati?" answer="You can ask questions, get help, and have conversations in your own language." />
+                                <FAQItem question="Can I speak instead of typing?" answer="Yes. You can talk to Samiati and get responses by voice or text." />
+                                <FAQItem question="Which languages can I use?" answer="Select your language from the dropdown on the chat. Help us add more." />
+                                <FAQItem question="Can Samiati understand and reply in my local language?" answer="Yes. Samiati is built to understand and respond in your preferred local language." />
+                                <FAQItem question="Do I need internet to use Samiati?" answer="Some features need internet, but offline support will be added." />
+                                <FAQItem question="Is Samiati free to use?" answer="We offer a limited number of free messages. More usage may require a plan." />
+                                <FAQItem question="Why is Samiati sometimes not accurate?" answer="Some languages have limited data, but accuracy improves over time, you can help us with that." />
+                                <FAQItem question="Can I help improve my language on Samiati?" answer="Yes. You can Changa, and help grow your language." />
+                                <FAQItem question="Who is Samiati for?" answer="Anyone who wants to experience technology naturally, in their own language." />
                             </div>
                         </div>
 
-                        <div className="bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-2xl p-6 flex flex-col items-center text-center space-y-4">
-                            <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center text-white shadow-lg">
-                                <span className="material-symbols-outlined text-2xl">support_agent</span>
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-lg text-stone-900 dark:text-white">Need more help?</h3>
-                                <p className="text-sm text-stone-600 dark:text-text-muted mt-1">Our support team is available 24/7 to assist you with any issues.</p>
-                            </div>
-                            <a
-                                href="mailto:support@samiati.app?subject=Samiati%20Support%20Request"
-                                className="bg-primary text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-primary-hover transition-colors shadow-md w-full inline-block"
-                            >
-                                Contact Support
-                            </a>
-                        </div>
+
                     </div>
                 )}
 
@@ -164,28 +176,7 @@ const SettingsHelpScreen: React.FC<Props> = ({ goBack, navigate }) => {
 
             </main>
 
-            {/* Fixed Bottom Input */}
-            <div className="flex-none p-4 bg-stone-50 dark:bg-background-dark border-t border-stone-200 dark:border-white/5">
-                <div className="relative group">
-                    <span className="material-symbols-outlined absolute left-4 top-3.5 text-primary group-focus-within:animate-pulse">auto_awesome</span>
-                    <input
-                        type="text"
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleAsk()}
-                        placeholder={conversation.length === 0 ? "Ask Samiati for help..." : "Reply..."}
-                        disabled={isLoading}
-                        className="w-full bg-white dark:bg-surface-dark border border-stone-200 dark:border-white/10 rounded-xl py-3 pl-12 pr-12 text-stone-900 dark:text-white placeholder-stone-400 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none shadow-sm transition-all disabled:opacity-70"
-                    />
-                    <button
-                        onClick={handleAsk}
-                        disabled={!query.trim() || isLoading}
-                        className="absolute right-2 top-2 p-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-lg transition-colors disabled:opacity-0 disabled:pointer-events-none"
-                    >
-                        <span className="material-symbols-outlined text-lg">arrow_upward</span>
-                    </button>
-                </div>
-            </div>
+
         </div>
     );
 };

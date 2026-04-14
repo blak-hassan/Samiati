@@ -1,6 +1,6 @@
 "use client";
 
-import React, { use } from 'react';
+import React, { use, useState } from 'react';
 import { notFound } from 'next/navigation';
 import { ChatPreview, RouteSearchParams, Screen, User } from '@/types';
 import { useNavigation } from "@/hooks/useNavigation";
@@ -20,7 +20,6 @@ import EditProfileScreen from '@/components/screens/EditProfileScreen';
 import SettingsAccountScreen from '@/components/screens/SettingsAccountScreen';
 import SettingsNotificationsScreen from '@/components/screens/SettingsNotificationsScreen';
 import SettingsPrivacyScreen from '@/components/screens/SettingsPrivacyScreen';
-import SettingsAboutScreen from '@/components/screens/SettingsAboutScreen';
 import SettingsHelpScreen from '@/components/screens/SettingsHelpScreen';
 import SettingsBlockedScreen from '@/components/screens/SettingsBlockedScreen';
 import SettingsMutedScreen from '@/components/screens/SettingsMutedScreen';
@@ -69,7 +68,7 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
     const screen = Screen[screenKey as keyof typeof Screen];
 
     const { myContributions, setMyContributions } = useUser();
-    const conversations = INITIAL_CONVERSATIONS;
+    const [conversations, setConversations] = useState(INITIAL_CONVERSATIONS);
 
     // Transform Clerk User to App User
     const appUser: User = clerkUser ? {
@@ -124,7 +123,6 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
         case Screen.SETTINGS_BLOCKED: return <SettingsBlockedScreen goBack={goBack} />;
         case Screen.SETTINGS_MUTED: return <SettingsMutedScreen goBack={goBack} />;
         case Screen.SETTINGS_DATA: return <SettingsDataScreen goBack={goBack} />;
-        case Screen.SETTINGS_ABOUT: return <SettingsAboutScreen navigate={navigate} goBack={goBack} />;
         case Screen.SETTINGS_HELP: return <SettingsHelpScreen navigate={navigate} goBack={goBack} />;
 
         case Screen.CONTRIBUTIONS:

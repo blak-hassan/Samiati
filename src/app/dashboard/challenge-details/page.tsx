@@ -11,9 +11,10 @@ export default function ChallengeDetailsPage({ searchParams }: { searchParams: P
     const resolvedSearchParams = use(searchParams);
 
     let challengeData = null;
-    if (resolvedSearchParams.challenge) {
+    const challengeParam = resolvedSearchParams.challenge;
+    if (challengeParam && typeof challengeParam === 'string') {
         try {
-            challengeData = JSON.parse(resolvedSearchParams.challenge);
+            challengeData = JSON.parse(challengeParam);
         } catch (e) {
             console.error("Failed to parse challenge data", e);
         }

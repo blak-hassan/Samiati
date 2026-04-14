@@ -46,7 +46,7 @@ import { IconRenderer } from '@/components/shared/IconRenderer';
 interface Props {
     navigate: NavigateFn;
     goBack: () => void;
-    initialTab?: 'My Changa' | 'Moderation' | 'Challenges' | 'Saved';
+    initialTab?: 'My Changa' | 'Challenges' | 'Moderation' | 'Saved';
     initialTypeFilter?: string;
     initialStatusFilter?: string;
     onViewProfile: (user: User) => void;
@@ -353,7 +353,7 @@ const PAST_CHALLENGES = [
 
 const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = 'My Changa', initialTypeFilter, initialStatusFilter = 'All', onViewProfile, unreadCount = 0, myContributions = [], setMyContributions, languages = [] }) => {
     const { challenges } = useUser();
-    const [activeTab, setActiveTab] = useState<'My Changa' | 'Moderation' | 'Challenges' | 'Saved'>(initialTab || 'My Changa');
+    const [activeTab, setActiveTab] = useState<'My Changa' | 'Challenges' | 'Moderation' | 'Saved'>(initialTab || 'My Changa');
     const [moderationView, setModerationView] = useState<'dashboard' | 'history'>('dashboard');
 
     // Filters for My Contributions
@@ -699,10 +699,10 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                 {/* Main Tabs */}
                 <div className="flex p-2 bg-stone-50 dark:bg-[#2B1F1C] transition-colors shrink-0">
                     <div className="flex w-full bg-stone-200 dark:bg-white/5 rounded-xl p-1 overflow-x-auto no-scrollbar">
-                        {['My Changa', 'Moderation', 'Challenges'].map(tab => (
+                        {['My Changa', 'Challenges', 'Moderation'].map(tab => (
                             <button
                                 key={tab}
-                                onClick={() => setActiveTab(tab as 'My Changa' | 'Moderation' | 'Challenges' | 'Saved')}
+                                onClick={() => setActiveTab(tab as 'My Changa' | 'Challenges' | 'Moderation' | 'Saved')}
                                 className={`flex-1 py-2 px-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${activeTab === tab ? 'bg-white dark:bg-surface-dark text-stone-900 dark:text-white shadow-sm' : 'text-stone-500 dark:text-text-muted hover:text-stone-700 dark:hover:text-white'}`}
                             >
                                 {tab === 'My Changa' ? 'My Posts' : tab}

@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { Screen, User, Message, Conversation } from '@/types';
 import { NotificationBell } from '@/components/shared/NotificationBell';
 import SamiatiLogo from '@/components/SamiatiLogo';
@@ -17,7 +17,6 @@ import {
   MessagesSquare,
   Users,
   User as UserIcon,
-  Settings,
   Bell,
   ChevronUp,
   ChevronDown,
@@ -43,8 +42,7 @@ import {
   Loader2,
   Mic,
   Square,
-  Volume2,
-  Activity
+  Volume2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -123,14 +121,206 @@ const AttachmentItem: React.FC<{ icon: React.ReactNode, label: string, onClick: 
   </button>
 );
 
+interface MessageBubbleProps {
+  msg: Message;
+  index: number;
+  user: User;
+  selectedLanguage: Language;
+  expandedTranslations: { [key: string]: boolean };
+  playingMessageId: string | null;
+  isSynthesizing: string | null;
+  copiedMessageId: string | null;
+  activeCommentId: string | null;
+  onToggleTranslation: (id: string) => void;
+  onPlayAudio: (id: string, text: string, language: string) => void;
+  onCopy: (text: string, id: string) => void;
+  onFeedback: (id: string, type: 'up' | 'down') => void;
+  onToggleComment: (id: string) => void;
+}
+
+const MessageBubble = memo(function MessageBubble({
+  msg,
+  user,
+  selectedLanguage,
+  expandedTranslations,
+  playingMessageId,
+  isSynthesizing,
+  copiedMessageId,
+  activeCommentId,
+  onToggleTranslation,
+  onPlayAudio,
+  onCopy,
+  onFeedback,
+  onToggleComment,
+}: MessageBubbleProps) {
+  return (
+    <div className={cn(
+      "flex flex-col gap-1 group/msg",
+      msg.sender === 'user' ? 'items-end' : 'items-start'
+    )}>
+      <div className={cn(
+        "flex items-start gap-3 w-full max-w-[90%] md:max-w-[80%]",
+        msg.sender === 'user' && 'flex-row-reverse self-end'
+      )}>
+        {msg.sender === 'ai' ? (
+          <Avatar className="w-8 h-8 shrink-0 shadow-sm mt-1 bg-transparent p-0">
+            <AvatarImage src="/samiati-logo.svg" className="object-cover rounded-md" />
+            <AvatarFallback>AI</AvatarFallback>
+          </Avatar>
+        ) : (
+          <Avatar className="w-8 h-8 shrink-0 border border-border shadow-sm mt-1">
+            <AvatarImage src={user.avatar} />
+            <AvatarFallback>{user.name[0]}</AvatarFallback>
+          </Avatar>
+        )}
+
+        <div className={cn(
+          "relative transition-all",
+          msg.sender === 'user'
+            ? 'p-4 rounded-2xl shadow-sm bg-[#EDE4D9] dark:bg-[#4A4035] text-[#4A4035] dark:text-[#EDE4D9]'
+            : 'p-0 text-foreground bg-transparent'
+        )}>
+          {msg.text.startsWith('data:image') ? (
+            <img src={msg.text} alt="User upload" className="rounded-2xl max-h-72 w-full object-cover shadow-inner" />
+          ) : (
+            <p className="text-sm md:text-base leading-relaxed tracking-tight font-medium whitespace-pre-wrap">
+              {msg.sender === 'ai' && selectedLanguage.code !== 'en' && msg.translatedText ? msg.translatedText : msg.text}
+            </p>
+          )}
+
+          {msg.sender === 'ai' && selectedLanguage.code !== 'en' && (
+            <div className="mt-3 pt-3 border-t border-border/50">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onToggleTranslation(msg.id)}
+                className="h-7 px-2.5 rounded-full gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-all"
+              >
+                {expandedTranslations[msg.id] ? (
+                  <>
+                    <ChevronUp className="w-3 h-3" />
+                    Hide English
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="w-3 h-3" />
+                    View English
+                  </>
+                )}
+              </Button>
+
+              {expandedTranslations[msg.id] && (
+                <div className="mt-2 pt-2 border-t border-border/30 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="flex items-center gap-1.5 text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 opacity-60">
+                    <Globe className="w-3 h-3" />
+                    English Original
+                  </div>
+                  <p className="text-sm md:text-base leading-relaxed tracking-tight font-medium whitespace-pre-wrap border-l-2 border-muted-foreground/20 pl-3 py-0.5 text-muted-foreground">
+                    {msg.text}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {msg.sender === 'user' && (
+            <span className="absolute -bottom-5 right-0 text-[10px] font-bold text-muted-foreground/0 group-hover/msg:text-muted-foreground/60 transition-all">
+              {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {msg.sender === 'ai' && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-2 ml-10 mt-2 mb-2 transition-opacity duration-200">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onPlayAudio(msg.id, msg.translatedText || msg.text, msg.targetLanguage || 'sw')}
+            className={cn(
+              "h-6 w-6 rounded-full transition-all",
+              playingMessageId === msg.id
+                ? "text-primary bg-primary/10 animate-pulse"
+                : isSynthesizing === msg.id
+                  ? "text-muted-foreground opacity-50 cursor-not-allowed"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            )}
+            disabled={isSynthesizing === msg.id}
+            title={playingMessageId === msg.id ? "Stop audio" : "Listen"}
+          >
+            {isSynthesizing === msg.id ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : playingMessageId === msg.id ? (
+              <Square className="w-3.5 h-3.5 fill-current" />
+            ) : (
+              <Volume2 className="w-3.5 h-3.5" />
+            )}
+          </Button>
+
+          <div className="h-3 w-[1px] bg-border" />
+
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onFeedback(msg.id, 'up')}
+              className={cn(
+                "h-6 w-6 rounded-full hover:bg-muted/50 transition-colors",
+                msg.feedback === 'up' ? "text-primary" : "text-muted-foreground"
+              )}
+            >
+              <ThumbsUp className={cn("w-3.5 h-3.5", msg.feedback === 'up' && "fill-current")} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onFeedback(msg.id, 'down')}
+              className={cn(
+                "h-6 w-6 rounded-full hover:bg-muted/50 transition-colors",
+                msg.feedback === 'down' ? "text-red-500" : "text-muted-foreground"
+              )}
+            >
+              <ThumbsDown className={cn("w-3.5 h-3.5", msg.feedback === 'down' && "fill-current")} />
+            </Button>
+          </div>
+
+          <div className="h-3 w-[1px] bg-border" />
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onCopy(msg.text, msg.id)}
+            className="h-6 w-6 rounded-full hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-all"
+            title="Copy text"
+          >
+            {copiedMessageId === msg.id ? (
+              <Check className="w-3.5 h-3.5 text-green-500" />
+            ) : (
+              <Copy className="w-3.5 h-3.5" />
+            )}
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onToggleComment(msg.id)}
+            className="h-6 w-6 rounded-full hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-all"
+            title="Feedback"
+          >
+            <MessageCircle className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+});
+
 const MESSAGES_PER_PAGE = 20;
 
 const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notificationCounts, activeConversation, onNewChat, onSaveChat, isDarkMode, toggleTheme }) => {
-  const translate = useAction(api.translate.translateText);
   const sendMessageAction = useAction(api.chat.sendMessage);
   const transcribeAudio = useAction(api.asr.transcribeAudio);
   const synthesizeSpeech = useAction(api.tts.synthesizeSpeech);
-  const diagnoseServices = useAction(api.diagnostic.diagnoseServices);
 
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -173,25 +363,6 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
 
   // Copy State
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
-
-  // Diagnostic State
-  const [isRunningDiagnostics, setIsRunningDiagnostics] = useState(false);
-  const [diagnosticResults, setDiagnosticResults] = useState<Array<{service: string, status: string, message: string, details?: string}>>([]);
-  const [showDiagnostics, setShowDiagnostics] = useState(false);
-
-  // Run diagnostics handler
-  const runDiagnostics = async () => {
-    setIsRunningDiagnostics(true);
-    setShowDiagnostics(true);
-    try {
-      const results = await diagnoseServices();
-      setDiagnosticResults(results);
-    } catch (error) {
-      console.error("Diagnostics failed:", error);
-      setDiagnosticResults([{ service: "Error", status: "error", message: "Failed to run diagnostics", details: String(error) }]);
-    }
-    setIsRunningDiagnostics(false);
-  };
 
   const handleCopy = (text: string, id: string) => {
     copyToClipboard(text);
@@ -237,36 +408,30 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
     }
   }, []);
 
-  // Scroll Handler
-  const handleScroll = () => {
+  // Scroll Handler - wrapped in useCallback with throttle
+  const handleScroll = useCallback(() => {
     if (!scrollRef.current) return;
     const currentScrollY = scrollRef.current.scrollTop;
     const diff = currentScrollY - scrollY.current;
 
-    // Ignore bounce
     if (currentScrollY < 0) return;
 
     if (diff > 10) {
-      // Scrolling Down (towards bottom/newer messages) -> Hide Header
       setIsHeaderVisible(false);
     } else if (diff < -10) {
-      // Scrolling Up (towards top/history) -> Show Header
       setIsHeaderVisible(true);
     }
 
-    // Detect if user is near the bottom (within 150px)
     const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
     const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
     setShowScrollToBottom(distanceFromBottom > 150);
 
-    // Clear new message indicator when user scrolls to bottom
     if (distanceFromBottom <= 150) {
       setHasNewMessage(false);
     }
 
     scrollY.current = currentScrollY;
 
-    // Save scroll state for current conversation
     if (activeConversation && scrollRef.current) {
       conversationStates.current[activeConversation.id] = {
         scrollTop: currentScrollY,
@@ -274,13 +439,11 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
       };
     }
 
-    // Load more messages when scrolling near the top
     if (currentScrollY < 100 && !isLoadingMore && visibleCount < messages.length) {
       setIsLoadingMore(true);
       const prevScrollHeight = scrollRef.current.scrollHeight;
       setTimeout(() => {
         setVisibleCount(prev => Math.min(prev + MESSAGES_PER_PAGE, messages.length));
-        // Preserve scroll position after prepending older messages
         requestAnimationFrame(() => {
           if (scrollRef.current) {
             const newScrollHeight = scrollRef.current.scrollHeight;
@@ -290,7 +453,7 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
         });
       }, 400);
     }
-  };
+  }, [activeConversation, isLoadingMore, visibleCount, messages.length]);
 
   // Initialize or Update Messages based on Active Conversation
   useEffect(() => {
@@ -430,10 +593,10 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
     setIsTyping(true);
 
     // Pass the selected language context to the AI service
-    // Instruction: React naturally in ENGLISH (to be translated). Avoid explanations.
-    const contextPrompt = `[Instruction: React naturally to "${userMsg.text}". REPLY IN ENGLISH ONLY. Do NOT define words. Do NOT explain content. Just reply as a friend.]`;
+    // Reply directly in the selected language (Gemma 4 supports many languages natively)
+    const contextPrompt = `[Instruction: Reply in ${selectedLanguage.name} language naturally. Do NOT define words. Do NOT explain content. Just reply as a friend.]`;
 
-    // Call Convex Action (Llama 3)
+    // Call Convex Action (Gemma 4 E2B)
     const history = messages.map(m => ({
       role: m.sender === 'user' ? 'user' : 'assistant',
       content: m.text
@@ -442,7 +605,10 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
     // Add current message properly (User message + Instruction)
     const payload = [...history, { role: 'user', content: contextPrompt }];
 
-    const aiResponseText = await sendMessageAction({ messages: payload });
+    const aiResponseText = await sendMessageAction({ 
+      messages: payload,
+      targetLanguage: selectedLanguage.name
+    });
 
     // Check if response is an error message
     if (aiResponseText.startsWith && aiResponseText.startsWith("ERROR:")) {
@@ -458,35 +624,11 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
       return;
     }
 
-    // Call translation if selected language is not English
-    let translatedText = undefined;
-    if (selectedLanguage.code !== 'en') {
-      try {
-        const result = await translate({
-          text: aiResponseText,
-          targetLanguage: selectedLanguage.nllbCode
-        });
-
-        // Backend now returns descriptive error messages starting with "ERROR:" on failure.
-        // If result is valid (not an error), use it.
-        if (result && !result.startsWith("ERROR:")) {
-          translatedText = result;
-        } else if (result?.startsWith("ERROR:")) {
-          // Log the error for debugging
-          console.error("Translation error:", result);
-          translatedText = "Translation unavailable";
-        }
-      } catch (error) {
-        console.error("Translation failed:", error);
-        translatedText = "Translation unavailable";
-      }
-    }
-
     const aiMsg: Message = {
       id: (Date.now() + 1).toString(),
       sender: 'ai',
       text: aiResponseText,
-      translatedText,
+      translatedText: aiResponseText, // AI replies in target language directly
       targetLanguage: selectedLanguage.name,
       timestamp: new Date()
     };
@@ -751,8 +893,8 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
           <div className="flex flex-col h-full bg-muted/30">
             <div className="p-6">
               <SheetHeader className="text-left mb-8">
-                <div className="flex items-center gap-4">
-                  <Avatar className="w-12 h-12 border-2 border-primary/20">
+                <div className="flex items-center gap-4 cursor-pointer" onClick={() => handleNavigate(Screen.SETTINGS)}>
+                  <Avatar className="w-12 h-12 border-2 border-primary/20 hover:border-primary transition-colors">
                     <AvatarImage src={user.avatar} />
                     <AvatarFallback>{user.name[0]}</AvatarFallback>
                   </Avatar>
@@ -805,16 +947,6 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
             </nav>
 
             <div className="p-4 mt-auto">
-              <DrawerItem
-                icon={<Activity className="w-5 h-5" />}
-                label="Diagnostics"
-                onClick={runDiagnostics}
-              />
-              <DrawerItem
-                icon={<Settings className="w-5 h-5" />}
-                label="Settings"
-                onClick={() => handleNavigate(Screen.SETTINGS)}
-              />
             </div>
           </div>
         </SheetContent>
@@ -846,6 +978,7 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
                   </h1>
                 </div>
               </div>
+              <NotificationBell unreadCount={unreadCount} onNavigate={navigate} />
             </header>
           </div>
         )}
@@ -864,7 +997,9 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
               >
                 <Menu className="w-6 h-6" />
               </Button>
-              <div className="w-10" />
+              <div className="pointer-events-auto">
+                <NotificationBell unreadCount={unreadCount} onNavigate={navigate} />
+              </div>
             </div>
 
             <div className="flex-1 flex flex-col items-center justify-center min-h-full w-full px-4 -mt-20 pb-8 animate-in fade-in duration-500">
@@ -874,9 +1009,7 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
                 <div className="hover:scale-105 transition-transform duration-300 mb-2">
                   <SamiatiLogo size={80} className="scale-110" />
                 </div>
-                <p className="text-muted-foreground text-sm md:text-base font-medium text-center">
-                  Experience your Culture
-                </p>
+                
               </div>
 
               {/* Centered Input Bar */}
@@ -1014,224 +1147,24 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
                 </div>
               )}
               {/* Messages */}
-              {messages.slice(-visibleCount).map((msg, index) => (
-                <div key={msg.id} className={cn(
-                  "flex flex-col gap-1 group/msg", // Reduced gap
-                  msg.sender === 'user' ? 'items-end' : 'items-start'
-                )}>
-                  <div className={cn(
-                    "flex items-start gap-3 w-full max-w-[90%] md:max-w-[80%]",
-                    msg.sender === 'user' && 'flex-row-reverse self-end'
-                  )}>
-                    {msg.sender === 'ai' ? (
-                      <Avatar className="w-8 h-8 shrink-0 shadow-sm mt-1 bg-transparent p-0">
-                        <AvatarImage src="/samiati-logo.svg" className="object-cover rounded-md" />
-                        <AvatarFallback>AI</AvatarFallback>
-                      </Avatar>
-                    ) : (
-                      <Avatar className="w-8 h-8 shrink-0 border border-border shadow-sm mt-1">
-                        <AvatarImage src={user.avatar} />
-                        <AvatarFallback>{user.name[0]}</AvatarFallback>
-                      </Avatar>
-                    )}
-
-                    <div className={cn(
-                      "relative transition-all",
-                      msg.sender === 'user'
-                        ? 'p-4 rounded-2xl shadow-sm bg-[#EDE4D9] dark:bg-[#4A4035] text-[#4A4035] dark:text-[#EDE4D9]'
-                        : 'p-0 text-foreground bg-transparent'
-                    )}>
-                      {msg.text.startsWith('data:image') ? (
-                        <img src={msg.text} alt="User upload" className="rounded-2xl max-h-72 w-full object-cover shadow-inner" />
-                      ) : (
-                        <p className="text-sm md:text-base leading-relaxed tracking-tight font-medium whitespace-pre-wrap">
-                          {/* Show translated text for AI messages if available AND language is not English, otherwise show original text */}
-                          {msg.sender === 'ai' && selectedLanguage.code !== 'en' && msg.translatedText ? msg.translatedText : msg.text}
-                        </p>
-                      )}
-
-                      {/* Collapsible English Original - Only for AI messages with translations AND when not in English mode */}
-                      {msg.sender === 'ai' && selectedLanguage.code !== 'en' && (
-                        <div className="mt-3 pt-3 border-t border-border/50">
-                          {/* Toggle Button for English Original */}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleTranslation(msg.id)}
-                            className="h-7 px-2.5 rounded-full gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-all"
-                          >
-                            {expandedTranslations[msg.id] ? (
-                              <>
-                                <ChevronUp className="w-3 h-3" />
-                                Hide English
-                              </>
-                            ) : (
-                              <>
-                                <ChevronDown className="w-3 h-3" />
-                                View English
-                              </>
-                            )}
-                          </Button>
-
-                          {/* English Original (Collapsible) */}
-                          {expandedTranslations[msg.id] && (
-                            <div className="mt-2 pt-2 border-t border-border/30 animate-in fade-in slide-in-from-top-2 duration-300">
-                              <div className="flex items-center gap-1.5 text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 opacity-60">
-                                <Globe className="w-3 h-3" />
-                                English Original
-                              </div>
-                              <p className="text-sm md:text-base leading-relaxed tracking-tight font-medium whitespace-pre-wrap border-l-2 border-muted-foreground/20 pl-3 py-0.5 text-muted-foreground">
-                                {msg.text}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* User Message Timestamp (Absolute) */}
-                      {msg.sender === 'user' && (
-                        <span className="absolute -bottom-5 right-0 text-[10px] font-bold text-muted-foreground/0 group-hover/msg:text-muted-foreground/60 transition-all">
-                          {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* AI Actions Row: Thumbs | Copy | Feedback | Audio */}
-                  {msg.sender === 'ai' && (
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-2 ml-10 mt-2 mb-2 transition-opacity duration-200">
-
-                      {/* TTS / Speaker Button */}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handlePlayAudio(msg.id, msg.translatedText || msg.text, msg.targetLanguage || 'sw')}
-                        className={cn(
-                          "h-6 w-6 rounded-full transition-all",
-                          playingMessageId === msg.id
-                            ? "text-primary bg-primary/10 animate-pulse"
-                            : isSynthesizing === msg.id
-                              ? "text-muted-foreground opacity-50 cursor-not-allowed"
-                              : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                        )}
-                        disabled={isSynthesizing === msg.id}
-                        title={playingMessageId === msg.id ? "Stop audio" : "Listen"}
-                      >
-                        {isSynthesizing === msg.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : playingMessageId === msg.id ? (
-                          <Square className="w-3.5 h-3.5 fill-current" />
-                        ) : (
-                          <Volume2 className="w-3.5 h-3.5" />
-                        )}
-                      </Button>
-
-                      {/* Divider */}
-                      <div className="h-3 w-[1px] bg-border" />
-
-                      {/* Thumbs Up/Down */}
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleFeedback(msg.id, 'up')}
-                          className={cn(
-                            "h-6 w-6 rounded-full hover:bg-muted/50 transition-colors",
-                            msg.feedback === 'up' ? "text-primary" : "text-muted-foreground"
-                          )}
-                        >
-                          <ThumbsUp className={cn("w-3.5 h-3.5", msg.feedback === 'up' && "fill-current")} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleFeedback(msg.id, 'down')}
-                          className={cn(
-                            "h-6 w-6 rounded-full hover:bg-muted/50 transition-colors",
-                            msg.feedback === 'down' ? "text-red-500" : "text-muted-foreground"
-                          )}
-                        >
-                          <ThumbsDown className={cn("w-3.5 h-3.5", msg.feedback === 'down' && "fill-current")} />
-                        </Button>
-                      </div>
-
-                      {/* Divider */}
-                      <div className="h-3 w-[1px] bg-border" />
-
-                      {/* Copy Button */}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleCopy(msg.text, msg.id)}
-                        className="h-6 w-6 rounded-full hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-all"
-                        title="Copy text"
-                      >
-                        {copiedMessageId === msg.id ? (
-                          <Check className="w-3.5 h-3.5 text-green-500" />
-                        ) : (
-                          <Copy className="w-3.5 h-3.5" />
-                        )}
-                      </Button>
-
-                      {/* Feedback Button (Icon Only) */}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => toggleCommentBox(msg.id)}
-                        className="h-6 w-6 rounded-full hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-all"
-                        title="Feedback"
-                      >
-                        <MessageCircle className="w-3.5 h-3.5" />
-                      </Button>
-
-                    </div>
-                  )}
-
-
-
-                  {/* Feedback Expansion */}
-                  {(activeCommentId === msg.id) && (
-                    <div className="bg-muted/50 rounded-2xl p-3 border border-border/50 space-y-3 animate-in fade-in slide-in-from-top-1">
-                      {msg.comments && msg.comments.length > 0 && (
-                        <div className="space-y-2">
-                          {msg.comments.map((comment, i) => (
-                            <div key={i} className="flex gap-2 items-start">
-                              <div className="mt-1 w-1 h-1 bg-primary rounded-full shrink-0" />
-                              <p className="text-xs font-medium text-foreground/70 leading-relaxed italic">{comment}</p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {(!msg.comments || msg.comments.length === 0) ? (
-                        <div className="flex gap-2">
-                          <Input
-                            value={commentText}
-                            onChange={(e) => setCommentText(e.target.value)}
-                            placeholder="Improve this..."
-                            className="h-9 text-xs rounded-xl bg-background border-none focus-visible:ring-1 focus-visible:ring-primary/50 font-medium"
-                            onKeyDown={(e) => e.key === 'Enter' && submitComment(msg.id)}
-                          />
-                          <Button
-                            size="icon"
-                            variant="default"
-                            className="h-9 w-9 rounded-xl shrink-0 shadow-lg shadow-primary/20"
-                            onClick={() => submitComment(msg.id)}
-                            disabled={!commentText.trim()}
-                          >
-                            <ArrowUp className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-[0.1em] py-1 border-t border-primary/10">
-                          <ShieldCheck className="w-3 h-3" />
-                          Knowledge Contribution Received
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
+              {messages.slice(-visibleCount).map((msg) => (
+                <MessageBubble
+                  key={msg.id}
+                  msg={msg}
+                  index={0}
+                  user={user}
+                  selectedLanguage={selectedLanguage}
+                  expandedTranslations={expandedTranslations}
+                  playingMessageId={playingMessageId}
+                  isSynthesizing={isSynthesizing}
+                  copiedMessageId={copiedMessageId}
+                  activeCommentId={activeCommentId}
+                  onToggleTranslation={toggleTranslation}
+                  onPlayAudio={handlePlayAudio}
+                  onCopy={handleCopy}
+                  onFeedback={handleFeedback}
+                  onToggleComment={toggleCommentBox}
+                />
               ))}
 
               {isTyping && (
@@ -1395,49 +1328,6 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
         )
         }
       </div >
-
-      {/* Diagnostics Dialog */}
-      <Dialog open={showDiagnostics} onOpenChange={setShowDiagnostics}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>AI Services Diagnostics</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            {isRunningDiagnostics ? (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Running diagnostics...</span>
-              </div>
-            ) : (
-              diagnosticResults.map((result, index) => (
-                <div 
-                  key={index} 
-                  className={`p-3 rounded-lg border ${
-                    result.status === 'ok' ? 'border-green-500 bg-green-500/10' :
-                    result.status === 'warning' ? 'border-yellow-500 bg-yellow-500/10' :
-                    'border-red-500 bg-red-500/10'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className={`font-semibold ${
-                      result.status === 'ok' ? 'text-green-500' :
-                      result.status === 'warning' ? 'text-yellow-500' :
-                      'text-red-500'
-                    }`}>
-                      {result.status === 'ok' ? '✓' : result.status === 'warning' ? '⚠' : '✗'}
-                    </span>
-                    <span className="font-medium">{result.service}</span>
-                  </div>
-                  <p className="text-sm mt-1">{result.message}</p>
-                  {result.details && (
-                    <p className="text-xs mt-1 text-muted-foreground">{result.details}</p>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div >
   );
 };
