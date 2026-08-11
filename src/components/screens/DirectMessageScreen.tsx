@@ -1,8 +1,7 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useRef, useEffect } from 'react';
 import { NavigateFn, Screen, Message } from '@/types';
-// Mock service removed - using Convex via parent page
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -18,6 +17,7 @@ import {
   FileText,
   Camera
 } from "lucide-react";
+import { useUploadFile } from '@/hooks/useUploadFile';
 
 interface Props {
   navigate: NavigateFn;
@@ -28,8 +28,8 @@ interface Props {
     avatar: string;
     isOnline: boolean;
   };
-  initialMessages?: Message[]; // New prop
-  onSendMessage?: (text: string) => Promise<void>; // New prop
+  initialMessages?: Message[];
+  onSendMessage?: (text: string, imageStorageId?: string) => Promise<void>;
 }
 
 const DirectMessageScreen: React.FC<Props> = ({ navigate, goBack, chatId, chatUser, initialMessages, onSendMessage }) => {
@@ -39,6 +39,8 @@ const DirectMessageScreen: React.FC<Props> = ({ navigate, goBack, chatId, chatUs
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAttachmentOpen, setIsAttachmentOpen] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const { upload, isUploading } = useUploadFile();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Voice Note Simulation
   const [isRecording, setIsRecording] = useState(false);
@@ -82,21 +84,38 @@ const DirectMessageScreen: React.FC<Props> = ({ navigate, goBack, chatId, chatUs
     if (onSendMessage && type === 'text') {
       await onSendMessage(content);
       setInputText('');
+    } else if (type === 'image') {
+      // Image sending is handled by handleImageSend
+      return;
     } else {
-      // Fallback or handle other types
-      console.log("Media/Voice sending not fully wired yet", type, content);
-      // Add optimistic
+      // Voice note fallback
+      console.log("Voice sending not fully wired yet", type, content);
       setMessages(prev => [...prev, {
         id: 'optimistic-' + Date.now(),
         text: content,
-        sender: 'user', // or 'me' based on mapping
-        senderId: 'me', // Screen internal check
+        sender: 'user',
         timestamp: new Date(),
         type: type
       }]);
       setInputText('');
     }
 
+    setIsAttachmentOpen(false);
+  };
+
+  const handleImageSend = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !onSendMessage) return;
+
+    const storageId = await upload(file);
+    if (storageId) {
+      await onSendMessage('Photo', storageId);
+    }
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
     setIsAttachmentOpen(false);
   };
 
@@ -163,13 +182,13 @@ const DirectMessageScreen: React.FC<Props> = ({ navigate, goBack, chatId, chatUs
       >
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[radial-gradient(#000000_1px,transparent_1px)] dark:bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:16px_16px]"></div>
 
-        {displayMessages.map((msg) => (
-          <div key={msg.id} className={cn("flex w-full relative z-1", msg.senderId === 'me' ? 'justify-end' : 'justify-start')}>
+{displayMessages.map((msg) => (
+          <div key={msg.id} className={cn("flex w-full relative z-1", msg.sender === 'user' ? 'justify-end' : 'justify-start')}>
             <div
               className={cn(
                 "max-w-[80%] rounded-2xl p-3 shadow-sm text-sm relative group mb-1 transition-all",
                 msg.type === 'image' ? "p-1" : "",
-                msg.senderId === 'me'
+                msg.sender === 'user'
                   ? 'bg-primary text-primary-foreground rounded-br-[2px]'
                   : 'bg-background text-foreground rounded-bl-[2px] border border-border'
               )}
@@ -188,17 +207,17 @@ const DirectMessageScreen: React.FC<Props> = ({ navigate, goBack, chatId, chatUs
                 <div className="flex items-center gap-3 pr-2 py-1 min-w-[160px]">
                   <button className={cn(
                     "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
-                    msg.senderId === 'me' ? "bg-white/20 text-white" : "bg-stone-100 text-stone-600"
+                    msg.sender === 'user' ? "bg-white/20 text-white" : "bg-stone-100 text-stone-600"
                   )}>
                     <div className="w-0 h-0 border-t-[5px] border-t-transparent border-l-[8px] border-l-current border-b-[5px] border-b-transparent ml-1"></div>
                   </button>
                   <div className="flex flex-col gap-1 w-full">
-                    <div className={cn("h-1 w-full rounded-full", msg.senderId === 'me' ? "bg-white/30" : "bg-stone-200")}>
-                      <div className={cn("h-full w-1/3 rounded-full", msg.senderId === 'me' ? "bg-white" : "bg-stone-500")}></div>
+                    <div className={cn("h-1 w-full rounded-full", msg.sender === 'user' ? "bg-white/30" : "bg-stone-200")}>
+                      <div className={cn("h-full w-1/3 rounded-full", msg.sender === 'user' ? "bg-white" : "bg-stone-500")}></div>
                     </div>
                     <span className="text-[10px] opacity-80 font-mono">{msg.duration || '0:30'}</span>
                   </div>
-                  <Mic className={cn("w-4 h-4 opacity-50", msg.senderId === 'me' ? "text-white" : "text-stone-400")} />
+                  <Mic className={cn("w-4 h-4 opacity-50", msg.sender === 'user' ? "text-white" : "text-stone-400")} />
                 </div>
               )}
 
@@ -210,10 +229,9 @@ const DirectMessageScreen: React.FC<Props> = ({ navigate, goBack, chatId, chatUs
               <div className={cn(
                 "flex justify-end items-center gap-1 text-[10px] mt-0.5",
                 msg.type === 'image' ? "absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/40 rounded-full text-white backdrop-blur-sm" : "",
-                msg.senderId === 'me' ? 'text-white/80' : 'text-stone-500 dark:text-text-muted'
+                msg.sender === 'user' ? 'text-white/80' : 'text-stone-500 dark:text-text-muted'
               )}>
-                <span>{msg.time}</span>
-                {msg.senderId === 'me' && getStatusIcon(msg.status)}
+                <span>{msg.timestamp instanceof Date ? msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : String(msg.timestamp)}</span>
               </div>
             </div>
           </div>
@@ -232,6 +250,13 @@ const DirectMessageScreen: React.FC<Props> = ({ navigate, goBack, chatId, chatUs
 
       {/* Input Area */}
       <div className="p-3 bg-background border-t border-border flex items-end gap-2 sticky bottom-0 z-10 shrink-0">
+        <input
+          type="file"
+          ref={fileInputRef}
+          className="hidden"
+          accept="image/*"
+          onChange={handleImageSend}
+        />
         <div ref={attachmentRef} className="relative">
           <button
             onClick={() => setIsAttachmentOpen(!isAttachmentOpen)}
@@ -246,20 +271,28 @@ const DirectMessageScreen: React.FC<Props> = ({ navigate, goBack, chatId, chatUs
           </button>
           {isAttachmentOpen && (
             <div className="absolute bottom-14 left-0 flex flex-col gap-2 p-2 bg-background shadow-xl rounded-xl border border-border animate-in fade-in slide-in-from-bottom-4 z-50 min-w-[180px]">
-              {[
-                { icon: <ImageIcon className="w-5 h-5 text-rasta-gold" />, label: 'Photos & Videos', action: () => handleSend('image', 'Photo') },
-                { icon: <Camera className="w-5 h-5 text-rasta-red" />, label: 'Camera', action: () => { } },
-                { icon: <FileText className="w-5 h-5 text-rasta-green" />, label: 'Document', action: () => { } },
-              ].map((item, i) => (
-                <button
-                  key={i}
-                  onClick={item.action}
-                  className="flex items-center gap-3 p-2.5 hover:bg-muted rounded-lg transition-colors text-sm font-medium text-foreground"
-                >
-                  {item.icon}
-                  {item.label}
-                </button>
-              ))}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className="flex items-center gap-3 p-2.5 hover:bg-muted rounded-lg transition-colors text-sm font-medium text-foreground disabled:opacity-50"
+              >
+                <ImageIcon className="w-5 h-5 text-rasta-gold" />
+                {isUploading ? 'Uploading...' : 'Photos & Videos'}
+              </button>
+              <button
+                onClick={() => { }}
+                className="flex items-center gap-3 p-2.5 hover:bg-muted rounded-lg transition-colors text-sm font-medium text-foreground"
+              >
+                <Camera className="w-5 h-5 text-rasta-red" />
+                Camera
+              </button>
+              <button
+                onClick={() => { }}
+                className="flex items-center gap-3 p-2.5 hover:bg-muted rounded-lg transition-colors text-sm font-medium text-foreground"
+              >
+                <FileText className="w-5 h-5 text-rasta-green" />
+                Document
+              </button>
             </div>
           )}
         </div>

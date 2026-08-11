@@ -1,6 +1,10 @@
 import { mutation } from "../_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser } from "../users/utils";
+import { Id } from "../_generated/dataModel";
+
+const MAX_COMMUNITY_NAME = 100;
+const MAX_COMMUNITY_DESCRIPTION = 1000;
 
 // Create community
 export const create = mutation({
@@ -16,9 +20,19 @@ export const create = mutation({
         const user = await getCurrentUser(ctx);
         if (!user) throw new Error("Unauthorized");
 
+        if (!args.name.trim()) {
+            throw new Error("Community name cannot be empty");
+        }
+        if (args.name.length > MAX_COMMUNITY_NAME) {
+            throw new Error(`Name exceeds maximum length of ${MAX_COMMUNITY_NAME}`);
+        }
+        if (args.description.length > MAX_COMMUNITY_DESCRIPTION) {
+            throw new Error(`Description exceeds maximum length of ${MAX_COMMUNITY_DESCRIPTION}`);
+        }
+
         const communityId = await ctx.db.insert("communities", {
-            name: args.name,
-            description: args.description,
+            name: args.name.trim().slice(0, MAX_COMMUNITY_NAME),
+            description: args.description.trim().slice(0, MAX_COMMUNITY_DESCRIPTION),
             category: args.category,
             avatar: args.avatar,
             coverImage: args.coverImage,
@@ -69,6 +83,28 @@ export const join = mutation({
             await ctx.db.patch(args.communityId, {
                 memberCount: community.memberCount + 1
             });
+
+            // Notify community admins
+            const admins = await ctx.db
+                .query("communityMembers")
+                .withIndex("by_community", (q) => q.eq("communityId", args.communityId))
+                .filter(q => q.eq(q.field("role"), "admin"))
+                .collect();
+
+            for (const admin of admins) {
+                if (admin.userId !== user._id) {
+                    await ctx.db.insert("notifications", {
+                        userId: admin.userId,
+                        type: "community_join",
+                        title: "New Member",
+                        message: `${user.name} joined ${community.name}`,
+                        time: Date.now(),
+                        isRead: false,
+                        targetScreen: "COMMUNITY",
+                        metadata: { communityId: args.communityId }
+                    });
+                }
+            }
         }
     },
 });

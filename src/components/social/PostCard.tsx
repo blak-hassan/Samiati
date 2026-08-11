@@ -26,6 +26,8 @@ import { ProverbCard } from './content/ProverbCard';
 import { StoryCard } from './content/StoryCard';
 import { SongCard } from './content/SongCard';
 import { HistoryCard } from './content/HistoryCard';
+import { useInView } from '@/hooks/useInView';
+import { StorageImage } from '@/components/shared/StorageImage';
 
 interface PostCardProps {
     post: Post;
@@ -50,13 +52,16 @@ export const PostCard: React.FC<PostCardProps> = ({
     const [isContentExpanded, setIsContentExpanded] = useState(!post.cw);
     const [showAltText, setShowAltText] = useState(false);
 
-    // Local state for optimistic updates and animations
     const [localLiked, setLocalLiked] = useState(post.isLiked);
     const [localClapped, setLocalClapped] = useState(post.isReposted);
     const [localLikeCount, setLocalLikeCount] = useState(post.stats.likes || 0);
     const [localClapCount, setLocalClapCount] = useState(post.stats.reposts || 0);
     const [likeAnimating, setLikeAnimating] = useState(false);
     const [clapAnimating, setClapAnimating] = useState(false);
+    const [showBurst, setShowBurst] = useState(false);
+    const [showClapRing, setShowClapRing] = useState(false);
+
+    const { ref: cardRef, isInView } = useInView({ threshold: 0.1 });
 
     if (post.isFireplace) return null;
 
@@ -83,16 +88,17 @@ export const PostCard: React.FC<PostCardProps> = ({
         });
     };
 
-    // Helper to detect specific simulated types from content or existing fields
     const isHistoryPost = post.content.includes('#SamiatiHistory');
     const isStoryPost = post.content.includes('#Folklore');
 
     return (
         <article
+            ref={cardRef}
             onClick={() => onPostClick(post)}
             className={cn(
-                "p-4 border-b border-border transition-all duration-300 cursor-pointer animate-in fade-in slide-in-from-bottom-4",
+                "p-4 border-b border-border transition-all duration-300 cursor-pointer",
                 "hover:bg-muted/40",
+                isInView ? "animate-fade-in-up" : "opacity-0",
                 post.isBounty && "bg-yellow-50/50 dark:bg-yellow-900/10 border-l-4 border-l-yellow-500"
             )}
         >
@@ -132,7 +138,6 @@ export const PostCard: React.FC<PostCardProps> = ({
 
                     {isContentExpanded && (
                         <div className="animate-in fade-in duration-300">
-                            {/* Proverb Card */}
                             {post.type === 'proverb' && post.proverbData ? (
                                 <ProverbCard data={post.proverbData} />
                             ) : (
@@ -141,7 +146,6 @@ export const PostCard: React.FC<PostCardProps> = ({
                                 </div>
                             )}
 
-                            {/* Audio/Song Card */}
                             {post.type === 'audio' && (
                                 <SongCard
                                     title="Traditional Drumming Session"
@@ -150,7 +154,6 @@ export const PostCard: React.FC<PostCardProps> = ({
                                 />
                             )}
 
-                            {/* Simulated History Card */}
                             {isHistoryPost && (
                                 <HistoryCard
                                     year="1963"
@@ -159,7 +162,6 @@ export const PostCard: React.FC<PostCardProps> = ({
                                 />
                             )}
 
-                            {/* Simulated Story Card */}
                             {isStoryPost && (
                                 <StoryCard
                                     title="The Tortoise and the Hare: A Reimagining"
@@ -171,7 +173,11 @@ export const PostCard: React.FC<PostCardProps> = ({
 
                             {post.image && (
                                 <div className="mb-3 rounded-lg overflow-hidden border border-stone-200 dark:border-white/10 relative group">
-                                    <img src={post.image} alt="Attachment" className="w-full h-auto object-cover max-h-80" />
+                                    {post.image.startsWith('data:') || post.image.startsWith('http') ? (
+                                        <img src={post.image} alt="Attachment" className="w-full h-auto object-cover max-h-80 transition-transform duration-700 group-hover:scale-105" />
+                                    ) : (
+                                        <StorageImage storageId={post.image} alt="Attachment" className="w-full h-auto object-cover max-h-80 transition-transform duration-700 group-hover:scale-105" />
+                                    )}
                                     {post.altText && (
                                         <>
                                             <button
@@ -208,31 +214,34 @@ export const PostCard: React.FC<PostCardProps> = ({
 
                         <button
                             className={cn(
-                                "flex items-center gap-2 transition-all duration-300 group",
+                                "flex items-center gap-2 transition-all duration-300 group active:scale-95",
                                 localClapped ? 'text-rasta-green' : 'hover:text-rasta-green'
                             )}
                             title="Clap"
                             onClick={(e) => {
                                 e.stopPropagation();
-                                // Optimistic update with animation
                                 setClapAnimating(true);
+                                setShowClapRing(true);
                                 setTimeout(() => setClapAnimating(false), 300);
+                                setTimeout(() => setShowClapRing(false), 500);
                                 setLocalClapped(!localClapped);
                                 setLocalClapCount(prev => localClapped ? prev - 1 : prev + 1);
                                 onRepost(post.id);
                             }}
                         >
                             <div className={cn(
-                                "p-2 transition-all rounded-full",
+                                "p-2 transition-all rounded-full relative",
                                 localClapped ? "bg-rasta-green/10" : "group-hover:bg-rasta-green/10",
-                                clapAnimating && "scale-125"
-                            )}
-                            >
+                                clapAnimating && "animate-spring-press"
+                            )}>
                                 <HandMetal className={cn(
                                     "w-5 h-5 transition-all duration-300",
                                     localClapped && "fill-current",
                                     clapAnimating && "rotate-12 scale-110"
                                 )} />
+                                {showClapRing && (
+                                    <span className="absolute inset-0 rounded-full border-2 border-rasta-green animate-clap-ring pointer-events-none" />
+                                )}
                             </div>
                             <span className={cn(
                                 "text-xs font-medium transition-all",
@@ -242,30 +251,54 @@ export const PostCard: React.FC<PostCardProps> = ({
 
                         <button
                             className={cn(
-                                "flex items-center gap-2 transition-all duration-300 group",
+                                "flex items-center gap-2 transition-all duration-300 group active:scale-95",
                                 localLiked ? 'text-yellow-500' : 'hover:text-yellow-500'
                             )}
                             title="Favorite"
                             onClick={(e) => {
                                 e.stopPropagation();
-                                // Optimistic update with animation
                                 setLikeAnimating(true);
+                                setShowBurst(true);
                                 setTimeout(() => setLikeAnimating(false), 300);
+                                setTimeout(() => setShowBurst(false), 500);
                                 setLocalLiked(!localLiked);
                                 setLocalLikeCount(prev => localLiked ? prev - 1 : prev + 1);
                                 onLike(post.id);
                             }}
                         >
                             <div className={cn(
-                                "p-2 transition-all rounded-full",
+                                "p-2 transition-all rounded-full relative",
                                 localLiked ? "bg-yellow-500/10" : "group-hover:bg-yellow-500/10",
-                                likeAnimating && "scale-125"
+                                likeAnimating && "animate-spring-press"
                             )}>
                                 <Star className={cn(
                                     "w-5 h-5 transition-all duration-300",
                                     localLiked && "fill-current",
-                                    likeAnimating && "rotate-12 scale-110"
+                                    likeAnimating && "rotate-12 scale-125"
                                 )} />
+                                {showBurst && (
+                                    <>
+                                        <span className="absolute inset-0 rounded-full border-2 border-yellow-500 animate-burst-ring pointer-events-none" />
+                                        {[...Array(6)].map((_, i) => {
+                                            const angle = (i * 60) * (Math.PI / 180);
+                                            const dist = 20;
+                                            return (
+                                                <span
+                                                    key={i}
+                                                    className="absolute w-1.5 h-1.5 rounded-full bg-yellow-500 animate-burst-particle pointer-events-none"
+                                                    style={{
+                                                        top: '50%',
+                                                        left: '50%',
+                                                        marginTop: '-3px',
+                                                        marginLeft: '-3px',
+                                                        '--tx': `${Math.cos(angle) * dist}px`,
+                                                        '--ty': `${Math.sin(angle) * dist}px`,
+                                                    } as React.CSSProperties}
+                                                />
+                                            );
+                                        })}
+                                    </>
+                                )}
                             </div>
                             <span className={cn(
                                 "text-xs font-medium transition-all",

@@ -42,18 +42,13 @@ import {
   Loader2,
   Mic,
   Square,
-  Volume2
+  Volume2,
+  BookOpen
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger
-} from "@/components/ui/sheet";
+import { AppSidebar } from "@/components/shared/AppSidebar";
 import {
   Dialog,
   DialogContent,
@@ -89,24 +84,6 @@ interface Props {
   isDarkMode: boolean;
   toggleTheme: () => void;
 }
-
-// Drawer Item Helper
-const DrawerItem: React.FC<{ icon: React.ReactNode, label: string, onClick: () => void, count?: number }> = ({ icon, label, onClick, count }) => (
-  <button
-    onClick={onClick}
-    className="w-full h-11 flex items-center gap-3.5 px-3 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-muted-foreground hover:text-foreground transition-all group"
-  >
-    <div className="text-muted-foreground group-hover:text-primary transition-colors">
-      {icon}
-    </div>
-    <span className="font-bold text-sm tracking-tight flex-1 text-left">{label}</span>
-    {count !== undefined && count > 0 && (
-      <Badge variant="default" className="bg-primary hover:bg-primary shadow-none h-5 min-w-[20px] px-1 justify-center font-bold text-[10px]">
-        {count}
-      </Badge>
-    )}
-  </button>
-);
 
 // Attachment Item Helper
 const AttachmentItem: React.FC<{ icon: React.ReactNode, label: string, onClick: () => void }> = ({ icon, label, onClick }) => (
@@ -887,70 +864,24 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
       <input type="file" ref={documentInputRef} className="hidden" accept=".pdf,.doc,.docx,.txt" onChange={(e) => handleFileSelect(e, 'document')} />
       <input type="file" ref={cameraInputRef} className="hidden" accept="image/*" capture="environment" onChange={(e) => handleFileSelect(e, 'image')} />
 
-      {/* Navigation Drawer using Sheet */}
-      <Sheet open={isNavOpen} onOpenChange={setIsNavOpen}>
-        <SheetContent side="left" className="w-[300px] sm:w-[350px] p-0 border-r border-border bg-background">
-          <div className="flex flex-col h-full bg-muted/30">
-            <div className="p-6">
-              <SheetHeader className="text-left mb-8">
-                <div className="flex items-center gap-4 cursor-pointer" onClick={() => handleNavigate(Screen.SETTINGS)}>
-                  <Avatar className="w-12 h-12 border-2 border-primary/20 hover:border-primary transition-colors">
-                    <AvatarImage src={user.avatar} />
-                    <AvatarFallback>{user.name[0]}</AvatarFallback>
-                  </Avatar>
-                  <div className="space-y-0.5">
-                    <SheetTitle className="text-lg font-bold tracking-tight">{user.name}</SheetTitle>
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{user.handle}</p>
-                  </div>
-                </div>
-              </SheetHeader>
-
-              <Button
-                onClick={handleNewChatClick}
-                className="w-full h-12 rounded-xl gap-2 font-bold shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95"
-              >
-                <Plus className="w-5 h-5" />
-                Kaanze
-              </Button>
-            </div>
-
-            <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
-
-
-              <DrawerItem
-                icon={<History className="w-5 h-5" />}
-                label="Kaendelee"
-                onClick={() => handleNavigate(Screen.SAVED_CONVERSATIONS)}
-              />
-
-              <DrawerItem
-                icon={<Flame className="w-5 h-5" />}
-                label="Changa"
-                count={notificationCounts?.contributions}
-                onClick={() => handleNavigate(Screen.CONTRIBUTIONS)}
-              />
-              <DrawerItem
-                icon={<MessagesSquare className="w-5 h-5" />}
-                label="Mushenee"
-                onClick={() => handleNavigate(Screen.MESSAGES)}
-              />
-
-              {user.role === 'moderator' || user.role === 'admin' && (
-                <DrawerItem
-                  icon={<ShieldCheck className="w-5 h-5" />}
-                  label="Moderation"
-                  count={notificationCounts?.moderation}
-                  onClick={() => handleNavigate(Screen.MODERATION_DASHBOARD)}
-                />
-              )}
-
-            </nav>
-
-            <div className="p-4 mt-auto">
-            </div>
-          </div>
-        </SheetContent>
-      </Sheet>
+      {/* Sidebar — persistent on desktop, drawer on mobile */}
+      <AppSidebar
+        open={isNavOpen}
+        onOpenChange={setIsNavOpen}
+        user={{
+          name: user.name,
+          handle: user.handle,
+          avatar: user.avatar,
+          role: user.role,
+          isGuest: false,
+        }}
+        onNavigate={handleNavigate}
+        onNewSearch={handleNewChatClick}
+        notificationCounts={{
+          contributions: notificationCounts?.contributions,
+          moderation: notificationCounts?.moderation,
+        }}
+      />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col w-full h-full relative">
@@ -967,7 +898,7 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
                   variant="ghost"
                   size="icon"
                   onClick={() => setIsNavOpen(true)}
-                  className="rounded-full transition-colors"
+                  className="rounded-full transition-colors lg:hidden"
                   aria-label="Toggle navigation"
                 >
                   <Menu className="w-6 h-6" />
@@ -992,7 +923,7 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsNavOpen(true)}
-                className="rounded-full transition-colors pointer-events-auto bg-background/50 backdrop-blur-sm"
+                className="rounded-full transition-colors pointer-events-auto bg-background/50 backdrop-blur-sm lg:hidden"
                 aria-label="Toggle navigation"
               >
                 <Menu className="w-6 h-6" />

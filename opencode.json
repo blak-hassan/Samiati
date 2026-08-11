@@ -1,0 +1,12 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "huggingface/Sunbird/Sunflower-Gemma4-E2B",
+  "provider": {
+    "huggingface": {
+      "options": {
+        "apiKey": ""
+      }
+    }
+  },
+  "disabled_providers": ["anthropic", "openai", "google", "groq", "mistral", "deepseek", "together", "fireworks", "openrouter", "xai", "cerebras", "sambanova", "vercel", "vllm", "lmstudio", "ollama", "bedrock", "azure", "cloudflare"]
+}

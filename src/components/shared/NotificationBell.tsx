@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +20,19 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
     className,
     iconClassName
 }) => {
+    const [shouldWobble, setShouldWobble] = useState(false);
+    const prevCount = useRef(unreadCount);
+
+    useEffect(() => {
+        if (unreadCount > prevCount.current) {
+            setShouldWobble(true);
+            const timer = setTimeout(() => setShouldWobble(false), 600);
+            prevCount.current = unreadCount;
+            return () => clearTimeout(timer);
+        }
+        prevCount.current = unreadCount;
+    }, [unreadCount]);
+
     return (
         <Button
             variant="ghost"
@@ -27,7 +40,11 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
             onClick={() => onNavigate(Screen.NOTIFICATIONS)}
             className={cn("relative rounded-full transition-colors", className)}
         >
-            <Bell className={cn("w-5 h-5", iconClassName)} />
+            <Bell className={cn(
+                "w-5 h-5 transition-transform",
+                shouldWobble && "animate-wobble",
+                iconClassName
+            )} />
             {unreadCount > 0 && (
                 <Badge
                     variant="destructive"

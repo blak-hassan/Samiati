@@ -147,16 +147,17 @@ const NotificationsScreen: React.FC<Props> = ({ goBack, notifications, onMarkAll
             <p className="font-medium">No notifications found.</p>
           </div>
         ) : (
-          filteredNotifications.map((item) => (
+          filteredNotifications.map((item, index) => (
             <div
               key={item.id}
               onClick={() => onNotificationClick(item.id, item.targetScreen)}
               className={cn(
-                "flex gap-4 p-4 rounded-2xl border transition-all cursor-pointer active:scale-[0.98]",
+                "flex gap-4 p-4 rounded-2xl border transition-all cursor-pointer active:scale-[0.98] animate-fade-in-up",
                 item.isRead
                   ? "bg-transparent border-transparent hover:bg-muted/50"
                   : "bg-card border-border shadow-sm ring-1 ring-primary/5"
               )}
+              style={{ animationDelay: `${index * 40}ms`, animationFillMode: 'backwards' }}
             >
               <div className="relative shrink-0">
                 <div className={cn(

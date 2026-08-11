@@ -6,9 +6,11 @@ import { useUser } from '@/app/MockProviders';
 interface Props {
   navigate: NavigateFn;
   goBack: () => void;
+  onLaunch?: (challenge: { title: string; description: string; type: ChallengeType; goalCount: number }) => Promise<void>;
+  isSubmitting?: boolean;
 }
 
-const AddChallengeScreen: React.FC<Props> = ({ navigate, goBack }) => {
+const AddChallengeScreen: React.FC<Props> = ({ navigate, goBack, onLaunch, isSubmitting }) => {
   const { addChallenge } = useUser();
   const [step, setStep] = useState(1);
   const [selectedType, setSelectedType] = useState<ChallengeType | null>(null);
@@ -347,27 +349,35 @@ const AddChallengeScreen: React.FC<Props> = ({ navigate, goBack }) => {
         {step === 1 ? (
           <div className="text-center text-xs text-stone-400 font-bold uppercase tracking-widest pb-2">Select a type to proceed</div>
         ) : (
-          <button
-            onClick={step === 3 ? () => {
-              const newChallenge = {
-                id: `new-${Date.now()}`,
+<button
+            onClick={step === 3 ? async () => {
+              const challengeData = {
                 title: getChallengeTitle(),
                 description: formData.goalDescription || `A collaborative ${selectedType?.toLowerCase()} project.`,
                 type: selectedType!,
                 goalCount: formData.goalCount,
-                goalDescription: formData.goalDescription,
-                inputSchema: formData.inputSchema,
-                currentCount: 0,
-                goalMetric: 'Entries',
-                deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-                image: 'https://images.unsplash.com/photo-1544985335-7c2a74c10648?auto=format&fit=crop&q=80&w=2000'
               };
-              addChallenge(newChallenge);
-              navigate(Screen.CONTRIBUTIONS, { initialTab: 'Challenges' });
+              
+              if (onLaunch) {
+                await onLaunch(challengeData);
+              } else {
+                const newChallenge = {
+                  id: `new-${Date.now()}`,
+                  ...challengeData,
+                  inputSchema: formData.inputSchema,
+                  currentCount: 0,
+                  goalMetric: 'Entries',
+                  deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+                  image: 'https://images.unsplash.com/photo-1544985335-7c2a74c10648?auto=format&fit=crop&q=80&w=2000'
+                };
+                addChallenge(newChallenge);
+                window.location.href = '/dashboard/challenges';
+              }
             } : handleNext}
-            className="w-full bg-[#cf6317] hover:bg-[#b05210] text-white font-bold py-4 rounded-xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            disabled={isSubmitting}
+            className="w-full bg-[#cf6317] hover:bg-[#b05210] text-white font-bold py-4 rounded-xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            {step === 3 ? 'Launch Project 🚀' : 'Continue'}
+            {isSubmitting ? 'Launching...' : step === 3 ? 'Launch Project 🚀' : 'Continue'}
           </button>
         )}
       </footer>

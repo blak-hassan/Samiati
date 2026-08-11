@@ -237,14 +237,14 @@ export const storeGuestUser = mutation({
             args.handle = `${args.handle}_${Math.random().toString(36).slice(2, 6)}`;
         }
         
-        // Create new guest user
+        // Create new guest user with restricted role
         return await ctx.db.insert("users", {
             name: args.name,
             handle: args.handle,
             avatar: args.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=guest",
             email: undefined,
             clerkId: guestId,
-            role: 'member',
+            role: 'guest',
             isGuest: true,
             followerCount: 0,
             followingCount: 0,

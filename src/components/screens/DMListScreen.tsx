@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -39,11 +40,10 @@ const DMListScreen: React.FC<Props> = ({ navigate, goBack, chats = [], isLoading
   const filteredChats = useFuzzySearch(chats, searchQuery, searchKeys);
 
   const handleChatClick = (chat: ChatPreview) => {
-    // chat.id now contains the proper Convex ID from dmConversations table
     navigate(Screen.DIRECT_MESSAGE, {
-      chatId: chat.id, // This is now the proper Convex _id
+      chatId: chat.id,
       chatUser: {
-        id: chat.id,
+        id: chat.recipientId || chat.id,
         name: chat.name,
         avatar: chat.avatar,
         isOnline: chat.isOnline
@@ -92,16 +92,25 @@ const DMListScreen: React.FC<Props> = ({ navigate, goBack, chats = [], isLoading
 
       <main className="flex-1 overflow-y-auto">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 px-4 text-center text-muted-foreground animate-in fade-in duration-500">
-            <Loader2 className="w-12 h-12 mb-4 animate-spin text-primary" />
-            <p className="text-lg font-bold text-foreground/50">Loading conversations...</p>
+          <div className="p-4 space-y-4 animate-in fade-in duration-300">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="flex items-center gap-4 p-4" style={{ animationDelay: `${i * 80}ms` }}>
+                <Skeleton className="w-14 h-14 rounded-full shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-1/3" />
+                  <Skeleton className="h-3 w-2/3" />
+                </div>
+                <Skeleton className="h-3 w-12" />
+              </div>
+            ))}
           </div>
         ) : filteredChats.length > 0 ? (
-          filteredChats.map((chat) => (
+          filteredChats.map((chat, index) => (
             <div
               key={chat.id}
               onClick={() => handleChatClick(chat)}
-              className="flex items-center gap-4 p-4 hover:bg-muted/50 cursor-pointer transition-all border-b border-border/50 last:border-0 group"
+              className="flex items-center gap-4 p-4 hover:bg-muted/50 cursor-pointer transition-all border-b border-border/50 last:border-0 group animate-fade-in-up"
+              style={{ animationDelay: `${index * 40}ms`, animationFillMode: 'backwards' }}
             >
               <div className="relative">
                 <Avatar className="w-14 h-14 border border-border shadow-sm group-hover:scale-105 transition-transform duration-300">

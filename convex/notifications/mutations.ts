@@ -1,8 +1,8 @@
 import { mutation } from "../_generated/server";
 import { v } from "convex/values";
-import { getCurrentUser } from "../users/utils";
+import { getCurrentUser, isAdmin } from "../users/utils";
 
-// Create a notification (internal use mostly, or for testing)
+// Create a notification (admin only — notifications should be created server-side)
 export const create = mutation({
     args: {
         userId: v.id("users"),
@@ -10,11 +10,13 @@ export const create = mutation({
         title: v.string(),
         message: v.string(),
         targetScreen: v.string(),
-        metadata: v.optional(v.any()), // JSON object
+        metadata: v.optional(v.any()),
     },
     handler: async (ctx, args) => {
-        // Can optionally check if sender is admin or system
-        // For now, allow open creation for flexibility in Phase 2
+        const caller = await getCurrentUser(ctx);
+        if (!caller || !isAdmin(caller)) {
+            throw new Error("Unauthorized: Only admins can create notifications directly");
+        }
 
         await ctx.db.insert("notifications", {
             userId: args.userId,

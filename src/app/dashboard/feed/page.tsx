@@ -1,14 +1,6 @@
 "use client";
-import MessagesScreen from "@/components/screens/MessagesScreen";
-import { useNavigation } from "@/hooks/useNavigation";
+import { PostFeedScreen } from "@/components/screens/PostFeedScreen";
 
 export default function FeedPage() {
-    const { navigate, goBack } = useNavigation();
-
-    return (
-        <MessagesScreen
-            navigate={navigate}
-            goBack={goBack}
-        />
-    );
+    return <PostFeedScreen />;
 }

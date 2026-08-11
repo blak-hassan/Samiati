@@ -37,16 +37,18 @@ export const getUserReposts = query({
             .order("desc")
             .take(args.limit || 50);
 
-        // Enrich with post data
-        const enriched = await Promise.all(
-            reposts.map(async (r) => {
-                const post = await ctx.db.get(r.postId);
-                return {
-                    ...r,
-                    post,
-                };
-            })
-        );
+        // Batch fetch all posts
+        const posts = await Promise.all(reposts.map(r => ctx.db.get(r.postId)));
+        const postMap = new Map(posts.filter(Boolean).map(p => [p!._id, p]));
+
+        // Enrich reposts
+        const enriched = reposts.map((r) => {
+            const post = postMap.get(r.postId);
+            return {
+                ...r,
+                post,
+            };
+        });
 
         return enriched;
     },

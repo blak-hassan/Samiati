@@ -2,15 +2,16 @@ import { v } from "convex/values";
 import { action } from "./_generated/server";
 
 // =============================================================================
-// CHAT SERVICE (Tunneled Ollama)
+// CHAT SERVICE — Sunflower-Gemma4-E2B via HuggingFace Inference API
 // =============================================================================
-//
-// Uses cloudflared tunnel to connect to local Ollama
-// Tunnel URL: https://institutions-toe-der-dir.trycloudflare.com
-// Model: gemma4:e4b (E4B - 4B params edge version)
+// Replaces Ollama tunnel. Same model used for all AI services.
+// API key: HUGGINGFACE_API_KEY (Set in Convex Dashboard)
+// Model: Sunbird/Sunflower-Gemma4-E2B
 // =============================================================================
 
-const OLLAMA_URL = process.env.OLLAMA_URL || "https://institutions-toe-der-dir.trycloudflare.com";
+const SUNFLOWER_URL = "https://router.huggingface.co/Sunbird/Sunflower-Gemma4-E2B";
+const MAX_CHAT_MESSAGE_LENGTH = 5000;
+const MAX_MESSAGES_HISTORY = 20;
 
 export const sendMessage = action({
     args: {
@@ -23,23 +24,39 @@ export const sendMessage = action({
         targetLanguage: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
-        const targetLang = args.targetLanguage || 'English';
-        const systemMessage = {
-            role: "system",
-            content: `You are Samiati, a friendly chat assistant. Your goal is to chat naturally with the user. Reply in ${targetLang} language only. Keep responses short, casual, and friendly. Never explain or define words unless the user explicitly asks.`
-        };
+        const apiKey = process.env.HUGGINGFACE_API_KEY;
+        if (!apiKey) {
+            return "ERROR: HUGGINGFACE_API_KEY not configured. Set it in Convex Dashboard.";
+        }
 
-        const apiMessages = [systemMessage, ...args.messages];
+        const limitedMessages = args.messages.slice(-MAX_MESSAGES_HISTORY);
+        const lastMessage = limitedMessages[limitedMessages.length - 1];
+        if (lastMessage && lastMessage.content.length > MAX_CHAT_MESSAGE_LENGTH) {
+            return "ERROR: Message too long. Please keep messages under 5,000 characters.";
+        }
+
+        const targetLang = args.targetLanguage || "English";
+        const messages = [
+            {
+                role: "system",
+                content: `You are Samiati, a friendly chat assistant. Your goal is to chat naturally with the user. Reply in ${targetLang} language only. Keep responses short, casual, and friendly. Never explain or define words unless the user explicitly asks.`,
+            },
+            ...limitedMessages.map(msg => ({
+                role: msg.role as "user" | "assistant",
+                content: msg.content,
+            })),
+        ];
 
         try {
-            const response = await fetch(`${OLLAMA_URL}/v1/chat/completions`, {
+            const response = await fetch(SUNFLOWER_URL, {
                 method: "POST",
                 headers: {
+                    "Authorization": `Bearer ${apiKey}`,
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    model: "gemma4:e4b",
-                    messages: apiMessages,
+                    model: "Sunbird/Sunflower-Gemma4-E2B",
+                    messages,
                     max_tokens: 350,
                     temperature: 0.7,
                 }),
@@ -47,17 +64,18 @@ export const sendMessage = action({
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error(`Ollama API Error (${response.status}):`, errorText);
-                return `ERROR: Ollama returned status ${response.status}. Details: ${errorText.substring(0, 200)}. Make sure Ollama is running and tunnel is active.`;
+                console.error(`[Sunflower Chat] API Error (${response.status}):`, errorText);
+                if (response.status === 503) return "Model is loading, please try again in a moment.";
+                if (response.status === 429) return "Rate limit exceeded. Please wait and try again.";
+                return `API error: ${response.status}. Please try again.`;
             }
 
             const result = await response.json();
-            const aiResponse = result.choices?.[0]?.message?.content;
-            return aiResponse || "N/A";
+            return result.choices?.[0]?.message?.content || "N/A";
 
         } catch (error) {
-            console.error("Chat Action execution failed:", error);
-            return "ERROR: Network error. Is the tunnel still running? Try: npx cloudflared tunnel --url http://localhost:11434";
+            console.error("[Sunflower Chat] Failed:", error);
+            return "ERROR: Network error. Please check your connection and try again.";
         }
     },
 });

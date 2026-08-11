@@ -3,6 +3,7 @@
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useEffect, ReactNode } from "react";
+import { AuthProvider } from "@/hooks/useCurrentUser";
 
 interface AuthGuardProps {
   children: ReactNode;
@@ -14,10 +15,8 @@ export function AuthGuard({ children, fallback }: AuthGuardProps) {
   const router = useRouter();
 
   useEffect(() => {
-    // Only redirect if auth is loaded and user is definitely not authenticated
     if (isLoaded && !userId) {
-      // Don't redirect immediately - allow guest access
-      // The guest check is handled below
+      // Allow guest access - guest check handled by AuthProvider context
     }
   }, [isLoaded, userId, router]);
 
@@ -32,9 +31,7 @@ export function AuthGuard({ children, fallback }: AuthGuardProps) {
     );
   }
 
-  // Allow access if user is authenticated OR if no auth is required (guest mode)
-  // The actual permission checking is done server-side in Convex mutations
-  return <>{children}</>;
+  return <AuthProvider>{children}</AuthProvider>;
 }
 
 interface GuestGuardProps {

@@ -3,61 +3,94 @@ import { v } from "convex/values";
 import { action } from "./_generated/server";
 
 // =============================================================================
-// NLLB-200 TRANSLATION SERVICE (HuggingFace Inference API)
+// SUNFLOWER-GEMMA4-E2B TRANSLATION SERVICE (HuggingFace Inference API)
 // =============================================================================
-// Uses facebook/nllb-200-distilled-600M via HuggingFace Inference API
-// for proper multilingual translation with NLLB language codes.
+// Uses Sunbird/Sunflower-Gemma4-E2B via HuggingFace Inference API
+// for multilingual translation across 69 African languages.
 //
-// API: HuggingFace Inference API (Translation Pipeline)
-// MODEL: facebook/nllb-200-distilled-600M
+// API: HuggingFace Inference API (Text Generation Pipeline)
+// MODEL: Sunbird/Sunflower-Gemma4-E2B
 // KEY: HUGGINGFACE_API_KEY (Set in Convex Dashboard)
 // =============================================================================
 
-// Map short codes (used by frontend) to NLLB-200 BCP-47 codes
-const LANGUAGE_TO_NLLB: Record<string, string> = {
-    // NLLB codes (already correct)
-    'swh_Latn': 'swh_Latn',
-    'kik_Latn': 'kik_Latn',
-    'luo_Latn': 'luo_Latn',
-    'eng_Latn': 'eng_Latn',
-    'kam_Latn': 'kam_Latn',
-    'kln_Latn': 'kln_Latn',
-    'luy_Latn': 'luy_Latn',
-    'mer_Latn': 'mer_Latn',
-    'mas_Latn': 'mas_Latn',
-    // Short codes → NLLB codes
-    'sw': 'swh_Latn',
-    'ki': 'kik_Latn',
-    'luo': 'luo_Latn',
-    'en': 'eng_Latn',
-    'kam': 'kam_Latn',
-    'kln': 'kln_Latn',
-    'luy': 'luy_Latn',
-    'mer': 'mer_Latn',
-    'mas': 'mas_Latn',
-};
-
-// Human-readable names for logging
-const LANGUAGE_NAMES: Record<string, string> = {
+// Map short codes to human-readable language names for Sunflower prompt format
+const LANGUAGE_MAP: Record<string, string> = {
+    'sw': 'Swahili',
     'swh_Latn': 'Swahili',
+    'ki': 'Kikuyu',
     'kik_Latn': 'Kikuyu',
+    'luo': 'Luo',
     'luo_Latn': 'Luo',
+    'en': 'English',
     'eng_Latn': 'English',
+    'kam': 'Kamba',
     'kam_Latn': 'Kamba',
+    'kln': 'Kalenjin',
     'kln_Latn': 'Kalenjin',
+    'luy': 'Luhya',
     'luy_Latn': 'Luhya',
+    'mer': 'Meru',
     'mer_Latn': 'Meru',
+    'mas': 'Maasai',
     'mas_Latn': 'Maasai',
+    'lug': 'Luganda',
+    'ach': 'Acholi',
+    'afr': 'Afrikaans',
+    'hau': 'Hausa',
+    'ibo': 'Igbo',
+    'yor': 'Yoruba',
+    'fra': 'French',
+    'som': 'Somali',
+    'kin': 'Kinyarwanda',
+    'lin': 'Lingala',
+    'orm': 'Oromo',
+    'sna': 'Shona',
+    'tsn': 'Tswana',
+    'xho': 'Xhosa',
+    'zul': 'Zulu',
+    'nya': 'Chichewa',
+    'sot': 'Sotho',
+    'ewe': 'Ewe',
+    'ful': 'Fulani',
+    'bam': 'Bambara',
+    'amh': 'Amharic',
+    'mlg': 'Malagasy',
+    'nbl': 'Ndebele',
+    'pcm': 'Nigerian Pidgin',
+    'run': 'Kirundi',
+    'nyo': 'Runyoro',
+    'nyn': 'Runyankole',
+    'cgg': 'Rukiga',
+    'xog': 'Lusoga',
+    'ttj': 'Rutooro',
+    'ruc': 'Ruruuli',
+    'kik': 'Kikuyu',
+    'teo': 'Ateso',
+    'wol': 'Wolof',
+    'bfa': 'Bari',
+    'rwm': 'Kwamba',
+    'dag': 'Dagbani',
+    'keo': 'Kakwa',
+    'ber': 'Berber',
+    'mhi': "Ma'di",
+    'led': 'Lendu',
+    'kdj': 'Karamojong',
+    'pok': 'Pokot',
+    'ikx': 'Ik',
+    'kpz': 'Kupsabiny',
+    'dga': 'Dagaare',
+    'kau': 'Kanuri',
+    'din': 'Dinka',
+    'kpo': 'Ikposo',
 };
 
-async function callNLLB(text: string, targetLang: string): Promise<string> {
+async function callSunflower(text: string, targetLang: string): Promise<string> {
     const apiKey = process.env.HUGGINGFACE_API_KEY;
 
-    // Resolve the NLLB language code
-    const nllbCode = LANGUAGE_TO_NLLB[targetLang] || targetLang;
-    const langName = LANGUAGE_NAMES[nllbCode] || nllbCode;
+    // Resolve the language name
+    const langName = LANGUAGE_MAP[targetLang] || targetLang;
 
-    console.log(`[NLLB-200] Translating to ${langName} (${nllbCode})...`);
+    console.log(`[Sunflower] Translating to ${langName}...`);
 
     if (!apiKey) {
         console.error("HUGGINGFACE_API_KEY is not set!");
@@ -66,7 +99,7 @@ async function callNLLB(text: string, targetLang: string): Promise<string> {
 
     try {
         // Use router.huggingface.co for better reliability on free tier
-        const url = "https://router.huggingface.co/facebook/nllb-200-distilled-600M";
+        const url = "https://router.huggingface.co/Sunbird/Sunflower-Gemma4-E2B";
 
         const response = await fetch(url, {
             method: "POST",
@@ -75,21 +108,30 @@ async function callNLLB(text: string, targetLang: string): Promise<string> {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                inputs: text,
-                parameters: {
-                    src_lang: "eng_Latn",
-                    tgt_lang: nllbCode,
-                },
+                model: "Sunbird/Sunflower-Gemma4-E2B",
+                messages: [
+                    {
+                        role: "system",
+                        content: "You are Sunflower, a helpful assistant made by Sunbird AI who knows many African languages."
+                    },
+                    {
+                        role: "user",
+                        content: `Translate from English to ${langName}: ${text}`
+                    }
+                ],
+                max_tokens: 512,
+                temperature: 0.0,
+                do_sample: false,
             }),
         });
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error(`[NLLB-200] API Error (${response.status}):`, errorText);
+            console.error(`[Sunflower] API Error (${response.status}):`, errorText);
             
             // Handle 403 Forbidden specifically
             if (response.status === 403) {
-                return "ERROR: Translation API access forbidden. This may be due to: (1) Invalid API key, (2) Model requires accepting terms at https://huggingface.co/models/facebook/nllb-200-distilled-600M, or (3) API quota exceeded.";
+                return "ERROR: Translation API access forbidden. This may be due to: (1) Invalid API key, (2) Model requires accepting terms at https://huggingface.co/models/Sunbird/Sunflower-Gemma4-E2B, or (3) API quota exceeded.";
             }
             
             // Handle 429 Rate Limit
@@ -97,29 +139,31 @@ async function callNLLB(text: string, targetLang: string): Promise<string> {
                 return "ERROR: Translation API rate limit exceeded. Please wait a moment and try again.";
             }
             
+            // Handle model loading (common with HF free tier)
+            if (response.status === 503) {
+                return "Translation Model is loading, please try again in a moment.";
+            }
+            
             return `ERROR: Translation API returned status ${response.status}. Please try again.`;
         }
 
         const result = await response.json();
 
-        // HuggingFace translation pipeline returns: [{ translation_text: "..." }]
-        if (Array.isArray(result) && result[0]?.translation_text) {
-            return result[0].translation_text.trim();
+        // HuggingFace chat completion returns: { choices: [{ message: { content: "..." } }] }
+        if (result?.choices?.[0]?.message?.content) {
+            return result.choices[0].message.content.trim();
         }
 
-        // Fallback: some models return { generated_text: "..." }
-        if (result?.generated_text) {
-            return result.generated_text.trim();
-        }
-
-        console.error("[NLLB-200] Unexpected response format:", JSON.stringify(result));
+        console.error("[Sunflower] Unexpected response format:", JSON.stringify(result));
         return "ERROR: Translation service returned an unexpected response format.";
 
     } catch (error) {
-        console.error("[NLLB-200] Failed:", error);
+        console.error("[Sunflower] Failed:", error);
         return "ERROR: Translation failed due to a network error. Please check your connection.";
     }
 }
+
+const MAX_TRANSLATE_LENGTH = 5000;
 
 export const translateText = action({
     args: {
@@ -127,6 +171,9 @@ export const translateText = action({
         targetLanguage: v.string(),
     },
     handler: async (ctx, args) => {
-        return await callNLLB(args.text, args.targetLanguage);
+        if (args.text.length > MAX_TRANSLATE_LENGTH) {
+            return "ERROR: Text too long. Please keep text under 5,000 characters.";
+        }
+        return await callSunflower(args.text, args.targetLanguage);
     },
 });

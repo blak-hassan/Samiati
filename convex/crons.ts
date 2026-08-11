@@ -3,14 +3,18 @@ import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
-// Example cron: Archive old challenges every week
-// crons.weekly(
-//   "archive-old-challenges",
-//   { hourUTC: 0, minuteUTC: 0, dayOfWeek: "Monday" },
-//   internal.challenges.archiveOld
-// );
+// Mark users as offline if inactive for 5+ minutes (every 2 minutes)
+crons.interval(
+    "cleanup-stale-presence",
+    { minutes: 2 },
+    internal.presence.cron.cleanupStalePresence
+);
 
-// For now, we just define the file to satisfy the feature requirement.
-// We can uncomment or add real jobs when we implement the challenge logic.
+// Archive expired challenges (every hour)
+crons.interval(
+    "archive-expired-challenges",
+    { minutes: 60 },
+    internal.challenges.cron.archiveExpiredChallenges
+);
 
 export default crons;

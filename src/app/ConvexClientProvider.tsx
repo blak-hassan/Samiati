@@ -6,13 +6,10 @@ import { ConvexReactClient } from "convex/react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { ConvexProvider } from "convex/react";
 import * as Mock from "./MockProviders";
+import { UserSync } from "./UserSync";
 
 const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
 const convex = convexUrl ? new ConvexReactClient(convexUrl) : null;
-
-// User sync disabled temporarily due to auth timing issues
-// The user will be synced to Convex when they first interact with the app
-// TODO: Re-enable once the auth timing issue is resolved
 
 // Inner provider that checks auth status
 function AuthenticatedConvexProvider({ children }: { children: ReactNode }) {
@@ -34,7 +31,7 @@ function AuthenticatedConvexProvider({ children }: { children: ReactNode }) {
     if (userId && convex) {
         return (
             <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-                {/* UserSync disabled - user sync will happen on first mutation call */}
+                <UserSync />
                 {children}
             </ConvexProviderWithClerk>
         );
@@ -65,7 +62,7 @@ export default function ConvexClientProvider({
     }
 
     return (
-        <ClerkProvider>
+        <ClerkProvider publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
             <AuthenticatedConvexProvider>
                 {children}
             </AuthenticatedConvexProvider>

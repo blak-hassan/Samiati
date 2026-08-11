@@ -3,6 +3,8 @@ import { v } from "convex/values";
 import { getCurrentUser } from "../users/utils";
 import { Id } from "../_generated/dataModel";
 
+const MAX_COMMENT_LENGTH = 2000;
+
 // Add a comment
 export const add = mutation({
     args: {
@@ -15,11 +17,18 @@ export const add = mutation({
         const user = await getCurrentUser(ctx);
         if (!user) throw new Error("Unauthorized");
 
+        if (!args.content.trim()) {
+            throw new Error("Comment content cannot be empty");
+        }
+        if (args.content.length > MAX_COMMENT_LENGTH) {
+            throw new Error(`Comment exceeds maximum length of ${MAX_COMMENT_LENGTH}`);
+        }
+
         const commentId = await ctx.db.insert("comments", {
             targetType: args.targetType,
             targetId: args.targetId,
             authorId: user._id,
-            content: args.content,
+            content: args.content.trim().slice(0, MAX_COMMENT_LENGTH),
             parentId: args.parentId,
             likes: 0,
             dislikes: 0,
@@ -53,6 +62,20 @@ export const add = mutation({
                 await ctx.db.patch(contribution._id, {
                     commentsCount: (contribution.commentsCount || 0) + 1
                 });
+
+                // Notify contribution author (if not self)
+                if (contribution.userId !== user._id) {
+                    await ctx.db.insert("notifications", {
+                        userId: contribution.userId,
+                        type: "comment",
+                        title: "New Comment",
+                        message: `${user.name} commented on your contribution`,
+                        time: Date.now(),
+                        isRead: false,
+                        targetScreen: "CONTRIBUTION",
+                        metadata: { contributionId: contribution._id, commentId }
+                    });
+                }
             }
         }
 

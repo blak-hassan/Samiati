@@ -12,26 +12,34 @@ export const list = query({
         const comments = await ctx.db
             .query("comments")
             .withIndex("by_target", (q) => q.eq("targetType", args.targetType).eq("targetId", args.targetId))
-            .order("desc") // Newest first? Or usually threaded needs parent logical sort, but simpler flat list first for MVP
+            .order("desc")
             .collect();
 
-        // Enrich with author info and user vote
         const user = await getCurrentUser(ctx);
 
-        const enriched = await Promise.all(comments.map(async (c) => {
-            const author = await ctx.db.get(c.authorId);
-            let userVote = 0; // 0, 1 (up), -1 (down)
+        // Batch fetch all authors
+        const authorIds = [...new Set(comments.map(c => c.authorId))];
+        const authors = await Promise.all(authorIds.map(id => ctx.db.get(id)));
+        const authorMap = new Map(authors.filter(Boolean).map(a => [a!._id, a]));
 
-            if (user) {
-                const vote = await ctx.db
-                    .query("commentVotes")
+        // Batch fetch all user votes
+        let commentVoteMap = new Map<string, number>();
+        if (user) {
+            const votes = await Promise.all(comments.map(c =>
+                ctx.db.query("commentVotes")
                     .withIndex("by_comment", (q) => q.eq("commentId", c._id).eq("userId", user._id))
-                    .first();
+                    .first()
+            ));
+            votes.forEach((vote, i) => {
                 if (vote) {
-                    userVote = vote.vote === 'up' ? 1 : -1;
+                    commentVoteMap.set(comments[i]._id, vote.vote === 'up' ? 1 : -1);
                 }
-            }
+            });
+        }
 
+        // Enrich comments
+        const enriched = comments.map((c) => {
+            const author = authorMap.get(c.authorId);
             return {
                 ...c,
                 author: author ? {
@@ -39,9 +47,9 @@ export const list = query({
                     handle: author.handle,
                     avatar: author.avatar,
                 } : null,
-                userVote,
+                userVote: commentVoteMap.get(c._id) ?? 0,
             };
-        }));
+        });
 
         return enriched;
     },

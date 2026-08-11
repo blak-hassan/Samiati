@@ -44,13 +44,23 @@ export const setTyping = mutation({
         const user = await getCurrentUser(ctx);
         if (!user) throw new Error("Unauthorized");
 
-        // We could store typing status in a separate table or on the conversation
-        // For now, we'll return success - typing indicators can be handled via 
-        // a separate "typingStatus" table or real-time presence system
+        const conversation = await ctx.db.get(args.conversationId);
+        if (!conversation) throw new Error("Conversation not found");
 
-        // Note: Convex doesn't have built-in ephemeral state, so for typing indicators
-        // we'd typically use a short-lived entry or the conversation document itself
+        // Verify user is a participant
+        if (conversation.participant1 !== user._id && conversation.participant2 !== user._id) {
+            throw new Error("Unauthorized");
+        }
 
-        return { success: true, userId: user._id, isTyping: args.isTyping };
+        // Set typing expiry (3 seconds from now) or clear it
+        const typingUntil = args.isTyping ? Date.now() + 3000 : undefined;
+
+        if (conversation.participant1 === user._id) {
+            await ctx.db.patch(args.conversationId, { typingUntilP1: typingUntil });
+        } else {
+            await ctx.db.patch(args.conversationId, { typingUntilP2: typingUntil });
+        }
+
+        return { success: true };
     },
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, ReactNode, useMemo, useState } from "react";
+import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from "react";
 import {
   ContributionItem,
   LanguageSkill,
@@ -10,18 +10,42 @@ import {
   Challenge,
 } from "@/types";
 import {
-  INITIAL_CONTRIBUTIONS,
-  INITIAL_LANGUAGES_STATE,
-  INITIAL_NOTIFICATIONS,
-  INITIAL_VALIDATION_ITEMS,
-} from "@/data/mock";
-import { MOCK_CHALLENGES } from "@/data/mockChallenges";
-import {
   buildValidationItemFromContribution,
   getContributionStatusMeta,
   mapModerationStatusToContributionStatus,
   normalizeContributionItem,
 } from "@/lib/changaModeration";
+
+// Lazy-load mock data — only fetched when MockProviders is actually used
+let mockDataCache: {
+  INITIAL_CONTRIBUTIONS: ContributionItem[];
+  INITIAL_LANGUAGES_STATE: LanguageSkill[];
+  INITIAL_NOTIFICATIONS: NotificationItem[];
+  INITIAL_VALIDATION_ITEMS: ValidationItem[];
+  MOCK_CHALLENGES: Challenge[];
+  INITIAL_SUBMISSION_ENTRIES: ContributionItem[];
+  INITIAL_MODERATION_ITEMS_EXTRA: ValidationItem[];
+} | null = null;
+
+async function loadMockData() {
+  if (mockDataCache) return mockDataCache;
+  const [mock, mockChallenges, mockSubmissions, mockModerationItems] = await Promise.all([
+    import("@/data/mock"),
+    import("@/data/mockChallenges"),
+    import("@/data/mockSubmissions"),
+    import("@/data/mockModerationItems"),
+  ]);
+  mockDataCache = {
+    INITIAL_CONTRIBUTIONS: mock.INITIAL_CONTRIBUTIONS,
+    INITIAL_LANGUAGES_STATE: mock.INITIAL_LANGUAGES_STATE,
+    INITIAL_NOTIFICATIONS: mock.INITIAL_NOTIFICATIONS,
+    INITIAL_VALIDATION_ITEMS: mock.INITIAL_VALIDATION_ITEMS,
+    MOCK_CHALLENGES: mockChallenges.MOCK_CHALLENGES,
+    INITIAL_SUBMISSION_ENTRIES: mockSubmissions.INITIAL_SUBMISSION_ENTRIES,
+    INITIAL_MODERATION_ITEMS_EXTRA: mockModerationItems.INITIAL_MODERATION_ITEMS_EXTRA,
+  };
+  return mockDataCache;
+}
 
 interface MockUser {
   id: string;
@@ -88,10 +112,41 @@ const persistStoredState = <T,>(key: string, value: T) => {
 };
 
 // --- Mock Global State (Singleton pattern for persistence across remounts) ---
-let globalMyContributions: ContributionItem[] = [...INITIAL_CONTRIBUTIONS];
-let globalModerationItems: ValidationItem[] = [...INITIAL_VALIDATION_ITEMS];
-let globalNotifications: NotificationItem[] = [...INITIAL_NOTIFICATIONS];
-let globalChallenges: Challenge[] = [...MOCK_CHALLENGES];
+let globalMyContributions: ContributionItem[] = [];
+let globalModerationItems: ValidationItem[] = [];
+let globalNotifications: NotificationItem[] = [];
+let globalChallenges: Challenge[] = [];
+let globalLanguages: LanguageSkill[] = [];
+let globalInitialized = false;
+
+function initializeGlobalState(mockData: typeof mockDataCache, mockUser: { id: string; fullName: string; username: string; imageUrl: string }) {
+  if (globalInitialized || !mockData) return;
+  globalInitialized = true;
+
+  globalLanguages = mockData.INITIAL_LANGUAGES_STATE;
+
+  const rawContributions = [...mockData.INITIAL_SUBMISSION_ENTRIES, ...mockData.INITIAL_CONTRIBUTIONS];
+  const storedContributions = loadStoredState<ContributionItem[]>(STORAGE_KEYS.contributions, []);
+  const storedIds = new Set(storedContributions.map((item) => item.id));
+  const missingDefaults = rawContributions.filter((item) => !storedIds.has(item.id));
+  globalMyContributions = [...missingDefaults, ...storedContributions].map((item) =>
+    normalizeContributionItem(item, {
+      id: mockUser.id,
+      name: mockUser.fullName,
+      handle: mockUser.username,
+      avatar: mockUser.imageUrl,
+    }),
+  );
+
+  const rawModeration = [...mockData.INITIAL_VALIDATION_ITEMS, ...mockData.INITIAL_MODERATION_ITEMS_EXTRA];
+  const storedModeration = loadStoredState<ValidationItem[]>(STORAGE_KEYS.moderationItems, []);
+  const storedModIds = new Set(storedModeration.map((item) => item.id));
+  const missingModeration = rawModeration.filter((item) => !storedModIds.has(item.id));
+  globalModerationItems = [...missingModeration, ...storedModeration];
+
+  globalNotifications = loadStoredState(STORAGE_KEYS.notifications, [...mockData.INITIAL_NOTIFICATIONS]);
+  globalChallenges = loadStoredState(STORAGE_KEYS.challenges, [...mockData.MOCK_CHALLENGES]);
+}
 
 export const ClerkProvider = ({ children }: { children: ReactNode }) => {
   const mockUser = useMemo(() => ({
@@ -101,32 +156,29 @@ export const ClerkProvider = ({ children }: { children: ReactNode }) => {
     imageUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuDKkfM9WqTPsqCfuM1KQIQ1QzsbiAaq2rab_EQ2MwL_8b9sbJ3-mIl3CjDCR888PPrsBNhkpl7tkden40rCqo3pJe3Sepe18k46KUvejTidyoAK941vcqejBnqRrcfC5hPZop_XFQ7S9jkteso1RvDSjv8s1JfGwGhOYE1uQ1M1J93quDxOniTqTNGD-1WZq2GOu_Z1EpzGjMzNeyvhYbuIwiqYK1TDLfGX5mpdg--_df6DoewiFO-RhrraeKpwY7MetQ94avb6spo",
     primaryEmailAddress: { emailAddress: "mock@example.com" },
   }), []);
-  const [languages, setLanguages] = useState<LanguageSkill[]>(INITIAL_LANGUAGES_STATE);
-  const [myContributions, setMyContributionsInternal] = useState<ContributionItem[]>(() => {
-    globalMyContributions = loadStoredState(STORAGE_KEYS.contributions, globalMyContributions).map((item) =>
-      normalizeContributionItem(item, {
-        id: mockUser.id,
-        name: mockUser.fullName,
-        handle: mockUser.username,
-        avatar: mockUser.imageUrl,
-      }),
-    );
-    return globalMyContributions;
-  });
-  const [baseModerationItems, setBaseModerationItemsInternal] = useState<ValidationItem[]>(() => {
-    globalModerationItems = loadStoredState(STORAGE_KEYS.moderationItems, globalModerationItems);
-    return globalModerationItems;
-  });
-  const [notifications, setNotificationsInternal] = useState<NotificationItem[]>(() => {
-    globalNotifications = loadStoredState(STORAGE_KEYS.notifications, globalNotifications);
-    return globalNotifications;
-  });
-  const [challenges, setChallengesInternal] = useState<Challenge[]>(() => {
-    globalChallenges = loadStoredState(STORAGE_KEYS.challenges, globalChallenges);
-    return globalChallenges;
-  });
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const [languages, setLanguages] = useState<LanguageSkill[]>([]);
+  const [myContributions, setMyContributionsInternal] = useState<ContributionItem[]>([]);
+  const [baseModerationItems, setBaseModerationItemsInternal] = useState<ValidationItem[]>([]);
+  const [notifications, setNotificationsInternal] = useState<NotificationItem[]>([]);
+  const [challenges, setChallengesInternal] = useState<Challenge[]>([]);
+
+  // Lazy-load mock data and initialize state in a single effect
+  useEffect(() => {
+    let cancelled = false;
+    loadMockData().then((data) => {
+      initializeGlobalState(data, mockUser);
+      if (cancelled) return;
+      setLanguages(globalLanguages);
+      setMyContributionsInternal(globalMyContributions);
+      setBaseModerationItemsInternal(globalModerationItems);
+      setNotificationsInternal(globalNotifications);
+      setChallengesInternal(globalChallenges);
+    });
+    return () => { cancelled = true; };
+  }, [mockUser]);
+
+  const unreadCount = useMemo(() => notifications.filter(n => !n.isRead).length, [notifications]);
 
   const moderationItems = useMemo(() => {
     const derivedItems = myContributions.map(buildValidationItemFromContribution);

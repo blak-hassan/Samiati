@@ -2,10 +2,21 @@ import { query } from "../_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser } from "./utils";
 
+// Fields to strip from public profiles
+const SENSITIVE_FIELDS = ['email', 'clerkId', 'moderatorStatus'] as const;
+
+function sanitizeUser(user: Record<string, unknown>) {
+    const sanitized = { ...user };
+    for (const field of SENSITIVE_FIELDS) {
+        sanitized[field] = undefined;
+    }
+    return sanitized;
+}
+
 export const getProfile = query({
     args: {
-        userId: v.optional(v.id("users")), // If empty, get current user
-        handle: v.optional(v.string()), // Or get by handle
+        userId: v.optional(v.id("users")),
+        handle: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
         let user;
@@ -22,7 +33,6 @@ export const getProfile = query({
 
         if (!user) return null;
 
-        // Get follow status if current user is viewing another
         let isFollowing = false;
         const currentUser = await getCurrentUser(ctx);
         if (currentUser && currentUser._id !== user._id) {
@@ -34,10 +44,13 @@ export const getProfile = query({
             isFollowing = !!follow;
         }
 
+        const isMe = currentUser?._id === user._id;
+        // Return sensitive fields only for self; strip for others
+        const profile = (isMe ? user : sanitizeUser(user as Record<string, unknown>)) as typeof user;
         return {
-            ...user,
+            ...profile,
             isFollowing,
-            isMe: currentUser?._id === user._id,
+            isMe,
         };
     },
 });
@@ -52,9 +65,9 @@ export const getFollowers = query({
             .withIndex("by_following", (q) => q.eq("followingId", args.userId))
             .collect();
 
-        // Enrich with user info
         const users = await Promise.all(followers.map(async (f) => {
-            return await ctx.db.get(f.followerId);
+            const user = await ctx.db.get(f.followerId);
+            return user ? sanitizeUser(user as Record<string, unknown>) : null;
         }));
 
         return users.filter(u => u !== null);
@@ -71,9 +84,9 @@ export const getFollowing = query({
             .withIndex("by_follower", (q) => q.eq("followerId", args.userId))
             .collect();
 
-        // Enrich with user info
         const users = await Promise.all(following.map(async (f) => {
-            return await ctx.db.get(f.followingId);
+            const user = await ctx.db.get(f.followingId);
+            return user ? sanitizeUser(user as Record<string, unknown>) : null;
         }));
 
         return users.filter(u => u !== null);

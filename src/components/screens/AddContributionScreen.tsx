@@ -1,5 +1,7 @@
-﻿"use client";
+"use client";
 import React, { useState, useRef } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Screen, ContributionItem } from '@/types';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +26,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CONTRIBUTION_TYPES } from '@/lib/constants';
 import { calculateXP } from '@/services/xpService';
+import { contributionSchema, ContributionFormData } from '@/lib/schemas';
 
 interface Attachment {
   id: string;
@@ -35,33 +38,35 @@ interface Attachment {
 interface Props {
   navigate: (screen: Screen, params?: Record<string, unknown>) => void;
   goBack: () => void;
-  onSave?: (item: ContributionItem) => void;
+  onSave?: (item: ContributionItem) => Promise<void>;
   initialData?: ContributionItem;
+  availableTasks?: ContributionItem[];
 }
 
-const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave, initialData }) => {
+const AddContributionScreen: React.FC<Props> = ({
+  navigate,
+  goBack,
+  onSave,
+  initialData,
+  availableTasks,
+}) => {
   const [selectedType, setSelectedType] = useState(initialData?.type || 'Proverb');
   const [customTypes, setCustomTypes] = useState<string[]>([]);
   const [isAddingCustomType, setIsAddingCustomType] = useState(false);
   const [newTypeName, setNewTypeName] = useState('');
-  const [input1, setInput1] = useState(initialData?.content || ''); // Local Language / Source
-  const [input2, setInput2] = useState(initialData?.translation || ''); // Translation / Target
-  const [context, setContext] = useState(initialData?.context || '');
-  const [selectedTags, setSelectedTags] = useState<string[]>(initialData?.tags || []);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTypeExpanded, setIsTypeExpanded] = useState(false);
 
-  // Media State
   const [selectorType, setSelectorType] = useState<'audio' | 'image' | 'video' | null>(null);
   const pendingTypeRef = useRef<'audio' | 'image' | 'video' | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>(
-    initialData?.attachments?.map(a => ({
+    initialData?.attachments?.map((a) => ({
       id: a.id,
-      file: new File([], a.name, { type: a.type }), // Mock file object
+      file: new File([], a.name, { type: a.type }),
       previewUrl: a.url,
-      type: a.type as Attachment["type"]
+      type: a.type as Attachment['type'],
     })) || []
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -69,53 +74,93 @@ const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave, init
 
   const isTranslationMode = selectedType === 'Translate Paragraphs';
 
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors },
+  } = useForm<ContributionFormData>({
+    resolver: zodResolver(contributionSchema),
+    defaultValues: {
+      type: selectedType,
+      input1: initialData?.content || '',
+      input2: initialData?.translation || '',
+      context: initialData?.context || '',
+      tags: initialData?.tags || [],
+    },
+  });
+
+  const input1 = watch('input1');
+  const input2 = watch('input2');
+  const context = watch('context');
+  const selectedTags = watch('tags');
+
   const getInputConfig = () => {
     if (isTranslationMode) {
       return {
-        label1: "English Text (Source)",
-        placeholder1: "Enter the English paragraph you want to translate...",
-        defaultText1: "The village elder sat beneath the ancient baobab tree, gathering the children for an evening story.",
-        label2: "Local Language Translation (Target)",
-        placeholder2: "Write the translation in your local language...",
-        desc: "Translate paragraphs from English to local language to improve the LLM."
+        label1: 'English Text (Source)',
+        placeholder1: 'Enter the English paragraph you want to translate...',
+        defaultText1:
+          'The village elder sat beneath the ancient baobab tree, gathering the children for an evening story.',
+        label2: 'Local Language Translation (Target)',
+        placeholder2: 'Write the translation in your local language...',
+        desc: 'Translate paragraphs from English to local language to improve the LLM.',
       };
     }
     return {
-      label1: "Local Language",
-      placeholder1: "e.g., Sè woteetee o-pönkö a, na öyè mmerèw.",
-      defaultText1: selectedType === 'Proverb' && !input1 ? "Sè woteetee o-pönkö a, na öyè mmerèw." : "",
-      label2: "English Translation",
-      placeholder2: "e.g., If you train a horse well, it becomes gentle.",
-      defaultText2: selectedType === 'Proverb' && !input2 ? "If you train a horse well, it becomes gentle." : "",
-      desc: ""
+      label1: 'Local Language',
+      placeholder1: 'e.g., Sè woteetee o-pönkö a, na öyè mmerèw.',
+      defaultText1:
+        selectedType === 'Proverb' && !input1
+          ? 'Sè woteetee o-pönkö a, na öyè mmerèw.'
+          : '',
+      label2: 'English Translation',
+      placeholder2: 'e.g., If you train a horse well, it becomes gentle.',
+      defaultText2:
+        selectedType === 'Proverb' && !input2
+          ? 'If you train a horse well, it becomes gentle.'
+          : '',
+      desc: '',
     };
   };
 
   const config = getInputConfig();
 
-  // Initialize defaults if empty and specific type selected (for demo UX)
   React.useEffect(() => {
-    if (initialData) return; // Don't overwrite if editing
-    if (selectedType === 'Proverb' && !input1) setInput1("Sè woteetee o-pönkö a, na öyè mmerèw.");
-    if (selectedType === 'Proverb' && !input2) setInput2("If you train a horse well, it becomes gentle.");
-    if (isTranslationMode && !input1) setInput1(config.defaultText1 || "");
-  }, [selectedType, isTranslationMode, config.defaultText1, input1, input2, initialData]);
+    if (initialData) return;
+    if (selectedType === 'Proverb' && !input1) {
+      setValue('input1', 'Sè woteetee o-pönkö a, na öyè mmerèw.');
+    }
+    if (selectedType === 'Proverb' && !input2) {
+      setValue('input2', 'If you train a horse well, it becomes gentle.');
+    }
+    if (isTranslationMode && !input1) {
+      setValue('input1', config.defaultText1 || '');
+    }
+  }, [selectedType, isTranslationMode, config.defaultText1, input1, input2, initialData, setValue]);
 
   const toggleTag = (tag: string) => {
-    if (selectedTags.includes(tag)) {
-      setSelectedTags(selectedTags.filter(t => t !== tag));
+    const current = selectedTags;
+    if (current.includes(tag)) {
+      setValue(
+        'tags',
+        current.filter((t) => t !== tag),
+        { shouldValidate: true }
+      );
     } else {
-      setSelectedTags([...selectedTags, tag]);
+      setValue('tags', [...current, tag], { shouldValidate: true });
     }
   };
 
   const handleAddCustomType = () => {
     if (newTypeName.trim()) {
       const type = newTypeName.trim();
-      if (![...CONTRIBUTION_TYPES.map(t => t.id), ...customTypes].includes(type)) {
-        setCustomTypes(prev => [...prev, type]);
+      if (![...CONTRIBUTION_TYPES.map((t) => t.id), ...customTypes].includes(type)) {
+        setCustomTypes((prev) => [...prev, type]);
       }
       setSelectedType(type);
+      setValue('type', type);
       setNewTypeName('');
       setIsAddingCustomType(false);
     }
@@ -128,14 +173,13 @@ const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave, init
       previewUrl: URL.createObjectURL(file),
       type,
     };
-    setAttachments(prev => [...prev, newAttachment]);
+    setAttachments((prev) => [...prev, newAttachment]);
   };
 
   const removeAttachment = (id: string) => {
-    setAttachments(prev => {
-      const filtered = prev.filter(a => a.id !== id);
-      // Clean up object URLs to prevent memory leaks
-      const removed = prev.find(a => a.id === id);
+    setAttachments((prev) => {
+      const filtered = prev.filter((a) => a.id !== id);
+      const removed = prev.find((a) => a.id === id);
       if (removed) URL.revokeObjectURL(removed.previewUrl);
       return filtered;
     });
@@ -144,12 +188,8 @@ const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave, init
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     const type = pendingTypeRef.current;
-
     if (files && files.length > 0 && type) {
-      Array.from(files).forEach(file => {
-        addAttachment(file, type);
-      });
-      // Reset input so the same file can be selected again if removed
+      Array.from(files).forEach((file) => addAttachment(file, type));
       e.target.value = '';
       pendingTypeRef.current = null;
     }
@@ -157,64 +197,55 @@ const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave, init
 
   const handleSelectSource = (source: 'upload' | 'capture') => {
     if (!selectorType) return;
-
-    // Set pending type BEFORE closing selector or triggering input
     pendingTypeRef.current = selectorType;
-
     if (source === 'upload') {
-      if (fileInputRef.current) {
-        fileInputRef.current.removeAttribute('capture');
-        fileInputRef.current.click();
-      }
+      fileInputRef.current?.removeAttribute('capture');
+      fileInputRef.current?.click();
     } else {
       if (selectorType === 'audio') {
         setIsRecording(true);
       } else if (selectorType === 'image') {
-        if (fileInputRef.current) {
-          fileInputRef.current.setAttribute('capture', 'environment');
-          fileInputRef.current.click();
-        }
+        fileInputRef.current?.setAttribute('capture', 'environment');
+        fileInputRef.current?.click();
       }
     }
   };
 
-  const handleSubmit = async () => {
+  const onSubmit = async (data: ContributionFormData) => {
     if (isSubmitting) return;
-
     setIsSubmitting(true);
-
-    // Aesthetic delay for the checkmark animation
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     if (onSave) {
-      const typeConfig = CONTRIBUTION_TYPES.find(t => t.id === selectedType);
+      const typeConfig = CONTRIBUTION_TYPES.find((t) => t.id === selectedType);
       const icon = typeConfig?.icon || 'history_edu';
 
       const newItem: ContributionItem = {
         id: initialData?.id || Date.now().toString(),
         type: selectedType,
-        title: input1 || (selectedType === 'Proverb' ? "Sè woteetee o-pönkö a, na öyè mmerèw." : "New Changa"),
-        subtitle: initialData?.subtitle || `${selectedType} • Submitted on ${new Date().toLocaleDateString()}`,
+        title: data.input1 || (selectedType === 'Proverb' ? 'Sè woteetee o-pönkö a, na öyè mmerèw.' : 'New Changa'),
+        subtitle:
+          initialData?.subtitle || `${selectedType} • Submitted on ${new Date().toLocaleDateString()}`,
         status: initialData?.status || 'Under Review',
-        statusColor: initialData?.statusColor || 'text-warning', // Gold/Yellow
+        statusColor: initialData?.statusColor || 'text-warning',
         dotColor: initialData?.dotColor || 'bg-warning',
-        icon: icon,
+        icon,
         likes: initialData?.likes || 0,
         dislikes: initialData?.dislikes || 0,
         commentsCount: initialData?.commentsCount || 0,
         userVote: initialData?.userVote || null,
         comments: initialData?.comments || [],
         showComments: false,
-        tags: selectedTags,
-        content: input1,
-        translation: input2,
-        context: context,
-        attachments: attachments.map(a => ({
+        tags: data.tags,
+        content: data.input1,
+        translation: data.input2,
+        context: data.context,
+        attachments: attachments.map((a) => ({
           id: a.id,
           type: a.type,
           url: a.previewUrl,
-          name: a.file.name
-        }))
+          name: a.file.name,
+        })),
       };
       onSave(newItem);
     }
@@ -226,7 +257,13 @@ const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave, init
   return (
     <div className="flex flex-col h-full bg-background transition-colors duration-300">
       <header className="flex items-center p-4 bg-background/95 backdrop-blur-md z-30 border-b border-border sticky top-0 transition-colors shrink-0">
-        <Button variant="ghost" size="icon" onClick={goBack} className="-ml-2 rounded-full" disabled={isSubmitting}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={goBack}
+          className="-ml-2 rounded-full"
+          disabled={isSubmitting}
+        >
           <IconRenderer name="arrow_back" size={24} />
         </Button>
         <h1 className="flex-1 text-center text-lg font-bold pr-2 tracking-tight">
@@ -239,36 +276,66 @@ const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave, init
           )}
         >
           <IconRenderer
-            name={isSubmitting ? "progress_activity" : "check_circle"}
+            name={isSubmitting ? 'progress_activity' : 'check_circle'}
             size={20}
             className={cn(
               "transition-all duration-500",
-              isSubmitting ? "text-rasta-gold" : "text-primary"
+              isSubmitting ? 'text-rasta-gold' : 'text-primary'
             )}
           />
         </div>
       </header>
 
       <main className="flex-1 overflow-y-auto p-6 space-y-10 custom-scrollbar max-w-2xl mx-auto w-full">
-        {/* Goal */}
         <section>
           <div className="flex items-center gap-2 mb-4">
             <IconRenderer name="auto_awesome" className="text-primary" size={18} />
-            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-foreground/80">Your Changa Goal</h2>
+            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-foreground/80">
+              Your Changa Goal
+            </h2>
           </div>
           <Card className="bg-muted/30 border-primary/10 p-5 space-y-4 shadow-sm">
             <div className="flex justify-between items-end">
               <div className="space-y-1">
-                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Weekly Mastery Badge</span>
-                <p className="text-xl font-black tracking-tight text-foreground">7 <span className="text-muted-foreground text-sm font-bold">/ 10 items</span></p>
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary">
+                  Weekly Mastery Badge
+                </span>
+                <p className="text-xl font-black tracking-tight text-foreground">
+                  7 <span className="text-muted-foreground text-sm font-bold">/ 10 items</span>
+                </p>
               </div>
-              <Badge variant="secondary" className="bg-primary/10 text-primary border-none text-[10px] font-black h-6">+3 to GOAL</Badge>
+              <Badge
+                variant="secondary"
+                className="bg-primary/10 text-primary border-none text-[10px] font-black h-6"
+              >
+                +3 to GOAL
+              </Badge>
             </div>
             <Progress value={70} className="h-2.5 bg-background border border-border" />
           </Card>
         </section>
 
-        {/* Type Selection */}
+        {availableTasks && availableTasks.length > 0 && (
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 mb-4">
+              <IconRenderer name="assignment" className="text-primary" size={18} />
+              <h2 className="text-xs font-black uppercase tracking-[0.2em] text-foreground/80">
+                Available Tasks
+              </h2>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {availableTasks.slice(0, 6).map((task) => (
+                <div
+                  key={task.id}
+                  className="px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-wider transition-all border whitespace-nowrap bg-muted/30 text-muted-foreground border-border/50"
+                >
+                  {task.title}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         <section className="space-y-4">
           <div
             className="flex items-center justify-between cursor-pointer group select-none"
@@ -278,18 +345,25 @@ const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave, init
               <IconRenderer name="menu_book" className="text-primary" size={18} />
               <h2 className="text-xs font-black uppercase tracking-[0.2em] text-foreground/80">
                 Contribution Type
-                {!isTypeExpanded && <span className="ml-2 text-primary font-bold transition-all animate-in fade-in slide-in-from-left-2">— {selectedType}</span>}
+                {!isTypeExpanded && (
+                  <span className="ml-2 text-primary font-bold transition-all animate-in fade-in slide-in-from-left-2">
+                    — {selectedType}
+                  </span>
+                )}
               </h2>
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest text-muted-foreground group-hover:text-primary transition-colors border-none">
+              <Badge
+                variant="outline"
+                className="text-[9px] font-black uppercase tracking-widest text-muted-foreground group-hover:text-primary transition-colors border-none"
+              >
                 {isTypeExpanded ? 'Hide' : 'Expand'}
               </Badge>
               <IconRenderer
                 name="expand_more"
                 className={cn(
                   "transition-transform duration-500 text-muted-foreground group-hover:text-primary",
-                  isTypeExpanded ? "rotate-180" : ""
+                  isTypeExpanded ? 'rotate-180' : ''
                 )}
               />
             </div>
@@ -298,15 +372,17 @@ const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave, init
           {isTypeExpanded && (
             <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-4">
               <div className="relative">
-                {/* Gradient Masks for Slider */}
                 <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
                 <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
 
                 <div className="flex flex-nowrap overflow-x-auto no-scrollbar gap-3 pb-4 -mx-6 px-6 snap-x snap-mandatory scroll-smooth" ref={scrollContainerRef}>
-                  {[...CONTRIBUTION_TYPES.map(t => t.id), ...customTypes].map(type => (
+                  {[...CONTRIBUTION_TYPES.map((t) => t.id), ...customTypes].map((type) => (
                     <button
                       key={type}
-                      onClick={() => setSelectedType(type)}
+                      onClick={() => {
+                        setSelectedType(type);
+                        setValue('type', type);
+                      }}
                       className={cn(
                         "snap-center shrink-0 h-11 px-6 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all border whitespace-nowrap",
                         selectedType === type
@@ -326,17 +402,20 @@ const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave, init
                   </button>
                 </div>
 
-                {/* Navigation Arrows */}
                 <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 flex justify-between -mx-2 pointer-events-none z-20">
                   <button
-                    onClick={() => scrollContainerRef.current?.scrollBy({ left: -150, behavior: 'smooth' })}
+                    onClick={() =>
+                      scrollContainerRef.current?.scrollBy({ left: -150, behavior: 'smooth' })
+                    }
                     className="w-8 h-8 rounded-full bg-primary/10 text-primary border border-primary/20 shadow-md flex items-center justify-center hover:bg-primary hover:text-white transition-all pointer-events-auto"
                     title="Previous Type"
                   >
                     <IconRenderer name="chevron_left" size={14} className="font-black" />
                   </button>
                   <button
-                    onClick={() => scrollContainerRef.current?.scrollBy({ left: 150, behavior: 'smooth' })}
+                    onClick={() =>
+                      scrollContainerRef.current?.scrollBy({ left: 150, behavior: 'smooth' })
+                    }
                     className="w-8 h-8 rounded-full bg-primary/10 text-primary border border-primary/20 shadow-md flex items-center justify-center hover:bg-primary hover:text-white transition-all pointer-events-auto"
                     title="Next Type"
                   >
@@ -374,7 +453,6 @@ const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave, init
           )}
         </section>
 
-        {/* Inputs */}
         <section className="space-y-6">
           {isTranslationMode && (
             <Card className="bg-primary/5 border-primary/20 p-4 flex gap-4 items-start animate-in fade-in slide-in-from-top-2 duration-300">
@@ -382,46 +460,61 @@ const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave, init
                 <IconRenderer name="auto_awesome" className="text-primary" size={20} />
               </div>
               <div className="space-y-1">
-                <p className="font-black text-xs uppercase tracking-widest text-foreground">Improve AI Precision</p>
-                <p className="text-xs text-muted-foreground leading-relaxed font-medium">{config.desc}</p>
+                <p className="font-black text-xs uppercase tracking-widest text-foreground">
+                  Improve AI Precision
+                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed font-medium">
+                  {config.desc}
+                </p>
               </div>
             </Card>
           )}
 
           <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">{config.label1}</Label>
+            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+              {config.label1}
+            </Label>
             <Textarea
-              value={input1}
-              onChange={(e) => setInput1(e.target.value)}
+              {...register('input1')}
               className="min-h-[140px] bg-muted/20 border-border/50 rounded-2xl p-5 text-base font-medium focus-visible:ring-primary/20 placeholder:text-muted-foreground/40 resize-none transition-all"
               placeholder={config.placeholder1}
             />
+            {errors.input1 && (
+              <p className="text-destructive text-xs font-medium">{errors.input1.message}</p>
+            )}
           </div>
           <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">{config.label2}</Label>
+            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+              {config.label2}
+            </Label>
             <Textarea
-              value={input2}
-              onChange={(e) => setInput2(e.target.value)}
+              {...register('input2')}
               className="min-h-[140px] bg-muted/20 border-border/50 rounded-2xl p-5 text-base font-medium focus-visible:ring-primary/20 placeholder:text-muted-foreground/40 resize-none transition-all"
               placeholder={config.placeholder2}
             />
+            {errors.input2 && (
+              <p className="text-destructive text-xs font-medium">{errors.input2.message}</p>
+            )}
           </div>
           <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Context / Usage Notes <span className="opacity-40 font-bold lowercase tracking-normal">(optional)</span></Label>
+            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+              Context / Usage Notes{' '}
+              <span className="opacity-40 font-bold lowercase tracking-normal">(optional)</span>
+            </Label>
             <Textarea
-              value={context}
-              onChange={(e) => setContext(e.target.value)}
+              {...register('context')}
               className="min-h-[100px] bg-muted/20 border-border/50 rounded-2xl p-5 text-sm font-medium focus-visible:ring-primary/20 placeholder:text-muted-foreground/40 resize-none transition-all"
               placeholder="e.g., 'Used when greeting an elder' or specific dialect information"
             />
           </div>
         </section>
 
-        {/* Attachments */}
         <section className="space-y-6">
           <div className="flex items-center gap-2 mb-4">
             <IconRenderer name="add" className="text-primary" size={18} />
-            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-foreground/80">Supportive Media</h2>
+            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-foreground/80">
+              Supportive Media
+            </h2>
           </div>
 
           <MediaPreview attachments={attachments} onRemove={removeAttachment} />
@@ -445,7 +538,9 @@ const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave, init
                 <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center group-hover:bg-primary/20 transition-colors">
                   <IconRenderer name="mic" className="text-primary" size={20} />
                 </div>
-                <span className="font-black text-[10px] uppercase tracking-widest text-foreground">Attach Audio</span>
+                <span className="font-black text-[10px] uppercase tracking-widest text-foreground">
+                  Attach Audio
+                </span>
               </Button>
               <Button
                 variant="outline"
@@ -455,12 +550,13 @@ const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave, init
                 <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center group-hover:bg-primary/20 transition-colors">
                   <IconRenderer name="image" className="text-primary" size={20} />
                 </div>
-                <span className="font-black text-[10px] uppercase tracking-widest text-foreground">Attach Image</span>
+                <span className="font-black text-[10px] uppercase tracking-widest text-foreground">
+                  Attach Image
+                </span>
               </Button>
             </div>
           )}
 
-          {/* Hidden inputs and Overlays */}
           <input
             type="file"
             ref={fileInputRef}
@@ -478,21 +574,24 @@ const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave, init
           />
         </section>
 
-        {/* Tags */}
         <section>
           <div className="flex items-center gap-2 mb-4">
             <IconRenderer name="add" className="text-primary" size={18} />
-            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-foreground/80">Classification Tags</h2>
+            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-foreground/80">
+              Classification Tags
+            </h2>
           </div>
           <div className="flex flex-wrap gap-2.5">
-            {['Traditional', 'Modern', 'Formal', 'Informal', 'Dialect', 'Urban'].map(tag => (
+            {['Traditional', 'Modern', 'Formal', 'Informal', 'Dialect', 'Urban'].map((tag) => (
               <Button
                 key={tag}
                 variant={selectedTags.includes(tag) ? 'default' : 'outline'}
                 onClick={() => toggleTag(tag)}
                 className={cn(
                   "rounded-full h-9 px-4 text-xs font-bold uppercase tracking-wider transition-all",
-                  selectedTags.includes(tag) ? "shadow-lg shadow-primary/20" : "bg-background border-border"
+                  selectedTags.includes(tag)
+                    ? "shadow-lg shadow-primary/20"
+                    : "bg-background border-border"
                 )}
               >
                 {tag}
@@ -501,36 +600,52 @@ const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave, init
           </div>
         </section>
 
-        {/* Reward */}
         <section>
           <div className="relative overflow-hidden rounded-2xl bg-[#3C2A21] p-6 shadow-xl">
-            {/* Background Decorations */}
             <div className="absolute top-0 right-0 p-4 opacity-10">
               <Trophy size={120} className="text-[#FFD700] -mr-8 -mt-8 rotate-12" />
             </div>
-
             <div className="relative z-10 flex flex-col items-center text-center space-y-3">
               <div className="h-14 w-14 bg-[#FFD700]/10 rounded-2xl flex items-center justify-center shadow-inner border border-[#FFD700]/20 mb-1">
                 <Trophy className="text-[#FFD700] drop-shadow-md" size={28} />
               </div>
-
               <div className="space-y-1">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#FFD700]/80">Potential Rewards</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#FFD700]/80">
+                  Potential Rewards
+                </p>
                 <p className="text-lg font-bold text-[#F5F5DC]">
-                  Earn <span className="text-[#FFD700] text-xl">+ {calculateXP(selectedType, attachments.some(a => a.type === 'audio'))} XP</span> & the <span className="text-[#DAA520] italic font-black">{selectedType === 'Story' ? 'Storyteller' : selectedType === 'Song' ? 'Musician' : selectedType === 'Word' ? 'Linguist' : 'Scholar'}</span> Badge!
+                  Earn{' '}
+                  <span className="text-[#FFD700] text-xl">
+                    + {calculateXP(selectedType, attachments.some((a) => a.type === 'audio'))} XP
+                  </span>{' '}
+                  & the{' '}
+                  <span className="text-[#DAA520] italic font-black">
+                    {selectedType === 'Story'
+                      ? 'Storyteller'
+                      : selectedType === 'Song'
+                        ? 'Musician'
+                        : selectedType === 'Word'
+                          ? 'Linguist'
+                          : 'Scholar'}
+                  </span>{' '}
+                  Badge!
                 </p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Community Verification disclaimer */}
         <section>
           <div className="flex items-start gap-3 bg-primary/5 p-4 rounded-xl border border-primary/10">
             <IconRenderer name="groups" size={16} className="text-primary mt-0.5" />
             <div className="space-y-1">
-              <p className="font-black text-[10px] uppercase tracking-widest text-foreground">Community Verification</p>
-              <p className="text-[11px] text-muted-foreground leading-relaxed font-medium">After you submit, moderators review the changa before it moves to live, needs revision, or declined.</p>
+              <p className="font-black text-[10px] uppercase tracking-widest text-foreground">
+                Community Verification
+              </p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed font-medium">
+                After you submit, moderators review the changa before it moves to live, needs revision,
+                or declined.
+              </p>
             </div>
           </div>
         </section>
@@ -547,21 +662,29 @@ const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave, init
             Preview
           </Button>
           <Button
-            onClick={handleSubmit}
+            onClick={handleSubmit(onSubmit)}
             disabled={isSubmitting}
             className="flex-1 h-14 rounded-2xl gap-3 font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-primary/20 transform active:scale-95 transition-all"
           >
             {isSubmitting ? 'Changa...' : 'Changa'}
-            <IconRenderer name={isSubmitting ? "publish" : "arrow_forward"} size={18} className={cn(isSubmitting && "animate-pulse")} />
+            <IconRenderer
+              name={isSubmitting ? 'publish' : 'arrow_forward'}
+              size={18}
+              className={cn(isSubmitting && 'animate-pulse')}
+            />
           </Button>
         </div>
         <div className="flex items-center justify-center gap-2 mt-4 text-muted-foreground">
           <IconRenderer name="schedule" size={14} className="opacity-50" />
-          <p className="text-[10px] font-black uppercase tracking-widest">Est. Reward: <span className="text-primary">+{calculateXP(selectedType, attachments.some(a => a.type === 'audio'))} XP</span></p>
+          <p className="text-[10px] font-black uppercase tracking-widest">
+            Est. Reward:{' '}
+            <span className="text-primary">
+              +{calculateXP(selectedType, attachments.some((a) => a.type === 'audio'))} XP
+            </span>
+          </p>
         </div>
       </footer>
 
-      {/* Preview Modal */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="sm:max-w-xl p-0 overflow-hidden rounded-[32px] border-none shadow-2xl">
           <div className="h-[80vh] flex flex-col bg-background">
@@ -579,38 +702,55 @@ const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave, init
               <div className="space-y-8">
                 <div className="space-y-4">
                   <div className="bg-muted/30 p-5 rounded-2xl border border-border/50">
-                    <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2">{config.label1}</h3>
+                    <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
+                      {config.label1}
+                    </h3>
                     <p className="text-base font-semibold text-foreground tracking-tight leading-relaxed italic">
-                      {input1 || config.defaultText1 || "No content provided"}
+                      {input1 || config.defaultText1 || 'No content provided'}
                     </p>
                   </div>
                   <div className="bg-muted/30 p-5 rounded-2xl border border-border/50">
-                    <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2">{config.label2}</h3>
+                    <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
+                      {config.label2}
+                    </h3>
                     <p className="text-base font-semibold text-foreground tracking-tight leading-relaxed italic">
-                      {input2 || config.defaultText2 || "No translation provided"}
+                      {input2 || config.defaultText2 || 'No translation provided'}
                     </p>
                   </div>
                   {context && (
                     <div className="bg-muted/30 p-5 rounded-2xl border border-border/50">
-                      <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2">Context</h3>
-                      <p className="text-sm font-medium text-foreground/80 leading-relaxed">
-                        {context}
-                      </p>
+                      <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2">
+                        Context
+                      </h3>
+                      <p className="text-sm font-medium text-foreground/80 leading-relaxed">{context}</p>
                     </div>
                   )}
                 </div>
 
                 {attachments.length > 0 && (
                   <div className="space-y-3">
-                    <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 px-1">Attachments</h3>
+                    <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 px-1">
+                      Attachments
+                    </h3>
                     <div className="grid grid-cols-1 gap-3">
                       {attachments.map((att) => (
-                        <div key={att.id} className="p-3 bg-muted/20 border border-border/50 rounded-xl flex items-center gap-4">
+                        <div
+                          key={att.id}
+                          className="p-3 bg-muted/20 border border-border/50 rounded-xl flex items-center gap-4"
+                        >
                           <div className="h-10 w-10 rounded-lg bg-background flex items-center justify-center shrink-0 border border-border/50">
                             {att.type === 'image' ? (
-                              <img src={att.previewUrl} alt="Preview" className="w-full h-full object-cover rounded-lg" />
+                              <img
+                                src={att.previewUrl}
+                                alt="Preview"
+                                className="w-full h-full object-cover rounded-lg"
+                              />
                             ) : (
-                              <IconRenderer name={att.type === 'audio' ? 'music_note' : 'videocam'} className="text-primary" size={20} />
+                              <IconRenderer
+                                name={att.type === 'audio' ? 'music_note' : 'videocam'}
+                                className="text-primary"
+                                size={20}
+                              />
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -627,13 +767,19 @@ const AddContributionScreen: React.FC<Props> = ({ navigate, goBack, onSave, init
 
                 <div className="flex gap-2 flex-wrap pb-6">
                   {selectedTags.length > 0 ? (
-                    selectedTags.map(tag => (
-                      <Badge key={tag} variant="secondary" className="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-muted border-border">
+                    selectedTags.map((tag) => (
+                      <Badge
+                        key={tag}
+                        variant="secondary"
+                        className="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-muted border-border"
+                      >
                         {tag}
                       </Badge>
                     ))
                   ) : (
-                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/30 italic">No tags selected</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/30 italic">
+                      No tags selected
+                    </span>
                   )}
                 </div>
               </div>

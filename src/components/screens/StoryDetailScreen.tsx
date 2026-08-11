@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 import React, { useState, useEffect, useRef } from 'react';
-import { NavigateFn, User } from '@/types';
+import { NavigateFn, Screen, User } from '@/types';
 import { NotificationBell } from '@/components/shared/NotificationBell';
 import {
   ArrowLeft,

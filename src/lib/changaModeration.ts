@@ -11,6 +11,7 @@ const DEFAULT_LANGUAGE = {
 };
 
 const statusMeta: Record<ContributionStatus, { statusColor: string; dotColor: string }> = {
+  'Draft': { statusColor: 'text-muted-foreground', dotColor: 'bg-muted' },
   'Live': { statusColor: 'text-success', dotColor: 'bg-success' },
   'Under Review': { statusColor: 'text-warning', dotColor: 'bg-warning' },
   'Needs Revision': { statusColor: 'text-rasta-gold', dotColor: 'bg-rasta-gold' },

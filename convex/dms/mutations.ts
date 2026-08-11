@@ -2,6 +2,8 @@ import { mutation } from "../_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser } from "../users/utils";
 
+const MAX_DM_LENGTH = 5000;
+
 // Send a DM (create conversation if needed)
 export const send = mutation({
     args: {
@@ -14,6 +16,13 @@ export const send = mutation({
         if (!user) throw new Error("Unauthorized");
 
         if (args.recipientId === user._id) throw new Error("Cannot message self");
+
+        if (!args.content.trim() && !args.image) {
+            throw new Error("Message must have content or an image");
+        }
+        if (args.content.length > MAX_DM_LENGTH) {
+            throw new Error(`Message exceeds maximum length of ${MAX_DM_LENGTH}`);
+        }
 
         // Check if conversation exists
         // Need to check both directions (p1=me, p2=them OR p1=them, p2=me)
@@ -68,7 +77,22 @@ export const send = mutation({
             timestamp: Date.now(),
         });
 
-        // Notify recipient?
+        // Notify recipient
+        const recipient = await ctx.db.get(args.recipientId);
+        if (recipient) {
+            await ctx.db.insert("notifications", {
+                userId: args.recipientId,
+                type: "dm",
+                title: "New Message",
+                message: `${user.name} sent you a message`,
+                time: Date.now(),
+                isRead: false,
+                targetScreen: "DIRECT_MESSAGE",
+                metadata: { conversationId, senderId: user._id },
+            });
+        }
+
+        return conversationId;
     },
 });
 

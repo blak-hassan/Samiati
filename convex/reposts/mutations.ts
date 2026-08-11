@@ -39,6 +39,20 @@ export const repost = mutation({
                     reposts: post.stats.reposts + 1,
                 },
             });
+
+            // Notify post author (if not self-reposting)
+            if (post.authorId !== user._id) {
+                await ctx.db.insert("notifications", {
+                    userId: post.authorId,
+                    type: "repost",
+                    title: "New Repost",
+                    message: `${user.name} reposted your post`,
+                    time: Date.now(),
+                    isRead: false,
+                    targetScreen: "POST_THREAD",
+                    metadata: { postId: post._id, reposterId: user._id },
+                });
+            }
         }
 
         return { success: true };
@@ -126,6 +140,20 @@ export const toggleRepost = mutation({
                         reposts: post.stats.reposts + 1,
                     },
                 });
+
+                // Notify post author (if not self-reposting)
+                if (post.authorId !== user._id) {
+                    await ctx.db.insert("notifications", {
+                        userId: post.authorId,
+                        type: "repost",
+                        title: "New Repost",
+                        message: `${user.name} reposted your post`,
+                        time: Date.now(),
+                        isRead: false,
+                        targetScreen: "POST_THREAD",
+                        metadata: { postId: post._id, reposterId: user._id },
+                    });
+                }
             }
             return { reposted: true };
         }

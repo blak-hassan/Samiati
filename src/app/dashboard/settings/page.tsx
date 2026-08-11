@@ -2,13 +2,13 @@
 
 import SettingsScreen from "@/components/screens/SettingsScreen";
 import { useNavigation } from "@/hooks/useNavigation";
-import { useUser, useClerk } from "../../MockProviders";
+import { useUser as useClerkUser, useClerk } from "@clerk/nextjs";
 import { useState, useEffect, useMemo } from "react";
 import { Screen, User } from "@/types";
 
 export default function SettingsPage() {
     const { navigate, goBack } = useNavigation();
-    const { user: clerkUser } = useUser();
+    const { user: clerkUser, isLoaded } = useClerkUser();
     const { signOut } = useClerk();
     const [isDarkMode, setIsDarkMode] = useState(true);
     const [isHydrated, setIsHydrated] = useState(false);
@@ -43,7 +43,7 @@ export default function SettingsPage() {
         role: 'member',
     }, [clerkUser]);
 
-    if (!isHydrated) {
+    if (!isHydrated || !isLoaded) {
         return null;
     }
 
@@ -51,8 +51,9 @@ export default function SettingsPage() {
         <SettingsScreen
             navigate={navigate}
             goBack={goBack}
-            onSignOut={() => {
-                signOut(() => navigate(Screen.WELCOME));
+            onSignOut={async () => {
+                await signOut();
+                navigate(Screen.WELCOME);
             }}
             isDarkMode={isDarkMode}
             toggleTheme={toggleTheme}

@@ -5,10 +5,13 @@ import { useNavigation } from "@/hooks/useNavigation";
 import { Screen } from "@/types";
 import { useUser } from "../../MockProviders";
 import { User } from "@/types";
+import { useMutation } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
 
 export default function ComposePostPage() {
     const { navigate, goBack } = useNavigation();
     const { user: clerkUser } = useUser();
+    const createPost = useMutation(api.posts.mutations.create);
 
     const appUser: User = clerkUser ? {
         name: clerkUser.fullName || "User",
@@ -22,12 +25,21 @@ export default function ComposePostPage() {
         isGuest: true
     };
 
+    const handlePost = async (content: string, image?: string) => {
+        await createPost({
+            content,
+            type: "standard",
+            image,
+        });
+        navigate(Screen.MESSAGES);
+    };
+
     return (
         <ComposePostScreen
             user={appUser}
             navigate={navigate}
             goBack={goBack}
-            onPost={() => navigate(Screen.MESSAGES)}
+            onPost={handlePost}
         />
     );
 }

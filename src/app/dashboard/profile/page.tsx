@@ -2,12 +2,23 @@
 
 export const dynamic = 'force-dynamic';
 
-import ProfileScreen from "@/components/screens/ProfileScreen";
+import dynamicImport from "next/dynamic";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useUser } from "../../MockProviders";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { LanguageSkill, User } from "@/types";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const ProfileScreen = dynamicImport(() => import("@/components/screens/ProfileScreen"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-background-dark gap-4">
+      <Skeleton className="w-8 h-8 rounded-full" />
+      <Skeleton className="w-32 h-4" />
+    </div>
+  ),
+});
 
 export default function ProfilePage() {
     const { navigate, goBack } = useNavigation();

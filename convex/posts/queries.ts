@@ -31,40 +31,61 @@ export const feed = query({
                 .paginate(args.paginationOpts);
         }
 
-        // Populate author...
+        // Batch fetch all authors in parallel
+        const authorIds = [...new Set(posts.page.map(p => p.authorId))];
+        const authors = await Promise.all(authorIds.map(id => ctx.db.get(id)));
+        const authorMap = new Map(authors.filter(Boolean).map(a => [a!._id, a]));
 
-        const result = posts;
+        // Batch fetch user interactions for all posts at once
+        let likedPostIds = new Set<string>();
+        let repostedPostIds = new Set<string>();
+        let validatedPostIds = new Set<string>();
 
-        // Enrich with user details and like status
-        const postsWithDetails = await Promise.all(
-            result.page.map(async (post) => {
-                const author = await ctx.db.get(post.authorId);
-                let isLiked = false;
-                if (user) {
-                    const like = await ctx.db
-                        .query("likes")
-                        .withIndex("by_post", (q) => q.eq("postId", post._id).eq("userId", user._id))
-                        .first();
-                    isLiked = !!like;
-                }
+        if (user) {
+            const postIds = posts.page.map(p => p._id);
 
-                return {
-                    ...post,
-                    author: {
-                        name: author?.name ?? "Unknown",
-                        handle: author?.handle ?? "unknown",
-                        avatar: author?.avatar ?? "",
-                        isVerified: author?.role === 'admin' || author?.role === 'moderator', // Example logic
-                    },
-                    isLiked,
-                    isReposted: false, // TODO: Implement reposts check
-                    isValidated: false, // TODO: Implement validations check
-                };
-            })
-        );
+            const [likes, reposts, validations] = await Promise.all([
+                Promise.all(postIds.map(postId =>
+                    ctx.db.query("likes")
+                        .withIndex("by_post", (q) => q.eq("postId", postId).eq("userId", user._id))
+                        .first()
+                )),
+                Promise.all(postIds.map(postId =>
+                    ctx.db.query("reposts")
+                        .withIndex("by_user_post", (q) => q.eq("userId", user._id).eq("postId", postId))
+                        .first()
+                )),
+                Promise.all(postIds.map(postId =>
+                    ctx.db.query("validations")
+                        .withIndex("by_user_post", (q) => q.eq("userId", user._id).eq("postId", postId))
+                        .first()
+                )),
+            ]);
+
+            likes.forEach((like, i) => { if (like) likedPostIds.add(postIds[i]); });
+            reposts.forEach((repost, i) => { if (repost) repostedPostIds.add(postIds[i]); });
+            validations.forEach((val, i) => { if (val) validatedPostIds.add(postIds[i]); });
+        }
+
+        // Enrich posts
+        const postsWithDetails = posts.page.map((post) => {
+            const author = authorMap.get(post.authorId);
+            return {
+                ...post,
+                author: {
+                    name: author?.name ?? "Unknown",
+                    handle: author?.handle ?? "unknown",
+                    avatar: author?.avatar ?? "",
+                    isVerified: author?.role === 'admin' || author?.role === 'moderator',
+                },
+                isLiked: likedPostIds.has(post._id),
+                isReposted: repostedPostIds.has(post._id),
+                isValidated: validatedPostIds.has(post._id),
+            };
+        });
 
         return {
-            ...result,
+            ...posts,
             page: postsWithDetails,
         };
     },
@@ -80,13 +101,6 @@ export const get = query({
         if (!post) return null;
 
         const author = await ctx.db.get(post.authorId);
-
-        // Get replies
-        // Assuming replies are posts with matching 'parentId' or we use a separate structure?
-        // Schema didn't have parentId in posts, but maybe 'messages' are used for comments?
-        // Using 'comments' table for replies for now based on Plan Phase 6
-        // But Typescript 'Post' interface has 'replies: Post[]'.
-        // Let's stick to returning basic post info for now.
 
         return {
             ...post,

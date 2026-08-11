@@ -108,6 +108,20 @@ export const like = mutation({
                 await ctx.db.patch(args.postId, {
                     stats: { ...post.stats, likes: post.stats.likes + 1 }
                 });
+
+                // Notify post author (if not self-liking)
+                if (post.authorId !== user._id) {
+                    await ctx.db.insert("notifications", {
+                        userId: post.authorId,
+                        type: "like",
+                        title: "New Like",
+                        message: `${user.name} liked your post`,
+                        time: Date.now(),
+                        isRead: false,
+                        targetScreen: "POST_THREAD",
+                        metadata: { postId: post._id, likerId: user._id },
+                    });
+                }
             }
             return true; // Liked = true
         }

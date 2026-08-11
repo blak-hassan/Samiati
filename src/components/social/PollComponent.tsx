@@ -15,14 +15,14 @@ export const PollComponent: React.FC<PollComponentProps> = ({ poll }) => {
     const handleVote = (optionId: string) => {
         if (localPoll.userVotedOptionId) return; // Already voted
 
-        setLocalPoll(prev => ({
+        setLocalPoll(prev => prev ? ({
             ...prev,
             totalVotes: prev.totalVotes + 1,
             userVotedOptionId: optionId,
             options: prev.options.map(opt =>
                 opt.id === optionId ? { ...opt, votes: opt.votes + 1 } : opt
             )
-        }));
+        }) : undefined);
     };
 
     return (

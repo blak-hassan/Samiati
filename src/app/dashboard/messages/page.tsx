@@ -14,6 +14,7 @@ type ConversationSummary = {
     lastMessage: string;
     lastMessageTime: number;
     unreadCount: number;
+    otherUserId: Id<"users">;
     otherUser?: {
         name?: string;
         avatar?: string;
@@ -30,7 +31,8 @@ export default function MessagesPage() {
     const isLoading = conversationsData === undefined;
 
     const chats: ChatPreview[] = ((conversationsData || []) as ConversationSummary[]).map((c) => ({
-        id: c._id, // Conversation ID - proper Convex typed ID
+        id: c._id,
+        recipientId: c.otherUserId,
         name: c.otherUser?.name || "Unknown",
         avatar: c.otherUser?.avatar || "",
         lastMessage: c.lastMessage || "No messages yet",

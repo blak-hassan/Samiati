@@ -2,59 +2,58 @@
 
 import React, { use, useState } from 'react';
 import { notFound } from 'next/navigation';
-import { ChatPreview, RouteSearchParams, Screen, User } from '@/types';
+import dynamic from 'next/dynamic';
+import { ChatPreview, Conversation, RouteSearchParams, Screen, User } from '@/types';
 import { useNavigation } from "@/hooks/useNavigation";
 import { useUser } from "../../MockProviders";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import SignInPrompt from "@/components/auth/SignInPrompt";
 
-// Mock Data
-import {
-    INITIAL_CONVERSATIONS,
-    INITIAL_LANGUAGES_STATE,
-} from "@/data/mock";
-
-// Screen Imports
-import ChallengeDetailsScreen from '@/components/screens/ChallengeDetailsScreen';
-import ChallengeWinnersScreen from '@/components/screens/ChallengeWinnersScreen';
-import ProfileScreen from '@/components/screens/ProfileScreen';
-import EditProfileScreen from '@/components/screens/EditProfileScreen';
-import SettingsAccountScreen from '@/components/screens/SettingsAccountScreen';
-import SettingsNotificationsScreen from '@/components/screens/SettingsNotificationsScreen';
-import SettingsPrivacyScreen from '@/components/screens/SettingsPrivacyScreen';
-import SettingsHelpScreen from '@/components/screens/SettingsHelpScreen';
-import SettingsBlockedScreen from '@/components/screens/SettingsBlockedScreen';
-import SettingsMutedScreen from '@/components/screens/SettingsMutedScreen';
-import SettingsDataScreen from '@/components/screens/SettingsDataScreen';
-import NotificationsScreen from '@/components/screens/NotificationsScreen';
-import ContributionsScreen from '@/components/screens/ContributionsScreen';
-import SavedConversationsScreen from '@/components/screens/SavedConversationsScreen';
-import SubmitEntryScreen from '@/components/screens/SubmitEntryScreen';
-import AddChallengeScreen from '@/components/screens/AddChallengeScreen';
-import ProverbDetailScreen from '@/components/screens/ProverbDetailScreen';
-import StoryDetailScreen from '@/components/screens/StoryDetailScreen';
-import WordDetailScreen from '@/components/screens/WordDetailScreen';
-import ModerationDashboardScreen from '@/components/screens/ModerationDashboardScreen';
-import ConfirmationScreen from '@/components/screens/ConfirmationScreen';
-import SuggestChallengeScreen from '@/components/screens/SuggestChallengeScreen';
-import SuggestLinkScreen from '@/components/screens/SuggestLinkScreen';
-import ChangePasswordScreen from '@/components/screens/ChangePasswordScreen';
-import AllAchievementsScreen from '@/components/screens/AllAchievementsScreen';
-import ManageLanguagesScreen from '@/components/screens/ManageLanguagesScreen';
-import PostThreadScreen from '@/components/screens/PostThreadScreen';
-import DirectMessageScreen from '@/components/screens/DirectMessageScreen';
-import NewGroupScreen from '@/components/screens/NewGroupScreen';
-import NewContactScreen from '@/components/screens/NewContactScreen';
-import NewCommunityScreen from '@/components/screens/NewCommunityScreen';
-import VideoCallScreen from '@/components/screens/VideoCallScreen';
-import VoiceCallScreen from '@/components/screens/VoiceCallScreen';
-import ContactInfoScreen from '@/components/screens/ContactInfoScreen';
-import ComposePostScreen from '@/components/screens/ComposePostScreen';
-import TermsOfServiceScreen from '@/components/screens/TermsOfServiceScreen';
-import PrivacyPolicyScreen from '@/components/screens/PrivacyPolicyScreen';
-// import ResetPasswordFlow from '@/components/screens/ResetPasswordFlow'; // Usually auth flow, but check logic
+// Dynamic Screen Imports — each loads only when needed
+const ChallengeDetailsScreen = dynamic(() => import('@/components/screens/ChallengeDetailsScreen'), { ssr: false });
+const ChallengeWinnersScreen = dynamic(() => import('@/components/screens/ChallengeWinnersScreen'), { ssr: false });
+const ProfileScreen = dynamic(() => import('@/components/screens/ProfileScreen'), { ssr: false });
+const EditProfileScreen = dynamic(() => import('@/components/screens/EditProfileScreen'), { ssr: false });
+const SettingsAccountScreen = dynamic(() => import('@/components/screens/SettingsAccountScreen'), { ssr: false });
+const SettingsNotificationsScreen = dynamic(() => import('@/components/screens/SettingsNotificationsScreen'), { ssr: false });
+const SettingsPrivacyScreen = dynamic(() => import('@/components/screens/SettingsPrivacyScreen'), { ssr: false });
+const SettingsHelpScreen = dynamic(() => import('@/components/screens/SettingsHelpScreen'), { ssr: false });
+const SettingsBlockedScreen = dynamic(() => import('@/components/screens/SettingsBlockedScreen'), { ssr: false });
+const SettingsMutedScreen = dynamic(() => import('@/components/screens/SettingsMutedScreen'), { ssr: false });
+const SettingsDataScreen = dynamic(() => import('@/components/screens/SettingsDataScreen'), { ssr: false });
+const NotificationsScreen = dynamic(() => import('@/components/screens/NotificationsScreen'), { ssr: false });
+const ContributionsScreen = dynamic(() => import('@/components/screens/ContributionsScreen'), { ssr: false });
+const SavedConversationsScreen = dynamic(() => import('@/components/screens/SavedConversationsScreen'), { ssr: false });
+const SubmitEntryScreen = dynamic(() => import('@/components/screens/SubmitEntryScreen'), { ssr: false });
+const AddChallengeScreen = dynamic(() => import('@/components/screens/AddChallengeScreen'), { ssr: false });
+const ProverbDetailScreen = dynamic(() => import('@/components/screens/ProverbDetailScreen'), { ssr: false });
+const StoryDetailScreen = dynamic(() => import('@/components/screens/StoryDetailScreen'), { ssr: false });
+const WordDetailScreen = dynamic(() => import('@/components/screens/WordDetailScreen'), { ssr: false });
+const ModerationDashboardScreen = dynamic(() => import('@/components/screens/ModerationDashboardScreen'), { ssr: false });
+const ConfirmationScreen = dynamic(() => import('@/components/screens/ConfirmationScreen'), { ssr: false });
+const SuggestChallengeScreen = dynamic(() => import('@/components/screens/SuggestChallengeScreen'), { ssr: false });
+const SuggestLinkScreen = dynamic(() => import('@/components/screens/SuggestLinkScreen'), { ssr: false });
+const ChangePasswordScreen = dynamic(() => import('@/components/screens/ChangePasswordScreen'), { ssr: false });
+const AllAchievementsScreen = dynamic(() => import('@/components/screens/AllAchievementsScreen'), { ssr: false });
+const ManageLanguagesScreen = dynamic(() => import('@/components/screens/ManageLanguagesScreen'), { ssr: false });
+const PostThreadScreen = dynamic(() => import('@/components/screens/PostThreadScreen'), { ssr: false });
+const DirectMessageScreen = dynamic(() => import('@/components/screens/DirectMessageScreen'), { ssr: false });
+const NewGroupScreen = dynamic(() => import('@/components/screens/NewGroupScreen'), { ssr: false });
+const NewContactScreen = dynamic(() => import('@/components/screens/NewContactScreen'), { ssr: false });
+const NewCommunityScreen = dynamic(() => import('@/components/screens/NewCommunityScreen'), { ssr: false });
+const VideoCallScreen = dynamic(() => import('@/components/screens/VideoCallScreen'), { ssr: false });
+const VoiceCallScreen = dynamic(() => import('@/components/screens/VoiceCallScreen'), { ssr: false });
+const ContactInfoScreen = dynamic(() => import('@/components/screens/ContactInfoScreen'), { ssr: false });
+const ComposePostScreen = dynamic(() => import('@/components/screens/ComposePostScreen'), { ssr: false });
+const TermsOfServiceScreen = dynamic(() => import('@/components/screens/TermsOfServiceScreen'), { ssr: false });
+const PrivacyPolicyScreen = dynamic(() => import('@/components/screens/PrivacyPolicyScreen'), { ssr: false });
+const ChangaScreen = dynamic(() => import('@/components/screens/ChangaScreen'), { ssr: false });
+const DarasaScreen = dynamic(() => import('@/components/screens/DarasaScreen'), { ssr: false });
 
 export default function DashboardCatchAllPage({ params, searchParams }: { params: Promise<{ slug: string }>, searchParams: Promise<RouteSearchParams> }) {
     const { navigate, goBack } = useNavigation();
-    const { user: clerkUser, languages, setLanguages, notifications, unreadCount, markAllAsRead, markAsRead } = useUser();
+    const { user: clerkUser, languages, setLanguages, notifications, unreadCount, markAllAsRead, markAsRead, myContributions, setMyContributions } = useUser();
+    const { isGuest } = useCurrentUser();
 
     // Unwrap params synchronously using React.use() where needed, but params/searchParams are Promises in Next.js 15
     const resolvedParams = use(params);
@@ -67,8 +66,7 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
     const screenKey = slug.replace(/-/g, '_').toUpperCase();
     const screen = Screen[screenKey as keyof typeof Screen];
 
-    const { myContributions, setMyContributions } = useUser();
-    const [conversations, setConversations] = useState(INITIAL_CONVERSATIONS);
+    const [conversations, setConversations] = useState<Conversation[]>([]);
 
     // Transform Clerk User to App User
     const appUser: User = clerkUser ? {
@@ -103,7 +101,7 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
     };
     const handleAddChat = (_chat: ChatPreview) => { };
 
-    // Render logic adapted from App.tsx
+    // Render logic — each case only triggers the dynamic import of the screen it needs
     switch (screen) {
         case Screen.CHALLENGE_DETAILS: return <ChallengeDetailsScreen navigate={navigate} goBack={goBack} onViewProfile={handleViewProfile} unreadCount={unreadCount} challenge={resolvedSearchParams?.challenge ? JSON.parse(resolvedSearchParams.challenge as string) : undefined} />;
         case Screen.CHALLENGE_WINNERS: return <ChallengeWinnersScreen navigate={navigate} goBack={goBack} onViewProfile={handleViewProfile} />;
@@ -113,7 +111,7 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
 
         // Profile is handled by specific route, but fallback here if needed
         case Screen.PROFILE: return <ProfileScreen user={appUser} navigate={navigate} goBack={goBack} isOwnProfile={true} languages={languages} unreadCount={unreadCount} />;
-        case Screen.GUEST_PROFILE: return <ProfileScreen user={appUser} navigate={navigate} goBack={goBack} isOwnProfile={false} languages={INITIAL_LANGUAGES_STATE} />; // Should pass actual other user
+        case Screen.GUEST_PROFILE: return <ProfileScreen user={appUser} navigate={navigate} goBack={goBack} isOwnProfile={false} languages={languages} />; // Should pass actual other user
         case Screen.EDIT_PROFILE: return <EditProfileScreen navigate={navigate} goBack={goBack} unreadCount={unreadCount} />;
 
         // Settings sub-pages
@@ -126,6 +124,7 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
         case Screen.SETTINGS_HELP: return <SettingsHelpScreen navigate={navigate} goBack={goBack} />;
 
         case Screen.CONTRIBUTIONS:
+            if (isGuest) return <SignInPrompt feature="contribute" description="Join to contribute stories, words, and proverbs to the community." navigate={navigate} />;
             return <ContributionsScreen
                 navigate={navigate}
                 goBack={goBack}
@@ -136,10 +135,22 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
                 unreadCount={unreadCount}
             />;
 
+        case Screen.CHANGA:
+            if (isGuest) return <SignInPrompt feature="Changa" description="Sign in to explore and contribute to cultural challenges." navigate={navigate} />;
+            return <ChangaScreen
+                navigate={navigate}
+                goBack={goBack}
+                user={appUser}
+                unreadCount={unreadCount}
+            />;
+
         case Screen.NOTIFICATIONS:
+            if (isGuest) return <SignInPrompt feature="notifications" description="Sign in to see your activity and updates." navigate={navigate} />;
             return <NotificationsScreen navigate={navigate} goBack={goBack} notifications={notifications} onMarkAllRead={handleMarkAllRead} onNotificationClick={handleNotificationClick} />;
 
-        case Screen.SAVED_CONVERSATIONS: return <SavedConversationsScreen navigate={navigate} goBack={goBack} conversations={conversations} setConversations={setConversations} onChatSelect={(id) => navigate(Screen.HOME_CHAT, { chatId: id })} />;
+        case Screen.SAVED_CONVERSATIONS:
+            if (isGuest) return <SignInPrompt feature="saved conversations" description="Sign in to save and revisit your search conversations." navigate={navigate} />;
+            return <SavedConversationsScreen navigate={navigate} goBack={goBack} conversations={conversations} setConversations={setConversations} onChatSelect={(id) => navigate(Screen.HOME_CHAT, { chatId: id })} />;
 
         case Screen.PROVERB_DETAIL: return <ProverbDetailScreen navigate={navigate} goBack={goBack} unreadCount={unreadCount} />;
         case Screen.STORY_DETAIL: return <StoryDetailScreen navigate={navigate} goBack={goBack} unreadCount={unreadCount} story={resolvedSearchParams?.story ? JSON.parse(resolvedSearchParams.story as string) : undefined} onViewProfile={handleViewProfile} />;
@@ -156,19 +167,35 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
         case Screen.MANAGE_LANGUAGES: return <ManageLanguagesScreen navigate={navigate} goBack={goBack} languages={languages} onUpdateLanguages={setLanguages} />;
 
         case Screen.POST_THREAD: return <PostThreadScreen navigate={navigate} goBack={goBack} post={resolvedSearchParams?.post ? JSON.parse(resolvedSearchParams.post as string) : undefined} onLike={handleLikePost} onRepost={handleRepost} autoFocusReply={resolvedSearchParams?.autoFocusReply === 'true'} />;
-        case Screen.DIRECT_MESSAGE: return <DirectMessageScreen navigate={navigate} goBack={goBack} chatUser={resolvedSearchParams?.chatUser ? JSON.parse(resolvedSearchParams.chatUser as string) : undefined} />;
+        case Screen.DIRECT_MESSAGE:
+            if (isGuest) return <SignInPrompt feature="messages" description="Sign in to send and receive direct messages." navigate={navigate} />;
+            return <DirectMessageScreen navigate={navigate} goBack={goBack} chatUser={resolvedSearchParams?.chatUser ? JSON.parse(resolvedSearchParams.chatUser as string) : undefined} />;
 
-        case Screen.NEW_GROUP: return <NewGroupScreen navigate={navigate} goBack={goBack} onCreateGroup={handleAddChat} />;
-        case Screen.NEW_CONTACT: return <NewContactScreen navigate={navigate} goBack={goBack} />;
-        case Screen.NEW_COMMUNITY: return <NewCommunityScreen navigate={navigate} goBack={goBack} onCreateCommunity={handleAddChat} />;
+        case Screen.NEW_GROUP:
+            if (isGuest) return <SignInPrompt feature="groups" description="Sign in to create and join groups." navigate={navigate} />;
+            return <NewGroupScreen navigate={navigate} goBack={goBack} onCreateGroup={handleAddChat} />;
+        case Screen.NEW_CONTACT:
+            if (isGuest) return <SignInPrompt feature="contacts" description="Sign in to add and manage contacts." navigate={navigate} />;
+            return <NewContactScreen navigate={navigate} goBack={goBack} />;
+        case Screen.NEW_COMMUNITY:
+            if (isGuest) return <SignInPrompt feature="communities" description="Sign in to create and join communities." navigate={navigate} />;
+            return <NewCommunityScreen navigate={navigate} goBack={goBack} onCreateCommunity={handleAddChat} />;
 
-        case Screen.VIDEO_CALL: return <VideoCallScreen goBack={goBack} chatUser={resolvedSearchParams?.chatUser ? JSON.parse(resolvedSearchParams.chatUser as string) : undefined} />;
-        case Screen.VOICE_CALL: return <VoiceCallScreen goBack={goBack} chatUser={resolvedSearchParams?.chatUser ? JSON.parse(resolvedSearchParams.chatUser as string) : undefined} />;
+        case Screen.VIDEO_CALL:
+            if (isGuest) return <SignInPrompt feature="video calls" description="Sign in to start video calls with others." navigate={navigate} />;
+            return <VideoCallScreen goBack={goBack} chatUser={resolvedSearchParams?.chatUser ? JSON.parse(resolvedSearchParams.chatUser as string) : undefined} />;
+        case Screen.VOICE_CALL:
+            if (isGuest) return <SignInPrompt feature="voice calls" description="Sign in to start voice calls with others." navigate={navigate} />;
+            return <VoiceCallScreen goBack={goBack} chatUser={resolvedSearchParams?.chatUser ? JSON.parse(resolvedSearchParams.chatUser as string) : undefined} />;
         case Screen.CONTACT_INFO: return <ContactInfoScreen navigate={navigate} goBack={goBack} chatUser={resolvedSearchParams?.chatUser ? JSON.parse(resolvedSearchParams.chatUser as string) : undefined} />;
 
-        case Screen.COMPOSE_POST: return <ComposePostScreen navigate={navigate} goBack={goBack} onPost={() => { }} user={appUser} />;
+        case Screen.COMPOSE_POST:
+            if (isGuest) return <SignInPrompt feature="posting" description="Sign in to create posts and share with the community." navigate={navigate} />;
+            return <ComposePostScreen navigate={navigate} goBack={goBack} onPost={() => { }} user={appUser} />;
         case Screen.TERMS_OF_SERVICE: return <TermsOfServiceScreen goBack={goBack} />;
         case Screen.PRIVACY_POLICY: return <PrivacyPolicyScreen goBack={goBack} />;
+
+        case Screen.DARASA: return <DarasaScreen navigate={navigate} goBack={goBack} />;
 
         default:
             return <div>Screen {slug} not found</div>;

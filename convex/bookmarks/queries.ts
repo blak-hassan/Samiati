@@ -37,27 +37,32 @@ export const getUserBookmarks = query({
             .order("desc")
             .take(args.limit || 50);
 
-        // Enrich with post and author data
-        const enriched = await Promise.all(
-            bookmarks.map(async (b) => {
-                const post = await ctx.db.get(b.postId);
-                if (!post) return null;
+        // Batch fetch all posts
+        const posts = await Promise.all(bookmarks.map(b => ctx.db.get(b.postId)));
+        const postMap = new Map(posts.filter(Boolean).map(p => [p!._id, p]));
 
-                const author = await ctx.db.get(post.authorId);
+        // Batch fetch all authors from posts
+        const authorIds = [...new Set(posts.filter(Boolean).map(p => p!.authorId))];
+        const authors = await Promise.all(authorIds.map(id => ctx.db.get(id)));
+        const authorMap = new Map(authors.filter(Boolean).map(a => [a!._id, a]));
 
-                return {
-                    ...b,
-                    post: {
-                        ...post,
-                        author: author ? {
-                            name: author.name,
-                            handle: author.handle,
-                            avatar: author.avatar,
-                        } : null,
-                    },
-                };
-            })
-        );
+        // Enrich bookmarks
+        const enriched = bookmarks.map((b) => {
+            const post = postMap.get(b.postId);
+            if (!post) return null;
+            const author = authorMap.get(post.authorId);
+            return {
+                ...b,
+                post: {
+                    ...post,
+                    author: author ? {
+                        name: author.name,
+                        handle: author.handle,
+                        avatar: author.avatar,
+                    } : null,
+                },
+            };
+        });
 
         return enriched.filter(Boolean);
     },

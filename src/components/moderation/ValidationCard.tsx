@@ -45,6 +45,7 @@ export const ValidationCard: React.FC<Props> = ({
 }) => {
 
     const [showHistory, setShowHistory] = useState(false);
+    const [voteAnimating, setVoteAnimating] = useState<'up' | 'down' | null>(null);
     const isAuthor = item.author.id === currentUserId;
 
     const localVote = item.sentiment.userVote || null;
@@ -55,6 +56,8 @@ export const ValidationCard: React.FC<Props> = ({
 
     const handleVote = (direction: 'up' | 'down') => {
         if (isAuthor) return;
+        setVoteAnimating(direction);
+        setTimeout(() => setVoteAnimating(null), 300);
         onVote(item.id, localVote === direction ? null : direction);
     };
 
@@ -137,9 +140,9 @@ export const ValidationCard: React.FC<Props> = ({
                         <button
                             disabled={isAuthor}
                             onClick={() => handleVote('up')}
-                            className={`flex items-center gap-1.5 transition-colors ${localVote === 'up' ? 'text-primary' : 'text-stone-400 dark:text-text-muted hover:text-primary'} ${isAuthor ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`flex items-center gap-1.5 transition-colors active:scale-95 ${localVote === 'up' ? 'text-primary' : 'text-stone-400 dark:text-text-muted hover:text-primary'} ${isAuthor ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
-                            <ThumbsUp className={`size-4 ${localVote === 'up' ? 'fill-current' : ''}`} />
+                            <ThumbsUp className={`size-4 transition-transform ${localVote === 'up' ? 'fill-current' : ''} ${voteAnimating === 'up' ? 'animate-vote-pop' : ''}`} />
                             <span className={`text-xs font-bold ${localVote === 'up' ? 'text-primary' : 'text-stone-600 dark:text-text-muted'}`}>
                                 {localVotes.up}
                             </span>
@@ -148,9 +151,9 @@ export const ValidationCard: React.FC<Props> = ({
                         <button
                             disabled={isAuthor}
                             onClick={() => handleVote('down')}
-                            className={`flex items-center gap-1.5 transition-colors ${localVote === 'down' ? 'text-rasta-red' : 'text-stone-400 dark:text-text-muted hover:text-rasta-red'} ${isAuthor ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`flex items-center gap-1.5 transition-colors active:scale-95 ${localVote === 'down' ? 'text-rasta-red' : 'text-stone-400 dark:text-text-muted hover:text-rasta-red'} ${isAuthor ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
-                            <ThumbsDown className={`size-4 ${localVote === 'down' ? 'fill-current' : ''}`} />
+                            <ThumbsDown className={`size-4 transition-transform ${localVote === 'down' ? 'fill-current' : ''} ${voteAnimating === 'down' ? 'animate-vote-pop' : ''}`} />
                             <span className={`text-xs font-bold ${localVote === 'down' ? 'text-rasta-red' : 'text-stone-600 dark:text-text-muted'}`}>
                                 {localVotes.down}
                             </span>
@@ -281,7 +284,7 @@ export const ValidationCard: React.FC<Props> = ({
                                     <button
                                         disabled={!isUserModerator}
                                         onClick={() => onApprove(item.id)}
-                                        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-rasta-green text-white font-black text-xs shadow-lg shadow-rasta-green/20 active:scale-95 transition-all hover:bg-rasta-green/90 disabled:opacity-50 disabled:grayscale"
+                                        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-rasta-green text-white font-black text-xs shadow-lg shadow-rasta-green/20 active:scale-95 transition-all duration-200 hover:bg-rasta-green/90 disabled:opacity-50 disabled:grayscale ripple-container"
                                     >
                                         <CheckCircle className="size-4" />
                                         Approve
@@ -289,7 +292,7 @@ export const ValidationCard: React.FC<Props> = ({
                                     <button
                                         disabled={!isUserModerator}
                                         onClick={() => onCritique(item.id)}
-                                        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-rasta-gold text-stone-900 font-black text-xs shadow-lg shadow-rasta-gold/20 active:scale-95 transition-all hover:bg-rasta-gold/90 disabled:opacity-50 disabled:grayscale"
+                                        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-rasta-gold text-stone-900 font-black text-xs shadow-lg shadow-rasta-gold/20 active:scale-95 transition-all duration-200 hover:bg-rasta-gold/90 disabled:opacity-50 disabled:grayscale ripple-container"
                                     >
                                         <MessageSquare className="size-4" />
                                         Critique

@@ -21,8 +21,8 @@ export const useNavigation = () => {
 
         switch (screen) {
             case Screen.WELCOME: router.push("/"); break;
-            case Screen.SIGN_IN: router.push("/"); break; // Home is sign in
-            case Screen.SIGN_UP: router.push("/"); break; // Home is sign in/up
+            case Screen.SIGN_IN: router.push("/sign-in"); break;
+            case Screen.SIGN_UP: router.push("/sign-up"); break;
             case Screen.HOME_CHAT: router.push("/dashboard" + queryString); break;
             case Screen.FORGOT_PASSWORD: router.push("/forgot-password"); break;
             case Screen.RESET_LINK_SENT: router.push("/auth/reset-link-sent"); break;
@@ -76,6 +76,7 @@ export const useNavigation = () => {
             case Screen.NEW_COMMUNITY: router.push("/dashboard/new-community" + queryString); break;
             case Screen.COMMUNITIES: router.push("/dashboard/communities" + queryString); break;
             case Screen.GROUP_VIEW: router.push("/dashboard/group-view" + queryString); break;
+            case Screen.DARASA: router.push("/dashboard/darasa" + queryString); break;
 
             case Screen.MODERATION_LOG: router.push("/dashboard/moderation-log" + queryString); break;
             case Screen.MODERATION_APPLICATION: router.push("/dashboard/moderation-application" + queryString); break;

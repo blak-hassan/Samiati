@@ -1,8 +1,8 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { Doc, Id } from "./_generated/dataModel";
+import { getCurrentUser, isAdmin, isModerator } from "./users/utils";
 
-// Get pending reports with filtering and sorting
+// Get pending reports with filtering and sorting (moderator/admin only)
 export const getPendingReports = query({
     args: {
         type: v.optional(v.union(v.literal('comment'), v.literal('link'), v.literal('post'))),
@@ -10,30 +10,31 @@ export const getPendingReports = query({
         sortBy: v.optional(v.union(v.literal('date'), v.literal('severity'))),
     },
     handler: async (ctx, args) => {
+        const user = await getCurrentUser(ctx);
+        if (!user || !isModerator(user)) {
+            throw new Error("Unauthorized: Only moderators can view reports");
+        }
+
         const reportsQuery = ctx.db.query("reports")
             .withIndex("by_status", (q) => q.eq("status", "pending"));
 
         const reports = await reportsQuery.collect();
 
-        // Filter by type if specified
         let filteredReports = reports;
         if (args.type) {
             filteredReports = filteredReports.filter(r => r.type === args.type);
         }
 
-        // Filter by reason if specified
         if (args.reason && args.reason !== 'All') {
             filteredReports = filteredReports.filter(r =>
                 r.reasons.some(reason => reason.includes(args.reason!))
             );
         }
 
-        // Get reporter information for each report
         const reportsWithReporters = await Promise.all(
             filteredReports.map(async (report) => {
                 const reporter = await ctx.db.get(report.reporterId);
 
-                // Count duplicate reports for the same target
                 const duplicates = await ctx.db
                     .query("reports")
                     .withIndex("by_target", (q) => q.eq("targetId", report.targetId))
@@ -53,11 +54,9 @@ export const getPendingReports = query({
             })
         );
 
-        // Sort reports
         if (args.sortBy === 'severity') {
             reportsWithReporters.sort((a, b) => b.otherReporters - a.otherReporters);
         } else {
-            // Default: sort by date (newest first)
             reportsWithReporters.sort((a, b) => b.timestamp - a.timestamp);
         }
 
@@ -65,7 +64,7 @@ export const getPendingReports = query({
     },
 });
 
-// Submit a new report
+// Submit a new report (authenticated users only)
 export const submitReport = mutation({
     args: {
         type: v.union(v.literal('comment'), v.literal('link'), v.literal('post')),
@@ -74,14 +73,15 @@ export const submitReport = mutation({
         contextTitle: v.string(),
         contextId: v.optional(v.string()),
         reasons: v.array(v.string()),
-        reporterId: v.id("users"),
     },
     handler: async (ctx, args) => {
-        // Check if this user has already reported this content
+        const user = await getCurrentUser(ctx);
+        if (!user) throw new Error("Unauthorized");
+
         const existingReport = await ctx.db
             .query("reports")
             .withIndex("by_target", (q) => q.eq("targetId", args.targetId))
-            .filter((q) => q.eq(q.field("reporterId"), args.reporterId))
+            .filter((q) => q.eq(q.field("reporterId"), user._id))
             .first();
 
         if (existingReport) {
@@ -91,11 +91,11 @@ export const submitReport = mutation({
         const reportId = await ctx.db.insert("reports", {
             type: args.type,
             targetId: args.targetId,
-            targetContent: args.targetContent,
+            targetContent: args.targetContent.slice(0, 2000),
             contextTitle: args.contextTitle,
             contextId: args.contextId,
             reasons: args.reasons,
-            reporterId: args.reporterId,
+            reporterId: user._id,
             timestamp: Date.now(),
             status: "pending",
         });
@@ -108,14 +108,12 @@ export const submitReport = mutation({
 export const resolveReport = mutation({
     args: {
         reportId: v.id("reports"),
-        moderatorId: v.id("users"),
-        action: v.string(), // 'Hide', 'Delete', 'Approve', 'Warn User'
+        action: v.string(),
         notes: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
-        // Verify moderator has permission
-        const moderator = await ctx.db.get(args.moderatorId);
-        if (!moderator || (moderator.role !== 'moderator' && moderator.role !== 'admin')) {
+        const user = await getCurrentUser(ctx);
+        if (!user || !isModerator(user)) {
             throw new Error("Unauthorized: Only moderators can resolve reports");
         }
 
@@ -124,7 +122,6 @@ export const resolveReport = mutation({
             throw new Error("Report not found");
         }
 
-        // Map action to status
         let status: "pending" | "approved" | "hidden" | "deleted" | "warned";
         switch (args.action) {
             case 'Hide':
@@ -143,18 +140,16 @@ export const resolveReport = mutation({
                 status = 'approved';
         }
 
-        // Update report status
         await ctx.db.patch(args.reportId, {
             status,
             resolvedAt: Date.now(),
-            resolvedBy: args.moderatorId,
+            resolvedBy: user._id,
             moderatorNotes: args.notes,
         });
 
-        // Log the moderation action
         await ctx.db.insert("moderationActions", {
             reportId: args.reportId,
-            moderatorId: args.moderatorId,
+            moderatorId: user._id,
             action: args.action,
             timestamp: Date.now(),
             notes: args.notes,
@@ -164,34 +159,44 @@ export const resolveReport = mutation({
     },
 });
 
-// Get moderation statistics
+// Get moderation statistics (moderator/admin only)
 export const getReportStats = query({
     args: {
         moderatorId: v.optional(v.id("users")),
     },
     handler: async (ctx, args) => {
-        const allReports = await ctx.db.query("reports").collect();
+        const user = await getCurrentUser(ctx);
+        if (!user || !isModerator(user)) {
+            throw new Error("Unauthorized: Only moderators can view report stats");
+        }
 
-        const pendingReports = allReports.filter(r => r.status === 'pending');
+        // Use indexed queries instead of full table scan
+        const pendingReports = await ctx.db.query("reports")
+            .withIndex("by_status", (q) => q.eq("status", "pending"))
+            .collect();
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const todayTimestamp = today.getTime();
 
-        const resolvedToday = allReports.filter(
+        // Get resolved reports (limited to recent for efficiency)
+        const resolvedReports = await ctx.db.query("reports")
+            .withIndex("by_timestamp")
+            .filter((q) => q.neq(q.field("resolvedAt"), undefined))
+            .order("desc")
+            .take(100);
+
+        const resolvedToday = resolvedReports.filter(
             r => r.resolvedAt && r.resolvedAt >= todayTimestamp
         );
 
-        // Calculate average resolution time
-        const resolvedReports = allReports.filter(r => r.resolvedAt);
         const totalResolutionTime = resolvedReports.reduce((sum, r) => {
             return sum + (r.resolvedAt! - r.timestamp);
         }, 0);
         const avgResolutionTime = resolvedReports.length > 0
-            ? Math.round(totalResolutionTime / resolvedReports.length / 60000) // Convert to minutes
+            ? Math.round(totalResolutionTime / resolvedReports.length / 60000)
             : 0;
 
-        // User-specific stats
         let userResolvedCount = 0;
         if (args.moderatorId) {
             const userActions = await ctx.db
@@ -201,8 +206,11 @@ export const getReportStats = query({
             userResolvedCount = userActions.length;
         }
 
+        // Get approximate total count (pending + resolved is good enough for stats)
+        const totalReports = pendingReports.length + resolvedReports.length;
+
         return {
-            totalReports: allReports.length,
+            totalReports,
             pendingReports: pendingReports.length,
             resolvedToday: resolvedToday.length,
             avgResolutionTime,
@@ -211,13 +219,18 @@ export const getReportStats = query({
     },
 });
 
-// Get moderation history/log
+// Get moderation history/log (moderator/admin only)
 export const getReportHistory = query({
     args: {
         moderatorId: v.optional(v.id("users")),
         limit: v.optional(v.number()),
     },
     handler: async (ctx, args) => {
+        const user = await getCurrentUser(ctx);
+        if (!user || !isModerator(user)) {
+            throw new Error("Unauthorized: Only moderators can view report history");
+        }
+
         let actions;
 
         if (args.moderatorId) {
@@ -234,7 +247,6 @@ export const getReportHistory = query({
                 .take(args.limit || 50);
         }
 
-        // Get full details for each action
         const actionsWithDetails = await Promise.all(
             actions.map(async (action) => {
                 const report = await ctx.db.get(action.reportId);
@@ -244,8 +256,8 @@ export const getReportHistory = query({
                     ...action,
                     report: report ? {
                         id: report._id,
-                        reasons: report.reasons, // Use reasons array
-                        targetContent: report.targetContent,
+                        reasons: report.reasons,
+                        targetContent: report.targetContent.slice(0, 500),
                     } : null,
                     moderator: moderator ? {
                         name: moderator.name,

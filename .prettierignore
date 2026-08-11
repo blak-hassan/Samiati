@@ -1,0 +1,7 @@
+node_modules
+.next
+.convex
+out
+build
+public
+package-lock.json

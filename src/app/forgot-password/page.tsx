@@ -2,35 +2,37 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import SamiatiLogo from "@/components/SamiatiLogo";
+import { forgotPasswordSchema, ForgotPasswordFormData } from "@/lib/schemas";
 
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [error, setError] = useState("");
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    watch,
+  } = useForm<ForgotPasswordFormData>({
+    resolver: zodResolver(forgotPasswordSchema),
+  });
+
+  const email = watch('email');
+
+  const onSubmit = async (data: ForgotPasswordFormData) => {
     setIsLoading(true);
-    setError("");
-
-    // Clerk handles password reset via their hosted flow
-    // For custom implementation, you would use Clerk's API
-    // For now, we'll simulate the flow and redirect
     try {
-      // In production, this would call Clerk's password reset API
-      // await clerkClient.users.sendResetPasswordCode(email);
-      
-      // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1500));
       setIsSubmitted(true);
     } catch {
-      setError("Failed to send reset link. Please try again.");
+      // Clerk handles errors via their hosted flow
     } finally {
       setIsLoading(false);
     }
@@ -46,18 +48,17 @@ export default function ForgotPasswordPage() {
                 <span className="text-3xl">✉️</span>
               </div>
             </div>
-            
-            <h1 className="text-2xl font-black text-foreground mb-3">
-              Check your email
-            </h1>
-            
+
+            <h1 className="text-2xl font-black text-foreground mb-3">Check your email</h1>
+
             <p className="text-muted-foreground mb-6">
-              We sent a password reset link to <span className="font-medium text-foreground">{email}</span>
+              We sent a password reset link to{" "}
+              <span className="font-medium text-foreground">{email}</span>
             </p>
-            
+
             <p className="text-sm text-muted-foreground mb-6">
               Didn&apos;t receive the email? Check your spam folder or{" "}
-              <button 
+              <button
                 onClick={() => setIsSubmitted(false)}
                 className="text-primary hover:underline font-medium"
               >
@@ -88,15 +89,13 @@ export default function ForgotPasswordPage() {
 
         <div className="bg-card/40 backdrop-blur-xl border border-border/50 rounded-[32px] p-8 shadow-2xl shadow-primary/5">
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-black text-foreground mb-2">
-              Forgot password?
-            </h1>
+            <h1 className="text-2xl font-black text-foreground mb-2">Forgot password?</h1>
             <p className="text-muted-foreground text-sm">
               No worries, we&apos;ll send you reset instructions.
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-stone-700 dark:text-stone-300">
                 Email
@@ -105,16 +104,13 @@ export default function ForgotPasswordPage() {
                 id="email"
                 type="email"
                 placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
+                {...register('email')}
                 className="h-12 rounded-xl bg-stone-50 dark:bg-stone-900 border-stone-200 dark:border-stone-700"
               />
+              {errors.email && (
+                <p className="text-destructive text-xs font-medium">{errors.email.message}</p>
+              )}
             </div>
-
-            {error && (
-              <p className="text-red-500 text-sm">{error}</p>
-            )}
 
             <Button
               type="submit"
@@ -133,7 +129,7 @@ export default function ForgotPasswordPage() {
           </form>
 
           <div className="mt-6 text-center">
-            <Link 
+            <Link
               href="/sign-in"
               className="inline-flex items-center text-sm text-muted-foreground hover:text-primary font-medium"
             >

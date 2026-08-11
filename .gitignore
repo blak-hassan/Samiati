@@ -43,3 +43,8 @@ next-env.d.ts
 test-hf-api.js
 
 test-hf-api2.js
+
+test-translation.js
+
+# opencode config (contains API keys)
+opencode.json

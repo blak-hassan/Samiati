@@ -14,34 +14,26 @@ import {
     Trophy,
     Loader2
 } from 'lucide-react';
+import { useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 
 interface Props {
     navigate: (screen: Screen) => void;
     goBack: () => void;
-    userId?: string; // Current user's ID
 }
 
-const ModeratorApplicationScreen: React.FC<Props> = ({ navigate, goBack, userId }) => {
+const ModeratorApplicationScreen: React.FC<Props> = ({ navigate, goBack }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const applyForModerator = useMutation(api.moderation.applyForModerator);
 
     const handleSubmit = async () => {
-        if (!userId) {
-            setError('You must be logged in to apply');
-            return;
-        }
-
         setIsSubmitting(true);
         setError(null);
 
         try {
-            // TODO: Call Convex mutation when integrated
-            // const result = await applyForModerator({ userId });
-
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
+            await applyForModerator();
             setIsSubmitted(true);
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : 'Failed to submit application');

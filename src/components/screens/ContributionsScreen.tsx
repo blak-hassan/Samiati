@@ -692,7 +692,7 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                     <h1 className="flex-1 text-center text-lg font-bold">Changa</h1>
                     <div className="flex items-center gap-1 -mr-2">
 
-                        <button onClick={() => navigate(Screen.ADD_CONTRIBUTION)} className="p-2 text-primary hover:bg-primary/10 rounded-full transition-colors"><IconRenderer name="add" size={24} /></button>
+                        <button onClick={() => navigate(Screen.CHANGA)} className="p-2 text-primary hover:bg-primary/10 rounded-full transition-colors"><IconRenderer name="add" size={24} /></button>
                     </div>
                 </header>
 
@@ -898,6 +898,12 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                             >
                                 <IconRenderer name="add" size={20} /><span className="font-bold text-sm">Start a Movement</span>
                             </button>
+                            <button
+                                onClick={() => window.location.href = '/dashboard/challenges'}
+                                className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-5 py-2.5 rounded-full shadow-lg transition-all active:scale-[0.98]"
+                            >
+                                <IconRenderer name="auto_awesome" size={20} /><span className="font-bold text-sm">Browse Tasks</span>
+                            </button>
                         </div>
 
                         {/* Language Filter */}
@@ -1034,7 +1040,7 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                                         />
                                     ) : (
                                         <div className={`w-14 h-14 rounded-full ${platform.color} flex items-center justify-center text-white shadow-md transform group-hover:scale-110 transition-transform`}>
-                                            <IconRenderer name={platform.icon} size={24} />
+                                            <IconRenderer name={platform.icon || 'share'} size={24} />
                                         </div>
                                     )}
                                     <span className="text-xs font-medium text-stone-600 dark:text-text-muted">{platform.name}</span>

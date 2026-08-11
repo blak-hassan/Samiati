@@ -19,6 +19,7 @@ export enum Screen {
   EDIT_PROFILE = 'EDIT_PROFILE',
   GUEST_PROFILE = 'GUEST_PROFILE',
   CONTRIBUTIONS = 'CONTRIBUTIONS',
+  CHANGA = 'CHANGA',
   ADD_CONTRIBUTION = 'ADD_CONTRIBUTION',
   PEOPLE_TO_FOLLOW = 'PEOPLE_TO_FOLLOW',
   PROVERB_DETAIL = 'PROVERB_DETAIL',
@@ -60,7 +61,8 @@ export enum Screen {
   TERMS_OF_SERVICE = 'TERMS_OF_SERVICE',
   PRIVACY_POLICY = 'PRIVACY_POLICY',
   COMMUNITIES = 'COMMUNITIES',
-  GROUP_VIEW = 'GROUP_VIEW'
+  GROUP_VIEW = 'GROUP_VIEW',
+  DARASA = 'DARASA'
 }
 
 export type NavigationParams = Record<string, unknown>;
@@ -102,6 +104,9 @@ export interface Message {
   timestamp: Date;
   feedback?: 'up' | 'down';
   comments?: string[];
+  type?: 'text' | 'image' | 'voice';
+  status?: 'sending' | 'sent' | 'read';
+  duration?: string;
 }
 
 export interface PollOption {
@@ -204,6 +209,7 @@ export interface LanguageSkill {
 
 export interface ChatPreview {
   id: string;
+  recipientId?: string;
   name: string;
   avatar: string;
   lastMessage: string;
@@ -228,7 +234,7 @@ export interface Comment {
   isReplying?: boolean;
 }
 
-export type ContributionStatus = 'Live' | 'Under Review' | 'Needs Revision' | 'Declined';
+export type ContributionStatus = 'Draft' | 'Live' | 'Under Review' | 'Needs Revision' | 'Declined';
 export type ModerationStatus = 'pending' | 'approved' | 'needs_revision' | 'rejected';
 
 export interface ModerationReview {
@@ -273,10 +279,16 @@ export interface ContributionItem {
   authorId?: string;
   challengeId?: string;
   language?: string;
+  dialect?: string;
+  partOfSpeech?: string;
+  phoneticText?: string;
+  examples?: { local: string; translation: string }[];
   languageCode?: string;
   moderationStatus?: ModerationStatus;
   reviewHistory?: ModerationReview[];
   moderatorNotes?: string;
+  verificationScore?: number;
+  verifiedBy?: string[];
   createdAt?: number;
   reviewedAt?: number;
 }
@@ -400,7 +412,7 @@ export enum ReportReason {
   OTHER = 'Other'
 }
 
-export type UserRole = 'admin' | 'moderator' | 'member';
+export type UserRole = 'admin' | 'moderator' | 'member' | 'guest';
 
 export type InputType = 'TEXT' | 'LONG_TEXT' | 'AUDIO' | 'VIDEO' | 'IMAGE' | 'LOCATION' | 'SELECT';
 

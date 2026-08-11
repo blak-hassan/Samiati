@@ -1,7 +1,7 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useMemo } from 'react';
-import { Screen, LanguageHealth } from '@/types';
+import { Screen, LanguageHealth, ValidationItem } from '@/types';
 import { useFuzzySearch } from '@/hooks/useFuzzySearch';
 import { NotificationBell } from '@/components/shared/NotificationBell';
 import {
@@ -37,16 +37,22 @@ interface Props {
   goBack: () => void;
   unreadCount?: number;
   isEmbedded?: boolean;
+  moderationItems?: ValidationItem[];
+  onVote?: (itemId: string, vote: "approved" | "critiqued" | "rejected", comment?: string) => Promise<void>;
 }
 
 const ModerationDashboardScreen: React.FC<Props> = ({
   navigate,
   goBack,
   unreadCount = 0,
-  isEmbedded = false
+  isEmbedded = false,
+  moderationItems: propModerationItems,
+  onVote
 }) => {
-  const { moderationItems, reviewContribution, voteOnModerationItem, user } = useUser();
-  const currentUserId = user?.id || 'u_current';
+  const storedUser = useUser();
+  const { moderationItems: storedModerationItems, reviewContribution, voteOnModerationItem, user } = storedUser;
+const moderationItemsToUse = propModerationItems || storedModerationItems || [];
+  const userId = user?.id || 'u_current';
   // State
   const [languages] = useState<LanguageHealth[]>(INITIAL_LANGUAGE_HEALTH);
   const [searchQuery, setSearchQuery] = useState('');
@@ -73,22 +79,21 @@ const ModerationDashboardScreen: React.FC<Props> = ({
   // Derived Stats
   const stats = useMemo(() => {
     return {
-      pending: moderationItems.filter(i => i.status === 'pending').length,
-      validated: moderationItems.filter(i => i.status === 'approved' || i.status === 'rejected' || i.status === 'needs_revision').length,
-      approved: moderationItems.filter(i => i.status === 'approved').length,
+pending: moderationItemsToUse.filter(i => i.status === 'pending').length,
+      validated: moderationItemsToUse.filter(i => i.status === 'approved' || i.status === 'rejected' || i.status === 'needs_revision').length,
+      approved: moderationItemsToUse.filter(i => i.status === 'approved').length,
       totalLanguages: languages.filter(l => l.isUserModerator).length
     };
-  }, [moderationItems, languages]);
+}, [moderationItemsToUse, languages]);
 
 
-
-  // Filtering Logic
+// Filtering Logic
   // 1. Basic Filtering (Status, Type, Language, Permissions)
   const basicFilteredItems = useMemo(() => {
-    return moderationItems.filter(item => {
+    return moderationItemsToUse.filter(item => {
       // Only show languages the user is a moderator for OR items the user authored
       const isUserModeratorForLang = languages.find(l => l.code === item.languageCode)?.isUserModerator;
-      const isAuthoredByUser = item.author.id === currentUserId;
+      const isAuthoredByUser = item.author.id === userId;
 
       if (!isUserModeratorForLang && !isAuthoredByUser) return false;
 
@@ -104,7 +109,7 @@ const ModerationDashboardScreen: React.FC<Props> = ({
 
       return true;
     });
-  }, [moderationItems, languages, selectedLanguageCode, activeType, selectedStatus, currentUserId]);
+  }, [moderationItemsToUse, languages, selectedLanguageCode, activeType, selectedStatus, userId]);
 
   // 2. Fuzzy Search
   const searchKeys = useMemo(() => ['content.original', 'content.translation', 'author.name', 'type'], []);
@@ -119,7 +124,7 @@ const ModerationDashboardScreen: React.FC<Props> = ({
 
   // Handlers
   const handleApprove = (id: string) => {
-    const approvedItem = moderationItems.find(item => item.id === id);
+    const approvedItem = moderationItemsToUse.find(item => item.id === id);
 
     if (approvedItem) {
       const hasAudio = !!approvedItem.content.audioUrl;
@@ -348,7 +353,7 @@ const ModerationDashboardScreen: React.FC<Props> = ({
               <ValidationCard
                 key={item.id}
                 item={item}
-                currentUserId={currentUserId}
+                currentUserId={userId}
                 isUserModerator={languages.find(l => l.code === item.languageCode)?.isUserModerator || false}
                 onApprove={handleApprove}
                 onCritique={() => setCritiqueModal({ isOpen: true, itemId: item.id, title: item.content.original })}

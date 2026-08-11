@@ -60,7 +60,10 @@ export const getPending = query({
         // For now, let's filter in memory or assume validation is enough.
         // Actually schema has "status" but no index. For MVP scan is fine.
 
-        const allContributions = await ctx.db.query("contributions").collect();
-        return allContributions.filter(c => c.status === 'Under Review');
+        const pendingContributions = await ctx.db
+            .query("contributions")
+            .withIndex("by_status", (q) => q.eq("status", "Under Review"))
+            .collect();
+        return pendingContributions;
     },
 });

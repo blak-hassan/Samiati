@@ -14,6 +14,8 @@ import { action } from "./_generated/server";
 // KEY: HUGGINGFACE_API_KEY (Set in Convex Dashboard)
 // =============================================================================
 
+const MAX_AUDIO_BASE64_LENGTH = 50_000_000; // ~37MB in base64
+
 export const transcribeAudio = action({
     args: {
         // Audio data as base64-encoded string
@@ -25,6 +27,11 @@ export const transcribeAudio = action({
         if (!apiKey) {
             console.error("HUGGINGFACE_API_KEY is not set!");
             return { text: "", error: "ERROR: API key not configured. Please set HUGGINGFACE_API_KEY in Convex Dashboard." };
+        }
+
+        // Validate audio size
+        if (args.audioBase64.length > MAX_AUDIO_BASE64_LENGTH) {
+            return { text: "", error: "ERROR: Audio file too large. Maximum size is ~37MB." };
         }
 
         console.log("[Paza Whisper] Transcribing audio...");
