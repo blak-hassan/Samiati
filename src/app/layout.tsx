@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
   title: "Samiati",
@@ -47,6 +48,7 @@ export default function RootLayout({
       <body className="antialiased font-body bg-background-light dark:bg-background-dark text-stone-900 dark:text-text-main transition-colors duration-300">
         <ConvexClientProvider>{children}</ConvexClientProvider>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
