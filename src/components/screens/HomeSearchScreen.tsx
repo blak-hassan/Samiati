@@ -5,7 +5,6 @@ import { Screen } from "@/types";
 import SamiatiLogo from "@/components/SamiatiLogo";
 import { Language, LANGUAGES } from "@/components/chat/LanguageSelector";
 import SearchHero from "@/components/search/SearchHero";
-import LanguageChips from "@/components/search/LanguageChips";
 import SuggestionSentences from "@/components/search/SuggestionSentences";
 import SearchPhaseIndicator from "@/components/search/SearchPhaseIndicator";
 import SearchResults from "@/components/search/SearchResults";
@@ -179,18 +178,9 @@ const HomeSearchScreen: React.FC<Props> = ({
                 onLanguageSelect={setSelectedLanguage}
               />
 
-              {/* Favorite Language Chips (hero mode only) */}
-              <div className="mt-4 mb-8">
-                <LanguageChips
-                  selectedLanguage={selectedLanguage}
-                  onSelect={setSelectedLanguage}
-                />
-              </div>
-
-              {/* Suggestion Sentences (personalized) */}
+              {/* Trending Searches (personalized to language selected in dropdown) */}
               <SuggestionSentences
                 selectedLanguage={selectedLanguage}
-                user={user}
                 onSelect={handleSuggestionSelect}
               />
             </div>

@@ -52,7 +52,7 @@ const SettingsPrivacyScreen: React.FC<Props> = ({ navigate, goBack }) => {
                 <Eye className="w-5 h-5 text-muted-foreground" />
                 <div>
                   <p className="font-medium text-foreground">Show Online Status</p>
-                  <p className="text-xs text-muted-foreground">Let others see when you're active</p>
+                  <p className="text-xs text-muted-foreground">Let others see when you&apos;re active</p>
                 </div>
               </div>
               <Switch checked={onlineStatus} onCheckedChange={setOnlineStatus} className="data-[state=checked]:bg-primary" />
@@ -62,7 +62,7 @@ const SettingsPrivacyScreen: React.FC<Props> = ({ navigate, goBack }) => {
                 <EyeOff className="w-5 h-5 text-muted-foreground" />
                 <div>
                   <p className="font-medium text-foreground">Read Receipts</p>
-                  <p className="text-xs text-muted-foreground">Show when you've read messages</p>
+                  <p className="text-xs text-muted-foreground">Show when you&apos;ve read messages</p>
                 </div>
               </div>
               <Switch checked={readReceipts} onCheckedChange={setReadReceipts} className="data-[state=checked]:bg-primary" />

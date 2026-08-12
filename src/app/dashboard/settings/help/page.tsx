@@ -2,15 +2,13 @@
 
 import SettingsHelpScreen from "@/components/screens/SettingsHelpScreen";
 import { useNavigation } from "@/hooks/useNavigation";
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
+
+const emptySubscribe = () => () => {};
 
 export default function SettingsHelpPage() {
     const { navigate, goBack } = useNavigation();
-    const [isHydrated, setIsHydrated] = useState(false);
-
-    useEffect(() => {
-        setIsHydrated(true);
-    }, []);
+    const isHydrated = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
     if (!isHydrated) {
         return null;
@@ -18,7 +16,6 @@ export default function SettingsHelpPage() {
 
     return (
         <SettingsHelpScreen
-            navigate={navigate}
             goBack={goBack}
         />
     );

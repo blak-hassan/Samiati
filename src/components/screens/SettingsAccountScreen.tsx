@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Screen, User } from '@/types';
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { ArrowLeft, ChevronRight, Shield, Trash2, Key, Fingerprint } from "lucide-react";
+import { ArrowLeft, ChevronRight, Trash2, Key, Fingerprint } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,

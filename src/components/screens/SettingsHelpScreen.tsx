@@ -1,13 +1,12 @@
 ﻿"use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { Screen, Message } from '@/types';
 import { sendMessageToGemini } from '@/services/geminiService';
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
 interface Props {
-    navigate: (screen: Screen) => void;
     goBack: () => void;
 }
 
@@ -33,7 +32,7 @@ const FAQItem = ({ question, answer }: { question: string, answer: string }) => 
     );
 };
 
-const SettingsHelpScreen: React.FC<Props> = ({ goBack, navigate }) => {
+const SettingsHelpScreen: React.FC<Props> = ({ goBack }) => {
     const [query, setQuery] = useState('');
     const [conversation, setConversation] = useState<Message[]>([]);
     const [isLoading, setIsLoading] = useState(false);

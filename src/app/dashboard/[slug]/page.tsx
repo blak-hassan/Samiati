@@ -121,7 +121,7 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
         case Screen.SETTINGS_BLOCKED: return <SettingsBlockedScreen goBack={goBack} />;
         case Screen.SETTINGS_MUTED: return <SettingsMutedScreen goBack={goBack} />;
         case Screen.SETTINGS_DATA: return <SettingsDataScreen goBack={goBack} />;
-        case Screen.SETTINGS_HELP: return <SettingsHelpScreen navigate={navigate} goBack={goBack} />;
+        case Screen.SETTINGS_HELP: return <SettingsHelpScreen goBack={goBack} />;
 
         case Screen.CONTRIBUTIONS:
             if (isGuest) return <SignInPrompt feature="contribute" description="Join to contribute stories, words, and proverbs to the community." navigate={navigate} />;

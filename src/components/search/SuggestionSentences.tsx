@@ -1,22 +1,17 @@
 "use client";
 
 import React, { useMemo } from "react";
+import { TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Language } from "@/components/chat/LanguageSelector";
-
-interface UserInfo {
-  name?: string;
-  location?: string;
-  culturalBackground?: string;
-  languages?: { name: string; level: string }[];
-}
 
 interface Suggestion {
   text: string;
   query: string;
 }
 
-// Language-specific suggestion pools
+// Language-specific trending search pools. Suggestions always mirror the
+// language selected in the dropdown, so each search reads naturally.
 const LANGUAGE_SUGGESTIONS: Record<string, Suggestion[]> = {
   sw: [
     { text: "Nifundisha methali za Kiswahili", query: "Nifundisha methali za Kiswahili na maana yake" },
@@ -38,6 +33,54 @@ const LANGUAGE_SUGGESTIONS: Record<string, Suggestion[]> = {
     { text: "Kiama kia Kikuyu", query: "Nithuire kiama kia Kikuyu na thuthuthu wake" },
     { text: "Mihiriga ya Kikuyu", query: "Nigatuoke mihiriga ya Kikuyu na thuthuthu yothe" },
   ],
+  luo: [
+    { text: "Ngech mag Luo", query: "Natina ngech mag Luo kod tiendgi" },
+    { text: "Kend mar Luo", query: "Natina kit kend ma jo-Luo timo kod timbendgi" },
+    { text: "Wend Luo", query: "Natina wend Luo kod tiendgi" },
+    { text: "Chiemo mar Luo", query: "Natina chiemo ma jo-Luo damo e chiro" },
+    { text: "Ker mar Luo", query: "Natina kit locho kod tich maguena jo-Luo" },
+    { text: "Nying Luo", query: "Natina nying Luo kod tiendgi" },
+  ],
+  kam: [
+    { text: "Methali za Kikamba", query: "Ndalutie methali za Kikamba na maana syao" },
+    { text: "Kimiko kya Kikamba", query: "Ndalutie kimiko na mila sya Kikamba" },
+    { text: "Nyimbo sya Kikamba", query: "Ndalutie nyimbo na kathemi sya Kikamba" },
+    { text: "Kilyo kya Kikamba", query: "Ndalutie kilyo kya Kikamba" },
+    { text: "Ukathi wa Akamba", query: "Ndalutie ukathi na kukite sya Akamba" },
+    { text: "Kwatu wa Kikamba", query: "Ndalutie kwatu na nzasa sya Kikamba" },
+  ],
+  kln: [
+    { text: "Mumek ab Kalenjin", query: "Agoi mumek ab Kalenjin kod tiendik" },
+    { text: "Chamgei ak kumari", query: "Agoi kumari ak chamgei en Kalenjin" },
+    { text: "Tiletis ak ng'wendek", query: "Agoi tiletis ak ng'wendek ab Kalenjin" },
+    { text: "Kinok ak kwaishisiek", query: "Agoi kinok ak kwaishisiek ab Kalenjin" },
+    { text: "Sodoik ak kipotonik", query: "Agoi sodoik ak kipotonik ab Kalenjin" },
+    { text: "Kosiakikab Kalenjin", query: "Agoi kosiakikab Kalenjin" },
+  ],
+  luy: [
+    { text: "Endakho ya Abaluhya", query: "Olonde endakho ne emilimo ya Abaluhya" },
+    { text: "Olurimi lw'Abaluhya", query: "Oloni olurimi lw'Abaluhya nende emigabi" },
+    { text: "Emisala ya Abaluhya", query: "Olonde emisala ya Abaluhya nende oburengi" },
+    { text: "Obukwe bwa Abaluhya", query: "Oloni obukwe bwa Abaluhya" },
+    { text: "Emboo sya Abaluhya", query: "Olonde emboo nende enyimbo sya Abaluhya" },
+    { text: "Ebiayo bya Abaluhya", query: "Oloni ebiayo ebya Abaluhya" },
+  ],
+  mer: [
+    { text: "Icro cia Kimeru", query: "Ooria icro cia Kimeru na micungeirie" },
+    { text: "Mwiko wa Ameru", query: "Ooria mwiko wa Ameru na mainya mangaine" },
+    { text: "Nyamario cia Ameru", query: "Ooria nyamario cia Ameru" },
+    { text: "Ruoki rwa Kimeru", query: "Ooria ruoki na mila cia Kimeru" },
+    { text: "Matata ma Ameru", query: "Ooria matata na maina ma Ameru" },
+    { text: "Kwenu kwa Ameru", query: "Ooria kwenu na mario kwa Ameru" },
+  ],
+  mas: [
+    { text: "Enkata o Maa", query: "Elakita enkata na ildet o Maa ilMaasai" },
+    { text: "Emurran o Maa", query: "Elakita emurran na orore o Maa ilMaasai" },
+    { text: "Enkipaata o Maa", query: "Elakita enkipaata na ilopil o Maa" },
+    { text: "Ilchokki o Maa", query: "Elakita ilchokki o Maa na inkoilisho" },
+    { text: "Enkang o Maa", query: "Elakita enkang na mparimo o Maa" },
+    { text: "Orkonyek a Maa", query: "Elakita orkonyek na ildamatisho o Maa" },
+  ],
   en: [
     { text: "Tell me about Kenyan proverbs", query: "What are some famous Kenyan proverbs and their meanings?" },
     { text: "Explain Kikuyu cultural traditions", query: "Tell me about Kikuyu cultural traditions and ceremonies" },
@@ -50,116 +93,33 @@ const LANGUAGE_SUGGESTIONS: Record<string, Suggestion[]> = {
   ],
 };
 
-// Location-based suggestions
-const LOCATION_SUGGESTIONS: Record<string, Suggestion[]> = {
-  Nairobi: [
-    { text: "History of Nairobi", query: "Tell me about the history of Nairobi and its cultural heritage" },
-    { text: "Languages in Nairobi", query: "What languages and cultures coexist in Nairobi?" },
-  ],
-  Mombasa: [
-    { text: "Swahili culture in Mombasa", query: "Tell me about Swahili culture and traditions in Mombasa" },
-    { text: "Mijikenda traditions", query: "What are the traditions of the Mijikenda community in Mombasa?" },
-  ],
-  Kisumu: [
-    { text: "Luo traditions in Kisumu", query: "Tell me about Luo cultural traditions in Kisumu" },
-    { text: "Lake Victoria folklore", query: "What folk tales are told around Lake Victoria?" },
-  ],
-  Nakuru: [
-    { text: "Rift Valley cultures", query: "What cultures and communities live in the Rift Valley region?" },
-    { text: "Kalenjin traditions", query: "Tell me about Kalenjin cultural traditions and ceremonies" },
-  ],
-  Eldoret: [
-    { text: "Kalenjin running culture", query: "What is the cultural significance of running among the Kalenjin?" },
-    { text: "Kalenjin songs and dance", query: "Tell me about traditional Kalenjin songs and dance" },
-  ],
-};
-
-// Interest-based suggestions
-const INTEREST_SUGGESTIONS: Record<string, Suggestion[]> = {
-  music: [
-    { text: "Traditional instruments", query: "What traditional musical instruments are used in Kenyan cultures?" },
-    { text: "Folk songs of Kenya", query: "Tell me about folk songs from different Kenyan communities" },
-  ],
-  food: [
-    { text: "Traditional Kenyan foods", query: "What are traditional foods from different Kenyan communities?" },
-    { text: "Food culture of Kikuyu", query: "Tell me about traditional Kikuyu food culture" },
-  ],
-  history: [
-    { text: "Pre-colonial Kenya", query: "Tell me about pre-colonial history of Kenya and its peoples" },
-    { text: "Coastal trade history", query: "What is the history of the Swahili coast and trade?" },
-  ],
-  language: [
-    { text: "Learn basic Swahili", query: "Teach me basic Swahili greetings and phrases" },
-    { text: "Swahili proverbs", query: "What are some common Swahili proverbs and their meanings?" },
-  ],
-};
-
-function getSuggestions(language: Language, user?: UserInfo): Suggestion[] {
-  const langKey = language.code;
-  const suggestions: Suggestion[] = [];
-
-  // Start with location-based suggestions if user has location
-  if (user?.location) {
-    const locationKey = Object.keys(LOCATION_SUGGESTIONS).find(
-      (k) => user.location?.toLowerCase().includes(k.toLowerCase())
-    );
-    if (locationKey) {
-      suggestions.push(...LOCATION_SUGGESTIONS[locationKey]);
-    }
-  }
-
-  // Add interest-based suggestions if user has cultural background
-  if (user?.culturalBackground) {
-    const interestKey = Object.keys(INTEREST_SUGGESTIONS).find((k) =>
-      user.culturalBackground?.toLowerCase().includes(k.toLowerCase())
-    );
-    if (interestKey) {
-      suggestions.push(...INTEREST_SUGGESTIONS[interestKey]);
-    }
-  }
-
-  // Fill remaining slots with language-specific suggestions
-  const langSuggestions = LANGUAGE_SUGGESTIONS[langKey] || LANGUAGE_SUGGESTIONS.en;
-  for (const s of langSuggestions) {
-    if (suggestions.length >= 4) break;
-    const isDuplicate = suggestions.some((existing) => existing.query === s.query);
-    if (!isDuplicate) {
-      suggestions.push(s);
-    }
-  }
-
-  // If still less than 3, add from English fallback
-  if (suggestions.length < 3) {
-    for (const s of LANGUAGE_SUGGESTIONS.en) {
-      if (suggestions.length >= 3) break;
-      const isDuplicate = suggestions.some((existing) => existing.query === s.query);
-      if (!isDuplicate) {
-        suggestions.push(s);
-      }
-    }
-  }
-
-  return suggestions.slice(0, 4);
+function getSuggestions(language: Language): Suggestion[] {
+  const pool = LANGUAGE_SUGGESTIONS[language.code] || LANGUAGE_SUGGESTIONS.en;
+  return pool.slice(0, 4);
 }
 
 interface SuggestionSentencesProps {
   selectedLanguage: Language;
-  user?: UserInfo;
   onSelect: (query: string) => void;
 }
 
 const SuggestionSentences: React.FC<SuggestionSentencesProps> = ({
   selectedLanguage,
-  user,
   onSelect,
 }) => {
   const suggestions = useMemo(
-    () => getSuggestions(selectedLanguage, user),
-    [selectedLanguage, user]
+    () => getSuggestions(selectedLanguage),
+    [selectedLanguage]
   );
 
   return (
-    <div className="w-full max-w-2xl">
+    <div className="mt-6 w-full max-w-2xl">
+      <div className="flex items-center justify-center gap-2 mb-3">
+        <TrendingUp className="w-4 h-4 text-primary" />
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+          Trending Searches
+        </span>
+      </div>
       <div className="flex flex-col gap-1.5">
         {suggestions.map((suggestion, i) => (
           <button
