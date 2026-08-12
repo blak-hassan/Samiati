@@ -8,6 +8,7 @@ import { useNavigation } from "@/hooks/useNavigation";
 import { useSearchParams } from "next/navigation";
 import { ContributionItem, Screen } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { CampaignItem } from "@/components/screens/ChallengesScreen";
 
 const ChallengesScreen = dynamic(() => import("@/components/screens/ChallengesScreen"), {
   ssr: false,
@@ -84,7 +85,7 @@ function ChallengesContent() {
             navigate={navigate}
             goBack={goBack}
             tasks={taskItems}
-            campaigns={activeCampaigns || []}
+            campaigns={activeCampaigns as CampaignItem[]}
             onTaskSelect={handleTaskSelect}
             onAddNew={handleGoToAddContribution}
         />

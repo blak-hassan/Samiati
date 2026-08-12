@@ -7,6 +7,8 @@ import ValidationScreen from "@/components/screens/ValidationScreen";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useSearchParams } from "next/navigation";
 import { ContributionItem } from "@/types";
+import { Id } from "../../../../convex/_generated/dataModel";
+import type { changaValidationVoteValidator } from "../../../../convex/changa/validators";
 
 function ValidationContent() {
     const { navigate, goBack } = useNavigation();
@@ -57,8 +59,8 @@ function ValidationContent() {
         };
         
         await submitVoteMutation({
-            submissionId: itemId as any,
-            vote: voteMap[vote] as any,
+            submissionId: itemId as Id<"changaSubmissions">,
+            vote: voteMap[vote] as typeof changaValidationVoteValidator.type,
             comment,
         });
     };

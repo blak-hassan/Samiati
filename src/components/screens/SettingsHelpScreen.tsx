@@ -3,6 +3,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Screen, Message } from '@/types';
 import { sendMessageToGemini } from '@/services/geminiService';
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 
 interface Props {
     navigate: (screen: Screen) => void;
@@ -80,12 +82,12 @@ const SettingsHelpScreen: React.FC<Props> = ({ goBack, navigate }) => {
     };
 
     return (
-        <div className="flex flex-col h-full bg-stone-50 dark:bg-background-dark transition-colors duration-300">
-            <header className="flex-none flex items-center px-5 py-4 bg-stone-50 dark:bg-background-dark z-10 border-b border-stone-100 dark:border-white/5">
-                <button onClick={goBack} className="p-2 -ml-2 text-stone-900 dark:text-white rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
-                    <span className="material-symbols-outlined">arrow_back</span>
-                </button>
-                <h1 className="text-lg font-bold text-stone-900 dark:text-white ml-2">Frequently Asked Questions</h1>
+        <div className="flex flex-col h-full bg-background transition-colors duration-300">
+            <header className="flex-none flex items-center px-4 h-14 bg-background/95 backdrop-blur-md z-10 border-b border-border/50">
+                <Button variant="ghost" size="icon" onClick={goBack} className="rounded-full" aria-label="Go back">
+                    <ArrowLeft className="w-5 h-5" />
+                </Button>
+                <h1 className="text-lg font-bold text-foreground ml-2 tracking-tight">Help & Support</h1>
             </header>
 
             {/* Top Input Bar */}
@@ -164,9 +166,9 @@ const SettingsHelpScreen: React.FC<Props> = ({ goBack, navigate }) => {
                             </div>
                             <div className="bg-white dark:bg-surface-dark border border-stone-200 dark:border-white/10 p-4 rounded-2xl rounded-bl-none shadow-sm">
                                 <div className="flex gap-1.5">
-                                    <span className="w-1.5 h-1.5 bg-stone-400 dark:bg-stone-500 rounded-full animate-bounce"></span>
-                                    <span className="w-1.5 h-1.5 bg-stone-400 dark:bg-stone-500 rounded-full animate-bounce delay-100"></span>
-                                    <span className="w-1.5 h-1.5 bg-stone-400 dark:bg-stone-500 rounded-full animate-bounce delay-200"></span>
+                                    <span className="w-1.5 h-1.5 bg-stone-400 dark:bg-stone-500 rounded-full animate-typing-dot"></span>
+                                    <span className="w-1.5 h-1.5 bg-stone-400 dark:bg-stone-500 rounded-full animate-typing-dot" style={{ animationDelay: '0.2s' }}></span>
+                                    <span className="w-1.5 h-1.5 bg-stone-400 dark:bg-stone-500 rounded-full animate-typing-dot" style={{ animationDelay: '0.4s' }}></span>
                                 </div>
                             </div>
                         </div>

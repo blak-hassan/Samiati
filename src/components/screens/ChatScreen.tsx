@@ -897,9 +897,10 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setIsNavOpen(true)}
+                  onClick={() => setIsNavOpen((prev) => !prev)}
                   className="rounded-full transition-colors lg:hidden"
                   aria-label="Toggle navigation"
+                  aria-expanded={isNavOpen}
                 >
                   <Menu className="w-6 h-6" />
                 </Button>
@@ -922,9 +923,10 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setIsNavOpen(true)}
+                onClick={() => setIsNavOpen((prev) => !prev)}
                 className="rounded-full transition-colors pointer-events-auto bg-background/50 backdrop-blur-sm lg:hidden"
                 aria-label="Toggle navigation"
+                aria-expanded={isNavOpen}
               >
                 <Menu className="w-6 h-6" />
               </Button>
@@ -1104,9 +1106,9 @@ const ChatScreen: React.FC<Props> = ({ user, navigate, unreadCount = 0, notifica
                     <AvatarFallback>...</AvatarFallback>
                   </Avatar>
                   <div className="bg-muted/30 border border-border p-4 rounded-3xl rounded-tl-none flex gap-1.5 items-center shadow-sm">
-                    <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                    <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                    <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce"></span>
+                    <span className="w-2 h-2 bg-primary/40 rounded-full animate-typing-dot" style={{ animationDelay: '-0.3s' }}></span>
+                    <span className="w-2 h-2 bg-primary/40 rounded-full animate-typing-dot" style={{ animationDelay: '-0.15s' }}></span>
+                    <span className="w-2 h-2 bg-primary/40 rounded-full animate-typing-dot"></span>
                   </div>
                 </div>
               )}

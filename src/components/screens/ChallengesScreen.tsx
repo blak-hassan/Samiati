@@ -5,12 +5,25 @@ import { NavigateFn, Screen, ContributionItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { IconRenderer } from '@/components/shared/IconRenderer';
+import type { changaCampaignStatusValidator } from '../../../convex/changa/validators';
+
+export interface CampaignItem {
+    _id: string;
+    title: string;
+    description: string;
+    languageCode?: string;
+    goalCount: number;
+    currentCount: number;
+    status: string;
+    startAt: number;
+    endAt?: number;
+}
 
 interface Props {
     navigate: NavigateFn;
     goBack: () => void;
     tasks?: ContributionItem[];
-    campaigns?: any[];
+    campaigns?: CampaignItem[];
     onTaskSelect?: (task: ContributionItem) => void;
     onAddNew?: () => void;
 }
@@ -39,7 +52,7 @@ const ChallengesScreen: React.FC<Props> = ({ navigate, goBack, tasks = [], campa
                             <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Campaigns</h2>
                         </div>
                         <div className="grid gap-3">
-                            {campaigns.map((campaign: any) => (
+                            {campaigns.map((campaign) => (
                                 <div 
                                     key={campaign._id}
                                     className="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-2xl p-4 cursor-pointer hover:scale-[1.02] transition-transform"

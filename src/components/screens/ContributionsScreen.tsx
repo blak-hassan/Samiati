@@ -42,6 +42,8 @@ import {
     BookOpen
 } from 'lucide-react';
 import { IconRenderer } from '@/components/shared/IconRenderer';
+import { MobileAppLayout } from '@/components/shared/MobileAppLayout';
+import { useState as useStateForNav } from 'react';
 
 interface Props {
     navigate: NavigateFn;
@@ -760,7 +762,7 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                             if (isActive) {
                                 if (tab === 'Live') activeStyles = "bg-rasta-green text-white";
                                 else if (tab === 'Under Review') activeStyles = "bg-rasta-gold text-yellow-950"; // Darker text for readability
-                                else if (tab === 'Needs Revision') activeStyles = "bg-amber-400 text-stone-950";
+                                else if (tab === 'Needs Revision') activeStyles = "bg-amber-400 text-amber-950";
                                 else if (tab === 'Declined') activeStyles = "bg-rasta-red text-white";
                             }
 

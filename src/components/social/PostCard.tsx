@@ -99,7 +99,7 @@ export const PostCard: React.FC<PostCardProps> = ({
                 "p-4 border-b border-border transition-all duration-300 cursor-pointer",
                 "hover:bg-muted/40",
                 isInView ? "animate-fade-in-up" : "opacity-0",
-                post.isBounty && "bg-yellow-50/50 dark:bg-yellow-900/10 border-l-4 border-l-yellow-500"
+                post.isBounty && "bg-yellow-50/50 dark:bg-yellow-900/10 border border-yellow-500/30"
             )}
         >
             <div className="flex gap-3">

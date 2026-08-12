@@ -6,8 +6,11 @@ import { useNavigation } from "@/hooks/useNavigation";
 import { useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { ChallengeType } from "@/types";
+import { changaTaskTypeValues } from "../../../../convex/changa/validators";
 
-const TYPE_MAP: Record<string, string[]> = {
+type ChangaTaskType = typeof changaTaskTypeValues[number];
+
+const TYPE_MAP: Record<string, ChangaTaskType[]> = {
     ACCENT: ['audio_reading'],
     DIALECT: ['dialect_mapping'],
     ALPHABET: ['lexicon_entry'],
@@ -34,7 +37,7 @@ export default function AddChallengePage() {
             await createCampaign({
                 title: challenge.title,
                 description: challenge.description,
-                taskTypes: (TYPE_MAP[challenge.type] || ['lexicon_entry']) as any,
+                taskTypes: (TYPE_MAP[challenge.type] || ['lexicon_entry']),
                 goalCount: challenge.goalCount,
                 status: 'active' as const,
             });

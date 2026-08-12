@@ -94,7 +94,7 @@ const VideoCallScreen: React.FC<Props> = ({ goBack, chatUser }) => {
       {/* Controls */}
       <div className="relative z-30 mt-auto pb-12 px-6">
         <div className="flex flex-col items-center gap-6 max-w-lg mx-auto">
-          <Button variant="ghost" size="icon" className="text-white/40 hover:text-white mb-2 animate-bounce rounded-full">
+          <Button variant="ghost" size="icon" className="text-white/40 hover:text-white mb-2 animate-pulse rounded-full">
             <ChevronUp className="w-6 h-6" />
           </Button>
 

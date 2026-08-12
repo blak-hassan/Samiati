@@ -148,7 +148,7 @@ const NewCommunityScreen: React.FC<Props> = ({ navigate, goBack, onCreateCommuni
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             placeholder="Community Name" 
-                            className="w-full bg-stone-100 dark:bg-white/5 border-b-2 border-stone-300 dark:border-white/20 rounded-t-lg px-4 py-3 text-stone-900 dark:text-white focus:border-primary outline-none transition-colors"
+                            className="w-full bg-stone-100 dark:bg-white/5 border border-stone-300 dark:border-white/20 rounded-xl px-4 py-3 text-stone-900 dark:text-white focus:border-primary outline-none transition-colors"
                             autoFocus
                         />
                         <p className="text-right text-xs text-stone-400 mt-1">{25 - name.length}</p>
@@ -161,7 +161,7 @@ const NewCommunityScreen: React.FC<Props> = ({ navigate, goBack, onCreateCommuni
                             onChange={(e) => setDesc(e.target.value)}
                             placeholder="What is this community about?" 
                             rows={3}
-                            className="w-full bg-stone-100 dark:bg-white/5 border-b-2 border-stone-300 dark:border-white/20 rounded-t-lg px-4 py-3 text-stone-900 dark:text-white focus:border-primary outline-none transition-colors resize-none"
+                            className="w-full bg-stone-100 dark:bg-white/5 border border-stone-300 dark:border-white/20 rounded-xl px-4 py-3 text-stone-900 dark:text-white focus:border-primary outline-none transition-colors resize-none"
                         />
                     </div>
                 </div>

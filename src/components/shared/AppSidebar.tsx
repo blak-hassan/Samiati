@@ -195,7 +195,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="left"
-          className="w-[300px] sm:w-[350px] p-0 border-r border-border bg-background lg:hidden"
+          className="w-[280px] sm:w-[300px] p-0 border-r border-border bg-background lg:hidden"
         >
           <SidebarContent
             user={user}

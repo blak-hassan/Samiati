@@ -265,7 +265,7 @@ const StoryDetailScreen: React.FC<Props> = ({ navigate, goBack, unreadCount = 0,
               </p>
 
               {/* Cultural Insight Block */}
-              <Card className="my-10 bg-primary/5 border-l-4 border-l-primary p-6 rounded-r-2xl shadow-none group">
+              <Card className="my-10 bg-primary/5 border border-primary/20 p-6 rounded-2xl shadow-none group">
                 <div className="flex items-center gap-3 mb-3 text-primary font-black uppercase text-[10px] tracking-[0.2em]">
                   <Sparkles className="w-4 h-4 group-hover:animate-pulse" />
                   Cultural Insight

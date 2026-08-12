@@ -52,13 +52,60 @@ function SheetContent({
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
 }) {
+  const contentRef = React.useRef<HTMLDivElement>(null);
+  const startX = React.useRef(0);
+  const currentX = React.useRef(0);
+  const isDragging = React.useRef(false);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (side === "left" || side === "right") {
+      startX.current = e.touches[0].clientX;
+      isDragging.current = true;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging.current) return;
+    currentX.current = e.touches[0].clientX;
+    const diff = currentX.current - startX.current;
+
+    if (contentRef.current) {
+      if (side === "left" && diff < 0) {
+        contentRef.current.style.transform = `translateX(${diff}px)`;
+      } else if (side === "right" && diff > 0) {
+        contentRef.current.style.transform = `translateX(${diff}px)`;
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+
+    const diff = currentX.current - startX.current;
+    const threshold = 100;
+
+    if (contentRef.current) {
+      contentRef.current.style.transform = "";
+    }
+
+    if ((side === "left" && diff < -threshold) || (side === "right" && diff > threshold)) {
+      const closeEvent = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true });
+      contentRef.current?.dispatchEvent(closeEvent);
+    }
+  };
+
   return (
     <SheetPortal>
       <SheetOverlay />
       <SheetPrimitive.Content
+        ref={contentRef}
         data-slot="sheet-content"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         className={cn(
-          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-50 flex flex-col gap-4 shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
+          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-50 flex flex-col gap-4 shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500 touch-pan-y",
           side === "right" &&
             "data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-sm",
           side === "left" &&
@@ -72,8 +119,8 @@ function SheetContent({
         {...props}
       >
         {children}
-        <SheetPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
-          <XIcon className="size-4" />
+        <SheetPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-4 right-4 rounded-lg p-2 opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none min-w-[44px] min-h-[44px] flex items-center justify-center">
+          <XIcon className="size-5" />
           <span className="sr-only">Close</span>
         </SheetPrimitive.Close>
       </SheetPrimitive.Content>

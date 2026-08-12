@@ -12,7 +12,8 @@
  */
 
 export interface VADInstance {
-  processAudio: (audio: Float32Array) => void;
+  start: () => Promise<void>;
+  pause: () => void;
   onSpeechStart: (callback: () => void) => void;
   onSpeechEnd: (callback: () => void) => void;
   destroy: () => void;
@@ -20,7 +21,7 @@ export interface VADInstance {
 
 export async function createVAD(): Promise<VADInstance> {
   const VAD = await import('@ricky0123/vad-web');
-  const { RealTimeVAD } = VAD as any;
+  const { MicVAD } = VAD;
 
   const speechStartCallbacks: (() => void)[] = [];
   const speechEndCallbacks: (() => void)[] = [];
@@ -39,16 +40,21 @@ export async function createVAD(): Promise<VADInstance> {
     },
   };
 
-  let vad: any = null;
+  let vad: { start: () => Promise<void>; pause: () => void; destroy: () => void } | null = null;
 
-  if (RealTimeVAD) {
-    vad = await RealTimeVAD.new(options);
+  if (MicVAD) {
+    vad = await MicVAD.new(options);
   }
 
   return {
-    processAudio: (audio: Float32Array) => {
-      if (vad?.processAudio) {
-        vad.processAudio(audio);
+    start: async () => {
+      if (vad?.start) {
+        await vad.start();
+      }
+    },
+    pause: () => {
+      if (vad?.pause) {
+        vad.pause();
       }
     },
     onSpeechStart: (callback) => {

@@ -231,7 +231,7 @@ const AddChallengeScreen: React.FC<Props> = ({ navigate, goBack, onLaunch, isSub
                             const newSchema = formData.inputSchema.filter((_, i) => i !== index);
                             setFormData({ ...formData, inputSchema: newSchema });
                           }}
-                          className="p-2 text-stone-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
+                          className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
                         >
                           <span className="material-symbols-outlined">delete</span>
                         </button>

@@ -133,9 +133,10 @@ const HomeSearchScreen: React.FC<Props> = ({
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setIsNavOpen(true)}
+              onClick={() => setIsNavOpen((prev) => !prev)}
               className="rounded-full transition-colors bg-background/50 backdrop-blur-sm lg:hidden"
               aria-label="Toggle navigation"
+              aria-expanded={isNavOpen}
             >
               <Menu className="w-6 h-6" />
             </Button>

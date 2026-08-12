@@ -7,6 +7,12 @@ import CurationScreen from "@/components/screens/CurationScreen";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useSearchParams } from "next/navigation";
 import { ContributionItem } from "@/types";
+import { Id } from "../../../../convex/_generated/dataModel";
+import type {
+    changaExampleTypeValidator,
+    changaSplitRecommendationValidator,
+    changaReleaseStatusValidator,
+} from "../../../../convex/changa/validators";
 
 const EXAMPLE_TYPE_MAP: Record<string, { label: string; desc: string }> = {
     lexicon_entry: { label: 'Word/Lexicon', desc: 'Single word with translation' },
@@ -83,17 +89,17 @@ function CurationContent() {
 
     const handlePromote = async (itemId: string, exampleType: string, split?: string) => {
         await promoteMutation({
-            submissionId: itemId as any,
-            exampleType: exampleType as any,
-            splitRecommendation: split as any,
+            submissionId: itemId as Id<"changaSubmissions">,
+            exampleType: exampleType as typeof changaExampleTypeValidator.type,
+            splitRecommendation: split as typeof changaSplitRecommendationValidator.type | undefined,
             qualityScore: 80,
         });
     };
 
     const handleApprove = async (itemId: string, status: string) => {
         await approveMutation({
-            exampleId: itemId as any,
-            releaseStatus: status as any,
+            exampleId: itemId as Id<"changaCuratedExamples">,
+            releaseStatus: status as typeof changaReleaseStatusValidator.type,
         });
     };
 

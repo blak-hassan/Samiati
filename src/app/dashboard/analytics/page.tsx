@@ -19,18 +19,18 @@ function AnalyticsContent() {
 
     const stats = {
         totalTasks: tasks?.length || 0,
-        openTasks: tasks?.filter((t: any) => t.status === 'open').length || 0,
+        openTasks: tasks?.filter((t) => (t as { status?: string }).status === 'open').length || 0,
         totalSubmissions: allSubmissions?.length || 0,
-        pendingValidation: allSubmissions?.filter((s: any) => s.status === 'submitted' || s.status === 'in_validation').length || 0,
-        validated: allSubmissions?.filter((s: any) => s.status === 'validated').length || 0,
-        curated: allSubmissions?.filter((s: any) => s.status === 'curated').length || 0,
-        rejected: allSubmissions?.filter((s: any) => s.status === 'rejected').length || 0,
+        pendingValidation: allSubmissions?.filter((s) => (s as { status?: string }).status === 'submitted' || (s as { status?: string }).status === 'in_validation').length || 0,
+        validated: allSubmissions?.filter((s) => (s as { status?: string }).status === 'validated').length || 0,
+        curated: allSubmissions?.filter((s) => (s as { status?: string }).status === 'curated').length || 0,
+        rejected: allSubmissions?.filter((s) => (s as { status?: string }).status === 'rejected').length || 0,
         campaigns: campaigns?.length || 0,
-        activeCampaigns: campaigns?.filter((c: any) => c.status === 'active').length || 0,
+        activeCampaigns: campaigns?.filter((c) => (c as { status?: string }).status === 'active').length || 0,
     };
 
-    const languageStats = (allSubmissions || []).reduce((acc: Record<string, number>, s: any) => {
-        const lang = s.languageCode || 'unknown';
+    const languageStats = (allSubmissions || []).reduce((acc: Record<string, number>, s) => {
+        const lang = (s as { languageCode?: string }).languageCode || 'unknown';
         acc[lang] = (acc[lang] || 0) + 1;
         return acc;
     }, {});
@@ -40,8 +40,8 @@ function AnalyticsContent() {
         .slice(0, 10)
         .map(([lang, count]) => ({ language: lang.toUpperCase(), count }));
 
-    const typeStats = (allSubmissions || []).reduce((acc: Record<string, number>, s: any) => {
-        const type = s.submissionType || 'unknown';
+    const typeStats = (allSubmissions || []).reduce((acc: Record<string, number>, s) => {
+        const type = (s as { submissionType?: string }).submissionType || 'unknown';
         acc[type] = (acc[type] || 0) + 1;
         return acc;
     }, {});

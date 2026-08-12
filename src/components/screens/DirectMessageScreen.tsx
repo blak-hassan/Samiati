@@ -240,9 +240,9 @@ const DirectMessageScreen: React.FC<Props> = ({ navigate, goBack, chatId, chatUs
         {isTyping && (
           <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2">
             <div className="bg-white dark:bg-surface-dark p-3 rounded-2xl rounded-bl-none shadow-sm border border-stone-100 dark:border-white/5 flex gap-1 items-center">
-              <span className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-              <span className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-              <span className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce"></span>
+              <span className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-typing-dot" style={{ animationDelay: '-0.3s' }}></span>
+              <span className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-typing-dot" style={{ animationDelay: '-0.15s' }}></span>
+              <span className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-typing-dot"></span>
             </div>
           </div>
         )}
@@ -322,7 +322,7 @@ const DirectMessageScreen: React.FC<Props> = ({ navigate, goBack, chatId, chatUs
                 : 'bg-muted text-muted-foreground hover:bg-muted/80'
           )}
         >
-          {inputText.trim() ? <Send className="w-5 h-5 ml-0.5" /> : <Mic className={cn("w-5 h-5", isRecording && "animate-bounce")} />}
+          {inputText.trim() ? <Send className="w-5 h-5 ml-0.5" /> : <Mic className={cn("w-5 h-5", isRecording && "animate-pulse")} />}
         </button>
 
         {isRecording && (

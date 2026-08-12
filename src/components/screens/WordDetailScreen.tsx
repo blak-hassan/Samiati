@@ -101,7 +101,7 @@ const WordDetailScreen: React.FC<Props> = ({ navigate, goBack, unreadCount = 0 }
                         <BookOpen className="w-4 h-4 text-primary" />
                         <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground/80">Example Usage</h2>
                     </div>
-                    <Card className="bg-primary/5 dark:bg-primary/5 rounded-2xl p-6 border-l-4 border-primary border-y-border border-r-border shadow-none space-y-3">
+                    <Card className="bg-primary/5 dark:bg-primary/5 rounded-2xl p-6 border border-primary/20 shadow-none space-y-3">
                         <p className="text-xl font-bold text-foreground leading-relaxed italic tracking-tight underline decoration-primary/20 decoration-4">&quot;Umoja ni nguvu, utengano ni udhaifu.&quot;</p>
                         <Separator className="bg-primary/10 w-12 h-1 rounded-full" />
                         <p className="text-sm font-bold text-muted-foreground/80 tracking-tight leading-relaxed font-mono italic">Unity is strength, division is weakness.</p>

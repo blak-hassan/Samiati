@@ -7,6 +7,9 @@ import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { ContributionItem, Screen } from "@/types";
+import { changaTaskTypeValues } from "../../../../convex/changa/validators";
+
+type ChangaTaskType = typeof changaTaskTypeValues[number];
 
 const CHANGA_TASK_TYPES = [
     { ui: 'Word', changa: 'lexicon_entry' },
@@ -70,7 +73,7 @@ function AddContributionContent() {
             const typeMap = CHANGA_TASK_TYPES.find(t => t.ui === item.type) || CHANGA_TASK_TYPES[0];
             
             await createSimpleMutation({
-                taskType: typeMap.changa as any,
+                taskType: typeMap.changa as ChangaTaskType,
                 languageCode: userLanguage,
                 sourceText: item.content,
                 targetText: item.translation,
