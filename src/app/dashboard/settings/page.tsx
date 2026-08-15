@@ -2,20 +2,27 @@
 
 import SettingsScreen from "@/components/screens/SettingsScreen";
 import { useNavigation } from "@/hooks/useNavigation";
-import { useUser as useClerkUser, useClerk } from "@clerk/nextjs";
-import { useState, useEffect, useMemo } from "react";
+import { useUser as useClerkUser, useClerk as useClerkAuth } from "@clerk/nextjs";
+import { useUser as useMockUser, useClerk as useMockClerk } from "@/app/MockProviders";
+import { isDemoMode } from "@/lib/appMode";
+import { useState, useSyncExternalStore, useEffect, useMemo } from "react";
 import { Screen, User } from "@/types";
+
+const useUser = isDemoMode ? useMockUser : useClerkUser;
+const useClerk = isDemoMode ? useMockClerk : useClerkAuth;
+
+const emptySubscribe = () => () => {};
 
 export default function SettingsPage() {
     const { navigate, goBack } = useNavigation();
-    const { user: clerkUser, isLoaded } = useClerkUser();
+    const { user: clerkUser, isLoaded } = useUser();
     const { signOut } = useClerk();
     const [isDarkMode, setIsDarkMode] = useState(true);
-    const [isHydrated, setIsHydrated] = useState(false);
-
-    useEffect(() => {
-        setIsHydrated(true);
-    }, []);
+    const isHydrated = useSyncExternalStore(
+        emptySubscribe,
+        () => true,
+        () => false
+    );
 
     const toggleTheme = () => setIsDarkMode(!isDarkMode);
 

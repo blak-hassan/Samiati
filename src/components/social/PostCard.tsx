@@ -174,7 +174,7 @@ export const PostCard: React.FC<PostCardProps> = ({
                             {post.image && (
                                 <div className="mb-3 rounded-lg overflow-hidden border border-stone-200 dark:border-white/10 relative group">
                                     {post.image.startsWith('data:') || post.image.startsWith('http') ? (
-                                        <img src={post.image} alt="Attachment" className="w-full h-auto object-cover max-h-80 transition-transform duration-700 group-hover:scale-105" />
+                                        <img src={post.image} alt="Attachment" className="w-full h-auto object-cover max-h-80 transition-transform duration-700 group-hover:scale-105"  loading="lazy" decoding="async" />
                                     ) : (
                                         <StorageImage storageId={post.image} alt="Attachment" className="w-full h-auto object-cover max-h-80 transition-transform duration-700 group-hover:scale-105" />
                                     )}

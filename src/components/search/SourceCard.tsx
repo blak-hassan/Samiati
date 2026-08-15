@@ -13,9 +13,10 @@ export interface Source {
 interface SourceCardProps {
   source: Source;
   index: number;
+  variant?: "chip" | "list";
 }
 
-const getSourceDomain = (url: string): string => {
+export const getSourceDomain = (url: string): string => {
   try {
     return new URL(url).hostname.replace("www.", "");
   } catch {
@@ -32,7 +33,7 @@ const getFaviconUrl = (url: string): string => {
   }
 };
 
-const SourceCard: React.FC<SourceCardProps> = ({ source, index }) => {
+const SourceCard: React.FC<SourceCardProps> = ({ source, index, variant = "chip" }) => {
   const domain = getSourceDomain(source.url);
   const favicon = getFaviconUrl(source.url);
 
@@ -44,7 +45,8 @@ const SourceCard: React.FC<SourceCardProps> = ({ source, index }) => {
       className={cn(
         "group flex items-start gap-3 p-3 rounded-xl transition-all duration-200",
         "bg-card/40 border border-border/30 hover:bg-card/70 hover:border-border/60",
-        "hover:shadow-md cursor-pointer min-w-[240px] max-w-[300px] shrink-0"
+        "hover:shadow-md cursor-pointer",
+        variant === "chip" ? "min-w-[240px] max-w-[300px] shrink-0" : "w-full"
       )}
     >
       {/* Number badge */}
@@ -64,7 +66,7 @@ const SourceCard: React.FC<SourceCardProps> = ({ source, index }) => {
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = "none";
               }}
-            />
+             loading="lazy" decoding="async" />
           )}
           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate">
             {domain}

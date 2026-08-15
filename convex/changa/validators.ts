@@ -70,6 +70,13 @@ export const changaTaskStatusValidator = v.union(
     v.literal("closed"),
 );
 
+export const changaTaskClaimStatusValidator = v.union(
+    v.literal("active"),
+    v.literal("released"),
+    v.literal("submitted"),
+    v.literal("expired"),
+);
+
 export const changaRewardProfileValidator = v.object({
     baseXp: v.number(),
     bonusXp: v.optional(v.number()),
@@ -110,6 +117,22 @@ export const changaAutoChecksValidator = v.object({
     passed: v.optional(v.boolean()),
 });
 
+export const changaProcessingTypeValidator = v.union(
+    v.literal("basic_task_check"),
+    v.literal("audio_quality"),
+    v.literal("asr"),
+    v.literal("language_id"),
+    v.literal("duplicate_detection"),
+    v.literal("moderation"),
+);
+
+export const changaProcessingStatusValidator = v.union(
+    v.literal("queued"),
+    v.literal("running"),
+    v.literal("completed"),
+    v.literal("failed"),
+);
+
 export const changaSubmissionStatusValidator = v.union(
     v.literal("draft"),
     v.literal("submitted"),
@@ -118,6 +141,7 @@ export const changaSubmissionStatusValidator = v.union(
     v.literal("validated"),
     v.literal("rejected"),
     v.literal("curated"),
+    v.literal("withdrawn"),
 );
 
 export const changaValidatorRoleValidator = v.union(
@@ -164,6 +188,16 @@ export const changaReleaseStatusValidator = v.union(
     v.literal("approved"),
     v.literal("exported"),
     v.literal("retired"),
+    v.literal("gold"),
+);
+
+export const changaConsentScopeValidator = v.union(
+    v.literal("collection_storage"),
+    v.literal("training"),
+    v.literal("research"),
+    v.literal("commercial_use"),
+    v.literal("public_release"),
+    v.literal("voice_use"),
 );
 
 export const changaCampaignStatusValidator = v.union(
@@ -172,4 +206,19 @@ export const changaCampaignStatusValidator = v.union(
     v.literal("paused"),
     v.literal("completed"),
     v.literal("archived"),
+);
+
+export const changaRoleProgressionValidator = v.union(
+    v.literal("new_contributor"),
+    v.literal("contributor"),
+    v.literal("trusted_contributor"),
+    v.literal("community_reviewer"),
+    v.literal("language_moderator"),
+    v.literal("verified_expert"),
+);
+
+export const changaRoleGrantStatusValidator = v.union(
+    v.literal("active"),
+    v.literal("revoked"),
+    v.literal("expired"),
 );

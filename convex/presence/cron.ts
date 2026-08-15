@@ -6,12 +6,10 @@ export const cleanupStalePresence = internalMutation({
     handler: async (ctx) => {
         const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
 
-        // Use index if available, otherwise filter in memory
-        // Note: This runs infrequently (every 2 min) so full scan is acceptable
-        // but we limit to only patch stale users
+        // Indexed range over isOnline=true instead of a full users table scan.
         const onlineUsers = await ctx.db
             .query("users")
-            .filter((q) => q.eq(q.field("isOnline"), true))
+            .withIndex("by_isOnline", (q) => q.eq("isOnline", true))
             .collect();
 
         let cleanedCount = 0;

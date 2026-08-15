@@ -63,7 +63,7 @@ const VideoCallScreen: React.FC<Props> = ({ goBack, chatUser }) => {
           src={chatUser.avatar}
           alt="Video Feed"
           className="w-full h-full object-cover opacity-60 blur-sm scale-110"
-        />
+         loading="lazy" decoding="async" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80"></div>
       </div>
 

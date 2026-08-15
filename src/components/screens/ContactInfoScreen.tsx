@@ -28,7 +28,7 @@ const ContactInfoScreen: React.FC<Props> = ({ navigate, goBack, chatUser }) => {
 
       <main className="flex-1 overflow-y-auto pb-8">
         <div className="flex flex-col items-center pt-4 pb-8">
-            <img src={chatUser.avatar} alt={chatUser.name} className="w-32 h-32 rounded-full object-cover mb-4 border-4 border-white dark:border-white/10 shadow-lg" />
+            <img src={chatUser.avatar} alt={chatUser.name} className="w-32 h-32 rounded-full object-cover mb-4 border-4 border-white dark:border-white/10 shadow-lg"  loading="lazy" decoding="async" />
             <h1 className="text-2xl font-bold text-stone-900 dark:text-white mb-1">{chatUser.name}</h1>
             <p className="text-stone-500 dark:text-text-muted text-lg">+254 712 345 678</p>
         </div>

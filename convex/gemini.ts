@@ -88,20 +88,38 @@ export const sendMessage = action({
 });
 
 const MAX_QUERY_LENGTH = 5000;
+const MAX_DOCUMENT_LENGTH = 8000;
 
 export const search = action({
     args: {
         query: v.string(),
         language: v.string(),
+        links: v.optional(v.array(v.object({
+            title: v.string(),
+            url: v.string(),
+            snippet: v.optional(v.string()),
+        }))),
+        document: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
         if (args.query.length > MAX_QUERY_LENGTH) {
             return { answer: "ERROR: Query too long. Please keep queries under 5,000 characters.", sources: [], followUps: [] };
         }
 
+        const links = args.links ?? [];
+        const doc = (args.document ?? "").trim().slice(0, MAX_DOCUMENT_LENGTH);
+
         const langInstruction = args.language.toLowerCase() === "english"
             ? "Answer in English."
             : `Answer primarily in ${args.language}. If the user asks in English, answer in English but include ${args.language} terms where relevant.`;
+
+        const linksSection = links.length > 0
+            ? `\n\nYou may use these web sources for grounding. Whenever you use one, cite it in your answer with [n] where n is its number. Never cite a source not in this list:\n${links.map((l, i) => `[${i + 1}] ${l.title} — ${l.url}`).join("\n")}`
+            : "\n\nNo web sources were provided. Answer from your knowledge and do not invent citations.";
+
+        const docSection = doc
+            ? `\n\nThe user attached a document. Use it as the primary context when answering:\n---\n${doc}\n---`
+            : "";
 
         const messages = [
             {
@@ -110,7 +128,7 @@ export const search = action({
             },
             {
                 role: "user",
-                content: `Answer this question clearly and informatively (2-4 paragraphs). Be specific about African languages, cultures, and traditions when relevant. At the very end of your response, add a line starting with "FOLLOWUPS:" followed by exactly 2-3 short follow-up question suggestions separated by "||". Example: FOLLOWUPS: Tell me more about X||How does Y compare to Z
+                content: `Answer this question clearly and informatively (2-4 paragraphs). Be specific about African languages, cultures, and traditions when relevant. Cite sources you use with [n]. At the very end of your response add a line starting with "SOURCES:" followed by the numbers of the sources you cited, comma-separated (or "none" if you cited none), then a line starting with "FOLLOWUPS:" followed by exactly 2-3 short follow-up question suggestions separated by "||". Example: SOURCES: 1,3\nFOLLOWUPS: Tell me more about X||How does Y compare to Z${linksSection}${docSection}
 
 Question: ${args.query}`,
             },
@@ -121,14 +139,38 @@ Question: ${args.query}`,
 
             let answer = rawText;
             let followUps: string[] = [];
+            let sources: { title: string; url: string; snippet?: string }[] = [];
 
             const followUpMatch = rawText.match(/FOLLOWUPS:\s*(.+)$/m);
             if (followUpMatch) {
                 followUps = followUpMatch[1].split("||").map(s => s.trim()).filter(Boolean);
-                answer = rawText.replace(/\n?FOLLOWUPS:\s*.+$/, "").trim();
+                answer = answer.replace(/\n?FOLLOWUPS:\s*.+$/, "").trim();
             }
 
-            return { answer, sources: [], followUps };
+            const sourcesMatch = answer.match(/SOURCES:\s*(.+)$/m);
+            if (sourcesMatch) {
+                answer = answer.replace(/\n?SOURCES:\s*.+$/, "").trim();
+                const byNumber = new Map(links.map((l, i) => [i + 1, l]));
+                const cited = sourcesMatch[1]
+                    .split(/[,\s]+/)
+                    .map(s => parseInt(s.replace(/[^0-9]/g, ""), 10))
+                    .filter(n => !isNaN(n) && byNumber.has(n));
+                sources = cited.map(n => byNumber.get(n)!).filter(Boolean);
+            }
+
+            if (sources.length === 0) {
+                const order: number[] = [];
+                const citationRe = /\[(\d+)\]/g;
+                let m;
+                while ((m = citationRe.exec(answer)) !== null) {
+                    const n = parseInt(m[1], 10);
+                    if (!order.includes(n)) order.push(n);
+                }
+                const byNumber = new Map(links.map((l, i) => [i + 1, l]));
+                sources = order.map(n => byNumber.get(n)).filter(Boolean) as { title: string; url: string; snippet?: string }[];
+            }
+
+            return { answer, sources, followUps };
         } catch (error) {
             console.error("[Sunflower] search failed:", error);
             return { answer: `ERROR: ${error instanceof Error ? error.message : "Search failed."}`, sources: [], followUps: [] };

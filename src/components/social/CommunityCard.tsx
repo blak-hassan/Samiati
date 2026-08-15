@@ -23,7 +23,7 @@ export const CommunityCard: React.FC<CommunityCardProps> = ({ community, onJoin,
                     src={community.coverImage}
                     alt="Cover"
                     className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500"
-                />
+                 loading="lazy" decoding="async" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
             </div>
 

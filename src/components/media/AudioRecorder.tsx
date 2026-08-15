@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { logChangaEvent } from "@/lib/changaTelemetry";
 
 interface AudioRecorderProps {
     onRecorded: (blob: Blob) => void;
@@ -53,6 +54,7 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecorded, onCanc
             }, 1000);
         } catch (err) {
             console.error("Error accessing microphone:", err);
+            logChangaEvent({ name: "mic_permission_denied" });
             alert("Could not access microphone. Please check permissions.");
         }
     };

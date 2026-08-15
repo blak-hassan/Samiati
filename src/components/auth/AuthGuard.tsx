@@ -4,21 +4,15 @@ import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useEffect, ReactNode } from "react";
 import { AuthProvider } from "@/hooks/useCurrentUser";
+import { isDemoMode } from "@/lib/appMode";
 
 interface AuthGuardProps {
   children: ReactNode;
   fallback?: ReactNode;
 }
 
-export function AuthGuard({ children, fallback }: AuthGuardProps) {
-  const { userId, isLoaded } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (isLoaded && !userId) {
-      // Allow guest access - guest check handled by AuthProvider context
-    }
-  }, [isLoaded, userId, router]);
+function ClerkAuthGuard({ children }: AuthGuardProps) {
+  const { isLoaded } = useAuth();
 
   if (!isLoaded) {
     return (
@@ -34,17 +28,24 @@ export function AuthGuard({ children, fallback }: AuthGuardProps) {
   return <AuthProvider>{children}</AuthProvider>;
 }
 
+export function AuthGuard({ children, fallback }: AuthGuardProps) {
+  if (isDemoMode) {
+    return <>{fallback ?? children}</>;
+  }
+  return <ClerkAuthGuard fallback={fallback}>{children}</ClerkAuthGuard>;
+}
+
 interface GuestGuardProps {
   children: ReactNode;
 }
 
-export function GuestGuard({ children }: GuestGuardProps) {
+function ClerkGuestGuard({ children }: GuestGuardProps) {
   const { userId, isLoaded } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (isLoaded && userId) {
-      router.push("/dashboard");
+      router.replace("/dashboard");
     }
   }, [isLoaded, userId, router]);
 
@@ -64,4 +65,11 @@ export function GuestGuard({ children }: GuestGuardProps) {
   }
 
   return <>{children}</>;
+}
+
+export function GuestGuard({ children }: GuestGuardProps) {
+  if (isDemoMode) {
+    return <>{children}</>;
+  }
+  return <ClerkGuestGuard>{children}</ClerkGuestGuard>;
 }

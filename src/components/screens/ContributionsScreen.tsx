@@ -8,7 +8,6 @@ import { ContributionStreakBadge } from '@/components/ContributionStreakBadge';
 import { LanguageDiversityBadges } from '@/components/LanguageDiversityBadges';
 import { ShareStoryPrompt } from '@/components/ShareStoryPrompt';
 import { CONTRIBUTION_TYPES, CATEGORY_COLORS } from '@/lib/constants';
-import { MOCK_CHALLENGES } from '@/data/mockChallenges';
 import ModerationDashboardScreen from './ModerationDashboardScreen';
 import { ContributionCard } from '@/components/contributions/ContributionCard';
 import { ModerationLogContent } from './ModerationLogScreen';
@@ -1039,7 +1038,7 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                                             src={platform.src}
                                             alt={platform.name}
                                             className="w-14 h-14 rounded-full object-cover shadow-md transform group-hover:scale-110 transition-transform"
-                                        />
+                                         loading="lazy" decoding="async" />
                                     ) : (
                                         <div className={`w-14 h-14 rounded-full ${platform.color} flex items-center justify-center text-white shadow-md transform group-hover:scale-110 transition-transform`}>
                                             <IconRenderer name={platform.icon || 'share'} size={24} />

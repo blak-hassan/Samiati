@@ -60,11 +60,11 @@ export const markAllAsRead = mutation({
         const user = await getCurrentUser(ctx);
         if (!user) throw new Error("Unauthorized");
 
+        // Indexed range over (userId, isRead=false) — no full scan.
         const unread = await ctx.db
             .query("notifications")
-            .withIndex("by_user", (q) => q.eq("userId", user._id))
-            .filter((q) => q.eq(q.field("isRead"), false))
-            .collect();
+            .withIndex("by_user_isRead", (q) => q.eq("userId", user._id).eq("isRead", false))
+            .take(500);
 
         for (const notif of unread) {
             await ctx.db.patch(notif._id, {

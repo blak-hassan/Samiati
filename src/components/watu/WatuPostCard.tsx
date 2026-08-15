@@ -65,7 +65,7 @@ export const WatuPostCard: React.FC<WatuPostCardProps> = ({
                                     });
                                 }}
                                 className="w-10 h-10 rounded-full object-cover cursor-pointer hover:opacity-80 hover:ring-2 hover:ring-primary/30 transition-all"
-                            />
+                             loading="lazy" decoding="async" />
                         ) : (
                             <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${item.type === 'Story' ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400' :
                                 item.type === 'Proverb' ? 'bg-rasta-red/10 text-rasta-red dark:bg-rasta-red/30 dark:text-red-400' :

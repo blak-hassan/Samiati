@@ -1,14 +1,19 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import SavedConversationsScreen from "@/components/screens/SavedConversationsScreen";
 import { useNavigation } from "@/hooks/useNavigation";
 import { localConversationService } from "@/services/localConversationService";
 import { Conversation, Screen } from "@/types";
 
 export default function SavedConversationsPage() {
-    const { navigate, goBack } = useNavigation();
+    const { navigate } = useNavigation();
     const [conversations, setConversations] = useState<Conversation[]>(() => localConversationService.getConversations());
+
+    // Persist deletes/pins whenever the list changes
+    useEffect(() => {
+        localConversationService.saveAll(conversations);
+    }, [conversations]);
 
     const handleRenameConversation = (id: string, newTitle: string) => {
         const conversation = localConversationService.getConversation(id);

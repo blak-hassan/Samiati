@@ -158,7 +158,7 @@ const MessageBubble = memo(function MessageBubble({
             : 'p-0 text-foreground bg-transparent'
         )}>
           {msg.text.startsWith('data:image') ? (
-            <img src={msg.text} alt="User upload" className="rounded-2xl max-h-72 w-full object-cover shadow-inner" />
+            <img src={msg.text} alt="User upload" className="rounded-2xl max-h-72 w-full object-cover shadow-inner"  loading="lazy" decoding="async" />
           ) : (
             <p className="text-sm md:text-base leading-relaxed tracking-tight font-medium whitespace-pre-wrap">
               {msg.sender === 'ai' && selectedLanguage.code !== 'en' && msg.translatedText ? msg.translatedText : msg.text}

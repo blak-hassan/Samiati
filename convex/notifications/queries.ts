@@ -30,10 +30,10 @@ export const unreadCount = query({
         const user = await getCurrentUser(ctx);
         if (!user) return 0;
 
+        // Indexed range over (userId, isRead=false) only — no full scan.
         const unread = await ctx.db
             .query("notifications")
-            .withIndex("by_user", (q) => q.eq("userId", user._id))
-            .filter((q) => q.eq(q.field("isRead"), false))
+            .withIndex("by_user_isRead", (q) => q.eq("userId", user._id).eq("isRead", false))
             .collect();
 
         return unread.length;

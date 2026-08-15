@@ -217,7 +217,7 @@ const ComposePostScreen: React.FC<Props> = ({ navigate, goBack, onPost, user }) 
                   src={imagePreview}
                   alt="Preview"
                   className="max-w-full h-auto max-h-80 object-cover rounded-2xl group-hover:scale-105 transition-transform duration-500"
-                />
+                 loading="lazy" decoding="async" />
                 <Button
                   size="icon"
                   variant="destructive"

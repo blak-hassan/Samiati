@@ -35,11 +35,11 @@ export const getProfile = query({
 
         let isFollowing = false;
         const currentUser = await getCurrentUser(ctx);
+        // Use the composite index for a point lookup
         if (currentUser && currentUser._id !== user._id) {
             const follow = await ctx.db
                 .query("followers")
-                .withIndex("by_follower", (q) => q.eq("followerId", currentUser._id))
-                .filter(q => q.eq(q.field("followingId"), user._id))
+                .withIndex("by_follower_following", (q) => q.eq("followerId", currentUser._id).eq("followingId", user._id))
                 .first();
             isFollowing = !!follow;
         }
@@ -60,10 +60,11 @@ export const getFollowers = query({
         userId: v.id("users"),
     },
     handler: async (ctx, args) => {
+        // Bounded — a follower list of 1000 is far beyond realistic UI use
         const followers = await ctx.db
             .query("followers")
             .withIndex("by_following", (q) => q.eq("followingId", args.userId))
-            .collect();
+            .take(1000);
 
         const users = await Promise.all(followers.map(async (f) => {
             const user = await ctx.db.get(f.followerId);
@@ -82,7 +83,7 @@ export const getFollowing = query({
         const following = await ctx.db
             .query("followers")
             .withIndex("by_follower", (q) => q.eq("followerId", args.userId))
-            .collect();
+            .take(1000);
 
         const users = await Promise.all(following.map(async (f) => {
             const user = await ctx.db.get(f.followingId);

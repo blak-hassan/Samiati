@@ -38,7 +38,7 @@ const ChallengeWinnersScreen: React.FC<Props> = ({ navigate, goBack, onViewProfi
                             alt="Chike"
                             onClick={() => onViewProfile({ name: 'Chike', handle: 'chike', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDuGLE0i9NWNJMGLNeeS7Y-fkwpi4GavU-5tFQGjerfZBUK9A2baVE6a0v9b6Le6AIX-Xejh_WCf4Bb8tk8yqNXUeyVehi927mNkXbnvMb3ggvQTzfMzZcJc0kPiyaqMcPlts57mpPxJLq5-lgGwTjXzXNGyasv8_llUjyNVB2m-dLngZv8en8HyHDdbU1j_Wt2xl1HDaHg_iKgKX7HviRx7y_sXmAmU_NNuzZlrcnkbqtGL8NTvNgBOFaC4sSZ5yd97zBiTylIkog', isGuest: false })}
                             className="w-12 h-12 rounded-full border-2 border-stone-300 object-cover cursor-pointer"
-                        />
+                         loading="lazy" decoding="async" />
                         <div className="flex flex-col items-center">
                             <p className="text-xs font-bold text-stone-600 dark:text-text-muted">Chike</p>
                             <div className="w-16 h-24 bg-gradient-to-t from-stone-400 to-stone-300 rounded-t-lg flex items-center justify-center text-white font-bold text-xl shadow-lg relative">
@@ -56,7 +56,7 @@ const ChallengeWinnersScreen: React.FC<Props> = ({ navigate, goBack, onViewProfi
                                 alt="Amina"
                                 onClick={() => onViewProfile({ name: 'Amina', handle: 'amina', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCHGQCh7G1VnjuVj9331GPw-eizTILg3UcwDA4ENWzw4Y4k-YeCgWzwUxAmYXQWIcfUfbQwVHw6sT-X-LP9EspDfXqNOQnm6QUcAN3d9HAxoEJ5kesDAP6W6EUQ6odygBf2Q2-wGIcEgisM6jeCizwsbd9roCE4EDfeK74dHdCooeQh3_eioZBLFJNPfGi8Cp4ke9oJ11DKdl5pNseP-GKgaT-tyieX9Uimavj73AayhR3msq3f9Dcw-BdgSJNRK5-7MQYX9T0wH_8', isGuest: false })}
                                 className="w-16 h-16 rounded-full border-2 border-yellow-400 object-cover shadow-lg cursor-pointer"
-                            />
+                             loading="lazy" decoding="async" />
                         </div>
                         <div className="flex flex-col items-center">
                             <p className="text-sm font-bold text-primary dark:text-white">Amina</p>
@@ -73,7 +73,7 @@ const ChallengeWinnersScreen: React.FC<Props> = ({ navigate, goBack, onViewProfi
                             alt="Fatou"
                             onClick={() => onViewProfile({ name: 'Fatou', handle: 'fatou', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA33dgvI_8O1U2ZsGRRdIrN6msDVHDnzcOdKb2aEXmYC6BfYJvld3snbK7MQxEUsWkCLK5m9ry75kxZt9sfUj6Lj3S1keqVySoqqDOIddmUfbhh1NdpYKeiNphTGsh0op0pjtMhHziNPcUnCoOwh0BNylf0gclux6S7K-7-UHrGrvKE0tNqLQdIZ2zsi9R4Op0Mw2iKcHKarDj1ikZRS8LF2G1DNUTepgcMC76cBhfsNp4cHQ24AUuqP1KmseLie5Uq-O-YHLOwnM8', isGuest: false })}
                             className="w-12 h-12 rounded-full border-2 border-amber-700 object-cover cursor-pointer"
-                        />
+                         loading="lazy" decoding="async" />
                         <div className="flex flex-col items-center">
                             <p className="text-xs font-bold text-stone-600 dark:text-text-muted">Fatou</p>
                             <div className="w-16 h-16 bg-gradient-to-t from-orange-700 to-amber-600 rounded-t-lg flex items-center justify-center text-white font-bold text-xl shadow-lg">

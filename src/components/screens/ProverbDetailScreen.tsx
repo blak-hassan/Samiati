@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, useRef, memo } from 'react';
 import { NavigateFn, Screen } from '@/types';
@@ -35,115 +35,12 @@ interface Comment {
 
 const CURRENT_USER_AVATAR = "https://lh3.googleusercontent.com/aida-public/AB6AXuBeLXbWz4AzkUBDUb3vYkhuHrvvC9EFxb7YuDTFXSRV6e6T547HBjftD2_M3MWQ23u8DdygDU3-kcrmReHHcg1xuI2vz_fBK_UAfIaTV6tCpEh1xW7vkPs6qjbSwVjkqUkPXcPuBDRL_I0E_dA3ckyiMN2POsZ3M2E57RwaQqNiSED1NzWUTMmbbesb_Ko-z2BYoXtkkWP0lVOyL0aKlkzlpsNevnW1dPGKRZ5SxqpNtu6pvvjeFLtIUcElhd54x2R98mDwi_k8K4w";
 
-const MOCK_COMMENTS_DATA: Comment[] = [
-  {
-    id: '1',
-    author: 'Juma',
-    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA6LZtwoRZLVf_mfFqdY11OX1RDMuLNBfzg-1-JqIap60sqItIczvKLkOwTmDA2J4pvgnJj5aFZAOk2PIeB-aYBeYRowNGFP8T6NhD2DXsMXeufNtSm-w5qmkobZjLTsvLwAACWIfN9watEHLy7hX6MckJh3IpQmn_5d1cs77_r6spZ27YrpgTvwW_gUlkhejzZ15PFd6Wav0M6iz-05tnZhk6UZkd-dSx3hIpX_jHEGKs4ob8uyhELqdeumxAYPV-uJ49KGz0AbDw',
-    text: 'This is my favorite proverb! It teaches patience.',
-    time: '2h ago',
-    likes: 12,
-    isLiked: false,
-    replies: [],
-    isReplying: false
-  },
-  {
-    id: '2',
-    author: 'Sarah',
-    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCHGQCh7G1VnjuVj9331GPw-eizTILg3UcwDA4ENWzw4Y4k-YeCgWzwUxAmYXQWIcfUfbQwVHw6sT-X-LP9EspDfXqNOQnm6QUcAN3d9HAxoEJ5kesDAP6W6EUQ6odygBf2Q2-wGIcEgisM6jeCizwsbd9roCE4EDfeK74dHdCooeQh3_eioZBLFJNPfGi8Cp4ke9oJ11DKdl5pNseP-GKgaT-tyieX9Uimavj73AayhR3msq3f9Dcw-BdgSJNRK5-7MQYX9T0wH_8',
-    text: 'My grandmother used to say this all the time when we were rushing to finish chores.',
-    time: '5h ago',
-    likes: 8,
-    isLiked: false,
-    replies: [
-      {
-        id: '2-1',
-        author: 'Amina',
-        avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD-V3E8jEaab6c5oqCwte8YO0FtTA-Q39LF02RVqSEIn-yFIxEXpqQNtov9YUVPsspoTd-G0IBX5eD3D1FcoYuaZ2D_obUh27Cgzr8TPZ-NFxlWutmC2r8AZ1IX4K6AJVN-WZkqrWzUYtGMn9bKxe6QkCpDd7wYm74pmBOZiwy9Z5UBxeeJs2ysKmBaR6jUiNoHpNBP7lzTP6QEx4IL-GexQtsOvMdHpFtTD_Mf778b0wdPEW-lb49hYodddCWGwok-y1Z7z_2zLgA',
-        text: 'Same here! It is such a classic.',
-        time: '1h ago',
-        likes: 2,
-        isLiked: false
-      }
-    ],
-    isReplying: false
-  }
-];
-
-const RELATED_CONTENT = [
-  {
-    id: 'r1',
-    img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDgGK4HiP_WY3pOD4a5vjGWGtQqUUhOEyj94mc4Il4W9cK7uPISoDqA2_rAz6yx1hMgSr8B5pR8Q6cUCf4E81l5Yo--0f2oCHKyYXaSMxJOQKq6tn9MI-Cjx-_4Er3rmI0A8aTcqHLHpt7l2rEFyWita0CSiwer0MhunOiGwr3xKNC0bD-0tv8nalLieXnnzrSwIA5w9S3Fmuvy2UtBjpw7MdkR-USmYOn1ZIjsdIHGV9bFOVr97G958mCv7m40Q8Pa3Wq6A3Td9dk',
-    title: "Ruwa ba sa'an kwando ba",
-    type: "Proverb"
-  },
-  {
-    id: 'r2',
-    img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBx_eI9l6bu70TPq5CaEAd_-ULg8fhcok3bgEKwNrl8k8g8msNhuh0eqAtvcZ49bYQH7TE57WsJ8nEjnHvFrrPsd3ahflQVyKODn-_hgs_HEsr2TMmHr6yXtWBr5VNgQmXODYmjDjA9nRvc_5gQdQHdzh9av2ArELYVLnNkdIPCE0X8DtZ51_6s3QFY-CSDLEFNriprnMhAuuG4Q0bI_M_UfKGxdlDaiNEJI1PcqeM9ah8MCndAARgCYdgBjtmmxoa9LZy3b2J2njY',
-    title: "Mai rai da kunya",
-    type: "Proverb"
-  },
-  {
-    id: 'r3',
-    img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDTCkmqfVuPlLQ4IRyL2yV9d82xXGhUn6PZJQuyR-wOR0cvIaU2RmXVEYxrDKRF8LwvPO8ui_vLey4StEqf8CTMHBir5NqJ8BI6X6gXKzW2e5jtCmaOROPdLEoAJCmmFm51ht9zq7QwPnSBQC8TAqlJfRa5M4kLarJ9LqR6i2YIFBkKl3YmSCiPo77SFPw336bJQN6weNdBrPdUlu-Ta6wtwbzNsRkfyTwRr05-OJF-2JEsH1EwbuwH-dLxzpESsJxfK0fBRGIneoQ',
-    title: "The Lion's Gift",
-    type: "Story"
-  },
-  {
-    id: 'r4',
-    img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA6LZtwoRZLVf_mfFqdY11OX1RDMuLNBfzg-1-JqIap60sqItIczvKLkOwTmDA2J4pvgnJj5aFZAOk2PIeB-aYBeYRowNGFP8T6NhD2DXsMXeufNtSm-w5qmkobZjLTsvLwAACWIfN9watEHLy7hX6MckJh3IpQmn_5d1cs77_r6spZ27YrpgTvwW_gUlkhejzZ15PFd6Wav0M6iz-05tnZhk6UZkd-dSx3hIpX_jHEGKs4ob8uyhELqdeumxAYPV-uJ49KGz0AbDw',
-    title: "Haraka haraka haina baraka",
-    type: "Proverb"
-  },
-  {
-    id: 'r5',
-    img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA4lz2n92fP-3f8sFkeqH_L_kJ7Q2AZ-rKVTVq2mHkBM03IcR48LuFc52l2n01S6qFNeWfcKfWiRGfDWXx7jltQFbz09EH7Jmydr-dedWx_HiMM9BpKt4Q-KGq3CwTb0q_yQEwiNpQK3YPa8Jc0yYElrtn0iiMkXVI_6ThJOtnJOGkzZ5LVghgn3cawRvuHQuHSu6qXCXFuc78ULoKqjHj55wHc9kHkNIrpnsanbDaYLZo0KNkg3XyohzwahpixxUaa1hKfRo-GVro',
-    title: "Umoja",
-    type: "Word"
-  },
-  {
-    id: 'r6',
-    img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBeLXbWz4AzkUBDUb3vYkhuHrvvC9EFxb7YuDTFXSRV6e6T547HBjftD2_M3MWQ23u8DdygDU3-kcrmReHHcg1xuI2vz_fBK_UAfIaTV6tCpEh1xW7vkPs6qjbSwVjkqUkPXcPuBDRL_I0E_dA3ckyiMN2POsZ3M2E57RwaQqNiSED1NzWUTMmbbesb_Ko-z2BYoXtkkWP0lVOyL0aKlkzlpsNevnW1dPGKRZ5SxqpNtu6pvvjeFLtIUcElhd54x2R98mDwi_k8K4w',
-    title: "Ubuntu",
-    type: "Word"
-  },
-  {
-    id: 'r7',
-    img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBCf35EoI1LYG_Z-DVruXrhf48EMhNAfhAbaIoN6aNxIOA7VWp8i9i-bmGhJmE0dqxwKZOscNOyTdZhqM8oDoilkrWcTxcmgWw_9TKUo8f2ASQEfAbbjXAelehx2KYPAN8W1qBGBDnvXJmTlMbdPIdPtbLjIMEeo6jhXcD7OkpFeAa7ECkhmLX-DoyYLYn3mUQ7yRcrIkO3DdTcFC-tZ0hxx31yGdTsr7k-44mC1gpIEDYR6Jk63r6sc1JtxESZ_z8CzlfVQD_p38c',
-    title: "The Tortoise's Shell",
-    type: "Story"
-  },
-  {
-    id: 'r8',
-    img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCwIbRrqJ4ZJ8GZcDvg3A8ICBI_glwNU2kT-sFW7-8qY1XYmEp5OPUPcOp1LTcTEL-9WOzc1bMxyURmWkWyrBOe5qFmcJy1VwLlI3U2fRprY3C452LNhCV5ucydy-MWIfij3s9wB7Womu3RmxEVpEBd6YW7i0ty-O2kqgzw4oYkynhtJWwuEqnWs0dyjiruGe25Bcsxd76N3hCs8K0KoGsEYyeM8qS63xvzlpMaTz-GZK-kI1D7zM4blUhv-JzuvkPJODszYC07wbc',
-    title: "Asiyefunzwa na mamaye",
-    type: "Proverb"
-  },
-  {
-    id: 'r9',
-    img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAOIwrsG4DdrbXTAYf-WXRBaHgcqmT14MY_lmYvUkyZtg0RT_-_dHr_napeF6KMniL8zX6d4_A3RDIuiWm9yAZgdZNsgMfxya3pNJsh4WtKmq86hGYPf6PsZ1APxyHvNxwo803VmKszYhTsb0nAz5-Pxy_PLCdxtBBnmNAa-aAkGgOXRGmz1mu-iKxyz51wJ0BR7y9Nre3kHGXsNisV4cm71L-A43Q2DUXEuzYtM8CFrV2G7RI6c3hfmOgx8Mv-pQQhgBITOcU8TIE',
-    title: "Pole pole",
-    type: "Word"
-  },
-  {
-    id: 'r10',
-    img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAVEz4UTCpp223l9QRsdxYGf4pegaKfIoxUYdvO2wPo8XCkY1wn0s7omDDuk5l9UfGHmSUMYiZUUiyeVrj5DHh5gKGghBS5J2alPWrLAd8VmA-CBLb7qbiOcvqYtIFuk8Iw9ZjCmIWsqxrq9lXoxaDfBKx3IEbV995TSPyPknJVXq7CE98Xs5Bc97lpSiqftZE4YnDIH4KY3CfDGILDtoz-44vJc1F-kNPQ3hBDDIXf21ifYT-byy_M-5rVvOpQ851C6YS0xkM3lcM',
-    title: "Kuku Havunji Yai Lake",
-    type: "Proverb"
-  },
-  {
-    id: 'r11',
-    img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA33dgvI_8O1U2ZsGRRdIrN6msDVHDnzcOdKb2aEXmYC6BfYJvld3snbK7MQxEUsWkCLK5m9ry75kxZt9sfUj6Lj3S1keqVySoqqDOIddmUfbhh1NdpYKeiNphTGsh0op0pjtMhHziNPcUnCoOwh0BNylf0gclux6S7K-7-UHrGrvKE0tNqLQdIZ2zsi9R4Op0Mw2iKcHKarDj1ikZRS8LF2G1DNUTepgcMC76cBhfsNp4cHQ24AUuqP1KmseLie5Uq-O-YHLOwnM8',
-    title: "The Singing Drum",
-    type: "Story"
-  },
-  {
-    id: 'r12',
-    img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDKkfM9WqTPsqCfuM1KQIQ1QzsbiAaq2rab_EQ2MwL_8b9sbJ3-mIl3CjDCR888PPrsBNhkpl7tkden40rCqo3pJe3Sepe18k46KUvejTidyoAK941vcqejBnqRrcfC5hPZop_XFQ7S9jkteso1RvDSjv8s1JfGwGhOYE1uQ1M1J93quDxOniTqTNGD-1WZq2GOu_Z1EpzGjMzNeyvhYbuIwiqYK1TDLfGX5mpdg--_df6DoewiFO-RhrraeKpwY7MetQ94avb6spo',
-    title: "Hakuna Matata",
-    type: "Word"
-  }
-];
+const RELATED_CONTENT: {
+  id: string;
+  img: string;
+  title: string;
+  type: string;
+}[] = [];
 
 // Audio Player Component - Isolated to prevent re-renders of the main screen
 const AudioPlayer = memo(function AudioPlayer({ totalTime = 143 }: { totalTime?: number }) {
@@ -244,7 +141,7 @@ const ProverbDetailScreen: React.FC<Props> = ({ goBack, navigate, unreadCount = 
   const [showComments, setShowComments] = useState(true);
 
   // Comment State
-  const [comments, setComments] = useState<Comment[]>(MOCK_COMMENTS_DATA);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState('');
   const [replyInputs, setReplyInputs] = useState<{ [key: string]: string }>({});
 
@@ -385,7 +282,7 @@ const ProverbDetailScreen: React.FC<Props> = ({ goBack, navigate, unreadCount = 
             src="https://lh3.googleusercontent.com/aida-public/AB6AXuA6LZtwoRZLVf_mfFqdY11OX1RDMuLNBfzg-1-JqIap60sqItIczvKLkOwTmDA2J4pvgnJj5aFZAOk2PIeB-aYBeYRowNGFP8T6NhD2DXsMXeufNtSm-w5qmkobZjLTsvLwAACWIfN9watEHLy7hX6MckJh3IpQmn_5d1cs77_r6spZ27YrpgTvwW_gUlkhejzZ15PFd6Wav0M6iz-05tnZhk6UZkd-dSx3hIpX_jHEGKs4ob8uyhELqdeumxAYPV-uJ49KGz0AbDw"
             className="w-10 h-10 rounded-full object-cover border border-white/10"
             alt="Amina"
-          />
+           loading="lazy" decoding="async" />
           <div>
             <h3 className="font-bold text-sm text-text-main">Amina Kone</h3>
             <p className="text-xs text-text-muted">Posted 2 days ago</p>
@@ -449,7 +346,7 @@ const ProverbDetailScreen: React.FC<Props> = ({ goBack, navigate, unreadCount = 
             {/* Add Comment Input */}
             <div className="flex gap-3 mb-6 items-start">
               <div className="w-8 h-8 rounded-full bg-surface-dark flex items-center justify-center shrink-0 border border-white/10 overflow-hidden">
-                <img src={CURRENT_USER_AVATAR} alt="You" className="w-full h-full object-cover" />
+                <img src={CURRENT_USER_AVATAR} alt="You" className="w-full h-full object-cover"  loading="lazy" decoding="async" />
               </div>
               <div className="flex-1 relative">
                 <input
@@ -475,7 +372,7 @@ const ProverbDetailScreen: React.FC<Props> = ({ goBack, navigate, unreadCount = 
               {comments.map((comment) => (
                 <div key={comment.id} className="animate-in slide-in-from-bottom-2 duration-300">
                   <div className="flex gap-3">
-                    <img src={comment.avatar} alt={comment.author} className="w-8 h-8 rounded-full object-cover shrink-0 border border-white/10" />
+                    <img src={comment.avatar} alt={comment.author} className="w-8 h-8 rounded-full object-cover shrink-0 border border-white/10"  loading="lazy" decoding="async" />
                     <div className="flex-1">
                       <div className="bg-surface-dark p-3 rounded-2xl rounded-tl-none border border-white/5">
                         <div className="flex justify-between items-baseline mb-1">
@@ -506,7 +403,7 @@ const ProverbDetailScreen: React.FC<Props> = ({ goBack, navigate, unreadCount = 
                       {comment.isReplying && (
                         <div className="mt-3 flex gap-2 items-center animate-in fade-in slide-in-from-top-1">
                           <div className="w-6 h-6 rounded-full overflow-hidden shrink-0">
-                            <img src={CURRENT_USER_AVATAR} alt="You" className="w-full h-full object-cover" />
+                            <img src={CURRENT_USER_AVATAR} alt="You" className="w-full h-full object-cover"  loading="lazy" decoding="async" />
                           </div>
                           <div className="flex-1 relative">
                             <input
@@ -534,7 +431,7 @@ const ProverbDetailScreen: React.FC<Props> = ({ goBack, navigate, unreadCount = 
                         <div className="mt-3 space-y-3">
                           {comment.replies.map(reply => (
                             <div key={reply.id} className="flex gap-3">
-                              <img src={reply.avatar} alt={reply.author} className="w-6 h-6 rounded-full object-cover shrink-0 border border-white/10" />
+                              <img src={reply.avatar} alt={reply.author} className="w-6 h-6 rounded-full object-cover shrink-0 border border-white/10"  loading="lazy" decoding="async" />
                               <div className="flex-1">
                                 <div className="bg-surface-dark/60 p-2.5 rounded-2xl rounded-tl-none border border-white/5">
                                   <div className="flex justify-between items-baseline mb-1">

@@ -1,8 +1,30 @@
 "use client";
 
+import Link from "next/link";
 import { SignUp } from "@clerk/nextjs";
+import { isDemoMode } from "@/lib/appMode";
 
 export default function SignUpPage() {
+  if (isDemoMode) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background-light to-background-dark p-4">
+        <div className="w-full max-w-md bg-white dark:bg-[#1a1612] border border-stone-200 dark:border-stone-800 rounded-2xl p-8 text-center shadow-xl">
+          <h1 className="text-2xl font-black text-stone-900 dark:text-white mb-3">Sign up unavailable</h1>
+          <p className="text-stone-600 dark:text-stone-400 text-sm mb-6">
+            Authentication is not configured for this deployment. Set the Clerk
+            and Convex environment variables to enable sign up.
+          </p>
+          <Link
+            href="/"
+            className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-3 font-bold text-white hover:bg-primary/90"
+          >
+            Back to home
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background-light to-background-dark p-4">
       <div className="w-full max-w-md">

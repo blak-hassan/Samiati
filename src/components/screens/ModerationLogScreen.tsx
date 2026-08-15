@@ -34,60 +34,8 @@ interface ModerationAction {
     notes?: string;
 }
 
-// Mock data for now
-const MOCK_ACTIONS: ModerationAction[] = [
-    {
-        id: '1',
-        action: 'Delete',
-        moderator: {
-            name: 'Admin User',
-            handle: '@admin',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin',
-        },
-        report: {
-            type: 'comment',
-            content: 'This is spam content that was removed',
-            contextTitle: 'The Art of Ife',
-        },
-        timestamp: Date.now() - 1000 * 60 * 30, // 30 mins ago
-        notes: 'Clear violation of spam policy',
-    },
-    {
-        id: '2',
-        action: 'Warn User',
-        moderator: {
-            name: 'Moderator Jane',
-            handle: '@jane_mod',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=jane',
-        },
-        report: {
-            type: 'comment',
-            content: 'Inappropriate language used',
-            contextTitle: 'Swahili Proverbs',
-        },
-        timestamp: Date.now() - 1000 * 60 * 60 * 2, // 2 hours ago
-    },
-    {
-        id: '3',
-        action: 'Approve',
-        moderator: {
-            name: 'Admin User',
-            handle: '@admin',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin',
-        },
-        report: {
-            type: 'link',
-            content: 'https://example.com/resource',
-            contextTitle: 'Community Resources',
-        },
-        timestamp: Date.now() - 1000 * 60 * 60 * 5, // 5 hours ago
-        notes: 'Legitimate educational resource',
-    },
-];
-
-
 export const ModerationLogContent: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded = false }) => {
-  const [actions] = useState<ModerationAction[]>(MOCK_ACTIONS);
+  const [actions] = useState<ModerationAction[]>([]);
   const [filterAction, setFilterAction] = useState<string>('All');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [referenceTime] = useState(() => Date.now());
@@ -182,7 +130,7 @@ export const ModerationLogContent: React.FC<{ isEmbedded?: boolean }> = ({ isEmb
                                         src={action.moderator.avatar}
                                         alt={action.moderator.name}
                                         className="w-10 h-10 rounded-full"
-                                    />
+                                     loading="lazy" decoding="async" />
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-bold text-stone-900 dark:text-white truncate">
                                             {action.moderator.name}

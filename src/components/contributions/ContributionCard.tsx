@@ -146,7 +146,7 @@ export const ContributionCard: React.FC<ContributionCardProps> = ({
             {item.showComments && (
                 <div className="bg-stone-50/50 dark:bg-black/10 border-t border-stone-100 dark:border-white/5 p-4 animate-in slide-in-from-top-2 duration-200">
                     <div className="flex gap-3 mb-4">
-                        <img src={currentUserAvatar} alt="You" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                        <img src={currentUserAvatar} alt="You" className="w-8 h-8 rounded-full object-cover shrink-0"  loading="lazy" decoding="async" />
                         <div className="flex-1 flex gap-2">
                             <input
                                 type="text"

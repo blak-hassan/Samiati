@@ -17,12 +17,12 @@ export const feed = query({
 
         if (args.communityId) {
             posts = await ctx.db.query("posts")
-                .filter(q => q.eq(q.field("communityId"), args.communityId))
+                .withIndex("by_community_timestamp", (q) => q.eq("communityId", args.communityId))
                 .order("desc")
                 .paginate(args.paginationOpts);
         } else if (args.filter === 'fireplace') {
             posts = await ctx.db.query("posts")
-                .filter((q) => q.eq(q.field("isFireplace"), true))
+                .withIndex("by_fireplace_timestamp", (q) => q.eq("isFireplace", true))
                 .order("desc")
                 .paginate(args.paginationOpts);
         } else {
@@ -41,30 +41,26 @@ export const feed = query({
         let repostedPostIds = new Set<string>();
         let validatedPostIds = new Set<string>();
 
-        if (user) {
-            const postIds = posts.page.map(p => p._id);
+        if (user && posts.page.length > 0) {
+            const postIds = new Set(posts.page.map(p => p._id));
 
+            // 3 batched queries (one per interaction type) instead of 3 x N
+            // point lookups — bounded by the user's own interaction history.
             const [likes, reposts, validations] = await Promise.all([
-                Promise.all(postIds.map(postId =>
-                    ctx.db.query("likes")
-                        .withIndex("by_post", (q) => q.eq("postId", postId).eq("userId", user._id))
-                        .first()
-                )),
-                Promise.all(postIds.map(postId =>
-                    ctx.db.query("reposts")
-                        .withIndex("by_user_post", (q) => q.eq("userId", user._id).eq("postId", postId))
-                        .first()
-                )),
-                Promise.all(postIds.map(postId =>
-                    ctx.db.query("validations")
-                        .withIndex("by_user_post", (q) => q.eq("userId", user._id).eq("postId", postId))
-                        .first()
-                )),
+                ctx.db.query("likes")
+                    .withIndex("by_user", (q) => q.eq("userId", user._id))
+                    .collect(),
+                ctx.db.query("reposts")
+                    .withIndex("by_user", (q) => q.eq("userId", user._id))
+                    .collect(),
+                ctx.db.query("validations")
+                    .withIndex("by_user", (q) => q.eq("userId", user._id))
+                    .collect(),
             ]);
 
-            likes.forEach((like, i) => { if (like) likedPostIds.add(postIds[i]); });
-            reposts.forEach((repost, i) => { if (repost) repostedPostIds.add(postIds[i]); });
-            validations.forEach((val, i) => { if (val) validatedPostIds.add(postIds[i]); });
+            likes.forEach((like) => { if (postIds.has(like.postId)) likedPostIds.add(like.postId); });
+            reposts.forEach((repost) => { if (postIds.has(repost.postId)) repostedPostIds.add(repost.postId); });
+            validations.forEach((val) => { if (postIds.has(val.postId)) validatedPostIds.add(val.postId); });
         }
 
         // Enrich posts

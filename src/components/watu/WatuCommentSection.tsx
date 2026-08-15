@@ -28,7 +28,7 @@ const CommentItem: React.FC<{
 }> = ({ comment, contributionId, depth, replyTexts, onReplyTextChange, onAddReply, onCommentVote, onToggleReply }) => {
     return (
         <div className={`flex gap-3 mt-4 ${depth > 0 ? 'ml-8 border-l-2 border-stone-100 dark:border-white/5 pl-4' : ''}`}>
-            <img src={comment.avatar} alt={comment.author} className="w-8 h-8 rounded-full object-cover shrink-0" />
+            <img src={comment.avatar} alt={comment.author} className="w-8 h-8 rounded-full object-cover shrink-0"  loading="lazy" decoding="async" />
             <div className="flex-1 min-w-0">
                 <div className="bg-stone-50 dark:bg-white/5 rounded-2xl rounded-tl-none p-3">
                     <div className="flex justify-between items-start">
@@ -117,7 +117,7 @@ export const WatuCommentSection: React.FC<WatuCommentSectionProps> = ({
     return (
         <div className="bg-stone-50/50 dark:bg-black/10 border-t border-stone-100 dark:border-white/5 p-4 animate-in slide-in-from-top-2 duration-200">
             <div className="flex gap-3 mb-4">
-                <img src={currentUserAvatar} alt="You" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                <img src={currentUserAvatar} alt="You" className="w-8 h-8 rounded-full object-cover shrink-0"  loading="lazy" decoding="async" />
                 <div className="flex-1 flex gap-2">
                     <input
                         type="text"

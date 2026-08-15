@@ -3,7 +3,6 @@
 import ProfileScreen from "@/components/screens/ProfileScreen";
 import { useNavigation } from "@/hooks/useNavigation";
 import { User } from "@/types";
-import { INITIAL_LANGUAGES_STATE } from "@/data/mock";
 
 export default function GuestProfilePage() {
     const { navigate, goBack } = useNavigation();
@@ -22,7 +21,7 @@ export default function GuestProfilePage() {
             navigate={navigate}
             goBack={goBack}
             isOwnProfile={false}
-            languages={INITIAL_LANGUAGES_STATE}
+            languages={[]}
         />
     );
 }

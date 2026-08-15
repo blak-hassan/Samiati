@@ -14,12 +14,7 @@ const NewCommunityScreen: React.FC<Props> = ({ navigate, goBack, onCreateCommuni
   const [desc, setDesc] = useState('');
   const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
 
-  const MOCK_SUGGESTIONS = [
-    { id: '1', name: 'Kwame Mensah', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDuGLE0i9NWNJMGLNeeS7Y-fkwpi4GavU-5tFQGjerfZBUK9A2baVE6a0v9b6Le6AIX-Xejh_WCf4Bb8tk8yqNXUeyVehi927mNkXbnvMb3ggvQTzfMzZcJc0kPiyaqMcPlts57mpPxJLq5-lgGwTjXzXNGyasv8_llUjyNVB2m-dLngZv8en8HyHDdbU1j_Wt2xl1HDaHg_iKgKX7HviRx7y_sXmAmU_NNuzZlrcnkbqtGL8NTvNgBOFaC4sSZ5yd97zBiTylIkog' },
-    { id: '2', name: 'Zahra Ali', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCHGQCh7G1VnjuVj9331GPw-eizTILg3UcwDA4ENWzw4Y4k-YeCgWzwUxAmYXQWIcfUfbQwVHw6sT-X-LP9EspDfXqNOQnm6QUcAN3d9HAxoEJ5kesDAP6W6EUQ6odygBf2Q2-wGIcEgisM6jeCizwsbd9roCE4EDfeK74dHdCooeQh3_eioZBLFJNPfGi8Cp4ke9oJ11DKdl5pNseP-GKgaT-tyieX9Uimavj73AayhR3msq3f9Dcw-BdgSJNRK5-7MQYX9T0wH_8' },
-    { id: '3', name: 'Chike Okoro', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBCf35EoI1LYG_Z-DVruXrhf48EMhNAfhAbaIoN6aNxIOA7VWp8i9i-bmGhJmE0dqxwKZOscNOyTdZhqM8oDoilkrWcTxcmgWw_9TKUo8f2ASQEfAbbjXAelehx2KYPAN8W1qBGBDnvXJmTlMbdPIdPtbLjIMEeo6jhXcD7OkpFeAa7ECkhmLX-DoyYLYn3mUQ7yRcrIkO3DdTcFC-tZ0hxx31yGdTsr7k-44mC1gpIEDYR6Jk63r6sc1JtxESZ_z8CzlfVQD_p38c' },
-    { id: '4', name: 'Fatou Sow', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA33dgvI_8O1U2ZsGRRdIrN6msDVHDnzcOdKb2aEXmYC6BfYJvld3snbK7MQxEUsWkCLK5m9ry75kxZt9sfUj6Lj3S1keqVySoqqDOIddmUfbhh1NdpYKeiNphTGsh0op0pjtMhHziNPcUnCoOwh0BNylf0gclux6S7K-7-UHrGrvKE0tNqLQdIZ2zsi9R4Op0Mw2iKcHKarDj1ikZRS8LF2G1DNUTepgcMC76cBhfsNp4cHQ24AUuqP1KmseLie5Uq-O-YHLOwnM8' },
-  ];
+  const MOCK_SUGGESTIONS: { id: string; name: string; avatar: string }[] = [];
 
   const toggleMember = (id: string) => {
     const newSet = new Set(selectedMembers);
@@ -172,7 +167,7 @@ const NewCommunityScreen: React.FC<Props> = ({ navigate, goBack, onCreateCommuni
                         {MOCK_SUGGESTIONS.map(person => (
                             <div key={person.id} className="flex items-center justify-between p-3 bg-stone-50 dark:bg-white/5 rounded-xl border border-stone-100 dark:border-white/5">
                                 <div className="flex items-center gap-3">
-                                    <img src={person.avatar} alt={person.name} className="w-10 h-10 rounded-full object-cover" />
+                                    <img src={person.avatar} alt={person.name} className="w-10 h-10 rounded-full object-cover"  loading="lazy" decoding="async" />
                                     <span className="font-medium text-stone-900 dark:text-white">{person.name}</span>
                                 </div>
                                 <button 

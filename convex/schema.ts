@@ -4,13 +4,18 @@ import {
     changaAssignmentStatusValidator,
     changaAutoChecksValidator,
     changaCampaignStatusValidator,
+    changaConsentScopeValidator,
     changaConsentValidator,
     changaExampleTypeValidator,
     changaInputFieldValidator,
     changaLicenseValidator,
     changaPriorityValidator,
+    changaProcessingStatusValidator,
+    changaProcessingTypeValidator,
     changaReleaseStatusValidator,
     changaRewardProfileValidator,
+    changaRoleGrantStatusValidator,
+    changaRoleProgressionValidator,
     changaSchemaFieldValidator,
     changaSourceModeValidator,
     changaSpeakerProfileValidator,
@@ -64,7 +69,8 @@ export default defineSchema({
     })
         .index("by_clerkId", ["clerkId"])
         .index("by_handle", ["handle"])
-        .index("by_role", ["role"]),
+        .index("by_role", ["role"])
+        .index("by_isOnline", ["isOnline"]),
 
     conversations: defineTable({
         title: v.string(),
@@ -118,12 +124,17 @@ export default defineSchema({
             endsAt: v.string(), // or number
         })),
         cw: v.optional(v.string()), // Content Warning
-    }).index("by_timestamp", ["timestamp"]),
+    })
+        .index("by_timestamp", ["timestamp"])
+        .index("by_community_timestamp", ["communityId", "timestamp"])
+        .index("by_fireplace_timestamp", ["isFireplace", "timestamp"]),
 
     likes: defineTable({
         userId: v.id("users"),
         postId: v.id("posts"),
-    }).index("by_post", ["postId", "userId"]),
+    })
+        .index("by_post", ["postId", "userId"])
+        .index("by_user", ["userId"]),
 
     notifications: defineTable({
         userId: v.id("users"),
@@ -134,7 +145,9 @@ export default defineSchema({
         isRead: v.boolean(),
         targetScreen: v.string(),
         metadata: v.optional(v.any()),
-    }).index("by_user", ["userId"]),
+    })
+        .index("by_user", ["userId"])
+        .index("by_user_isRead", ["userId", "isRead"]),
 
     contributions: defineTable({
         userId: v.id("users"),
@@ -173,6 +186,18 @@ export default defineSchema({
         requiresAudio: v.boolean(),
         requiresTranslation: v.boolean(),
         requiresValidationCount: v.number(),
+        // Versioned task contract: every task instance records the template
+        // version it was generated from, so a raw submission is always
+        // traceable to the contract and rubric that produced it.
+        templateVersion: v.number(),
+        rubricVersion: v.optional(v.string()),
+        riskTier: v.optional(v.union(
+            v.literal("low"),
+            v.literal("medium"),
+            v.literal("high"),
+        )),
+        destinationDataProduct: v.optional(v.string()),
+        requiredConsentScopes: v.optional(v.array(changaConsentScopeValidator)),
         isActive: v.boolean(),
         createdBy: v.id("users"),
         createdAt: v.number(),
@@ -197,8 +222,32 @@ export default defineSchema({
         .index("by_status", ["status"])
         .index("by_language_status", ["languageCode", "status"]),
 
+    changaCampaignProposals: defineTable({
+        title: v.string(),
+        description: v.string(),
+        languageCode: v.optional(v.string()),
+        taskTypes: v.array(changaTaskTypeValidator),
+        goalCount: v.number(),
+        rationale: v.optional(v.string()),
+        status: v.union(
+            v.literal("pending"),
+            v.literal("approved"),
+            v.literal("adapted"),
+            v.literal("rejected"),
+        ),
+        proposedBy: v.id("users"),
+        reviewedBy: v.optional(v.id("users")),
+        reviewedAt: v.optional(v.number()),
+        reviewNote: v.optional(v.string()),
+        createdAt: v.number(),
+    })
+        .index("by_status", ["status"])
+        .index("by_proposedBy", ["proposedBy"]),
+
 changaTasks: defineTable({
         templateId: v.optional(v.id("changaTaskTemplates")),
+        // Snapshot of the template contract version that generated this task.
+        templateVersion: v.optional(v.number()),
         campaignId: v.optional(v.id("changaCampaigns")),
         challengeId: v.optional(v.id("challenges")),
         taskType: changaTaskTypeValidator,
@@ -223,10 +272,29 @@ changaTasks: defineTable({
         createdBy: v.optional(v.id("users")),
         createdAt: v.number(),
         expiresAt: v.optional(v.number()),
-    })
+})
         .index("by_language_status", ["languageCode", "status"])
         .index("by_campaign_status", ["campaignId", "status"])
-        .index("by_taskType_status", ["taskType", "status"]),
+        .index("by_taskType_status", ["taskType", "status"])
+        .index("by_status", ["status"]),
+
+    changaTaskClaims: defineTable({
+        taskId: v.id("changaTasks"),
+        userId: v.id("users"),
+        status: v.union(
+            v.literal("active"),
+            v.literal("released"),
+            v.literal("submitted"),
+            v.literal("expired"),
+        ),
+        claimedAt: v.number(),
+        expiresAt: v.number(),
+        submissionId: v.optional(v.id("changaSubmissions")),
+        skipReason: v.optional(v.string()),
+    })
+        .index("by_task_status", ["taskId", "status"])
+        .index("by_user_status", ["userId", "status"])
+        .index("by_user_task", ["userId", "taskId"]),
 
 changaSubmissions: defineTable({
         taskId: v.id("changaTasks"),
@@ -243,21 +311,29 @@ changaSubmissions: defineTable({
         partOfSpeech: v.optional(v.string()),
         speakerProfile: v.optional(changaSpeakerProfileValidator),
         consent: changaConsentValidator,
+        consentPolicyVersion: v.optional(v.string()),
         license: changaLicenseValidator,
         qualityFlags: v.optional(v.array(v.string())),
         autoChecks: v.optional(changaAutoChecksValidator),
         status: changaSubmissionStatusValidator,
+        // Client-generated idempotency key: a retried request with the same
+        // key returns the existing submission instead of creating a duplicate.
+        clientIdempotencyKey: v.optional(v.string()),
+        revision: v.optional(v.number()),
+        withdrawnAt: v.optional(v.number()),
         submittedAt: v.optional(v.number()),
         updatedAt: v.number(),
-        curatedExampleId: v.optional(v.id("changaCuratedExamples")),
+curatedExampleId: v.optional(v.id("changaCuratedExamples")),
     })
         .index("by_user_status", ["userId", "status"])
         .index("by_task_status", ["taskId", "status"])
-        .index("by_language_status", ["languageCode", "status"]),
+        .index("by_language_status", ["languageCode", "status"])
+        .index("by_status", ["status"])
+        .index("by_user_key", ["userId", "clientIdempotencyKey"]),
 
     changaSubmissionAssets: defineTable({
         submissionId: v.id("changaSubmissions"),
-        storageId: v.string(),
+        storageId: v.id("_storage"),
         assetType: v.union(v.literal("audio"), v.literal("image")),
         mimeType: v.string(),
         durationMs: v.optional(v.number()),
@@ -273,6 +349,53 @@ changaSubmissions: defineTable({
     })
         .index("by_submission", ["submissionId"])
         .index("by_assetType", ["assetType"]),
+
+    changaProcessingRuns: defineTable({
+        submissionId: v.id("changaSubmissions"),
+        assetId: v.optional(v.id("changaSubmissionAssets")),
+        processor: changaProcessingTypeValidator,
+        status: changaProcessingStatusValidator,
+        result: v.optional(v.any()),
+        error: v.optional(v.string()),
+        // Provenance for reproducible processing: which model/config version
+        // produced this result, and what input it consumed.
+        modelVersion: v.optional(v.string()),
+        configVersion: v.optional(v.string()),
+        inputRef: v.optional(v.string()),
+        createdAt: v.number(),
+        completedAt: v.optional(v.number()),
+    })
+        .index("by_submission", ["submissionId"])
+        .index("by_status", ["status"]),
+
+    changaConsentPolicies: defineTable({
+        policyVersion: v.string(),
+        effectiveAt: v.number(),
+        summaryText: v.string(),
+        fullText: v.string(),
+        requiredScopes: v.array(changaConsentScopeValidator),
+        isActive: v.boolean(),
+        createdBy: v.id("users"),
+        createdAt: v.number(),
+    })
+        .index("by_policyVersion", ["policyVersion"])
+        .index("by_isActive", ["isActive"]),
+
+    changaConsentRecords: defineTable({
+        userId: v.id("users"),
+        submissionId: v.optional(v.id("changaSubmissions")),
+        policyVersion: v.string(),
+        scopes: v.array(changaConsentScopeValidator),
+        attributionPreference: v.union(
+            v.literal("public"),
+            v.literal("private"),
+            v.literal("pseudonymous"),
+        ),
+        grantedAt: v.number(),
+        revokedAt: v.optional(v.number()),
+    })
+        .index("by_user", ["userId"])
+        .index("by_user_submission", ["userId", "submissionId"]),
 
     changaValidationAssignments: defineTable({
         submissionId: v.id("changaSubmissions"),
@@ -349,6 +472,70 @@ changaSubmissions: defineTable({
         .index("by_user", ["userId"])
         .index("by_trustScore", ["trustScore"]),
 
+    changaRoleGrants: defineTable({
+        userId: v.id("users"),
+        languageCode: v.optional(v.string()),
+        role: changaRoleProgressionValidator,
+        grantedBy: v.id("users"),
+        status: changaRoleGrantStatusValidator,
+        grantedAt: v.number(),
+        expiresAt: v.optional(v.number()),
+    })
+        .index("by_user_language", ["userId", "languageCode"])
+        .index("by_role_status", ["role", "status"]),
+
+    changaDecisions: defineTable({
+        submissionId: v.id("changaSubmissions"),
+        decision: v.union(
+            v.literal("accepted"),
+            v.literal("rejected"),
+            v.literal("needs_fix"),
+            v.literal("escalated"),
+            v.literal("retired"),
+        ),
+        reason: v.optional(v.string()),
+        resolverId: v.id("users"),
+        evidenceVersion: v.optional(v.string()),
+        createdAt: v.number(),
+    })
+        .index("by_submission", ["submissionId"])
+        .index("by_resolver", ["resolverId"]),
+
+    changaEvaluationSets: defineTable({
+        name: v.string(),
+        languageCode: v.string(),
+        description: v.optional(v.string()),
+        accessRole: v.union(
+            v.literal("admin"),
+            v.literal("moderator"),
+            v.literal("expert"),
+        ),
+        isFrozen: v.boolean(),
+        createdAt: v.number(),
+        createdBy: v.id("users"),
+    })
+        .index("by_language", ["languageCode"])
+        .index("by_isFrozen", ["isFrozen"]),
+
+    changaEvaluationItems: defineTable({
+        evaluationSetId: v.id("changaEvaluationSets"),
+        exampleId: v.id("changaCuratedExamples"),
+        split: changaSplitRecommendationValidator,
+        addedAt: v.number(),
+        addedBy: v.id("users"),
+    })
+        .index("by_evaluationSet", ["evaluationSetId"])
+        .index("by_example", ["exampleId"]),
+
+    changaReleaseMembers: defineTable({
+        releaseId: v.id("changaDatasetReleases"),
+        exampleId: v.id("changaCuratedExamples"),
+        split: changaSplitRecommendationValidator,
+        addedAt: v.number(),
+    })
+        .index("by_release", ["releaseId"])
+        .index("by_example", ["exampleId"]),
+
     reports: defineTable({
         type: v.union(v.literal('comment'), v.literal('link'), v.literal('post')),
         targetId: v.string(), // ID of the reported content
@@ -391,7 +578,8 @@ changaSubmissions: defineTable({
         createdAt: v.number(),
     })
         .index("by_follower", ["followerId"])
-        .index("by_following", ["followingId"]),
+        .index("by_following", ["followingId"])
+        .index("by_follower_following", ["followerId", "followingId"]),
 
     communities: defineTable({
         name: v.string(),
@@ -412,6 +600,7 @@ changaSubmissions: defineTable({
         joinedAt: v.number(),
     })
         .index("by_community", ["communityId"])
+        .index("by_community_user", ["communityId", "userId"])
         .index("by_user", ["userId"]),
 
     dmConversations: defineTable({
@@ -476,7 +665,9 @@ changaSubmissions: defineTable({
         commentId: v.id("comments"),
         userId: v.id("users"),
         vote: v.union(v.literal('up'), v.literal('down')),
-    }).index("by_comment", ["commentId", "userId"]),
+    })
+        .index("by_comment", ["commentId", "userId"])
+        .index("by_user", ["userId"]),
 
     // Phase 3: Reposts table
     reposts: defineTable({

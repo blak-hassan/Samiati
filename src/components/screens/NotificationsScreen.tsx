@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { Screen, NotificationItem } from '@/types';
 import {
   ArrowLeft,
@@ -61,12 +62,22 @@ const NotificationsScreen: React.FC<Props> = ({ goBack, notifications, onMarkAll
     scrollY.current = currentScrollY;
   };
 
-  const filteredNotifications = notifications.filter(n => {
+  const filteredNotifications = useMemo(() => notifications.filter(n => {
     const matchesFilter = filter === 'Unread' ? !n.isRead : true;
     const matchesSearch = n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       n.message.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesFilter && matchesSearch;
+  }), [notifications, filter, searchQuery]);
+
+  // Virtualize the list — only visible rows are mounted (bounded observers
+  // and stagger animations instead of one per notification).
+  const virtualizer = useVirtualizer({
+    count: filteredNotifications.length,
+    getScrollElement: () => mainRef.current,
+    estimateSize: () => 90,
+    overscan: 8,
   });
+  const virtualItems = virtualizer.getVirtualItems();
 
   const getIconForType = (type: string) => {
     switch (type) {
@@ -147,59 +158,75 @@ const NotificationsScreen: React.FC<Props> = ({ goBack, notifications, onMarkAll
             <p className="font-medium">No notifications found.</p>
           </div>
         ) : (
-          filteredNotifications.map((item, index) => (
-            <div
-              key={item.id}
-              onClick={() => onNotificationClick(item.id, item.targetScreen)}
-              className={cn(
-                "flex gap-4 p-4 rounded-2xl border transition-all cursor-pointer active:scale-[0.98] animate-fade-in-up",
-                item.isRead
-                  ? "bg-transparent border-transparent hover:bg-muted/50"
-                  : "bg-card border-border shadow-sm ring-1 ring-primary/5"
-              )}
-              style={{ animationDelay: `${index * 40}ms`, animationFillMode: 'backwards' }}
-            >
-              <div className="relative shrink-0">
-                <div className={cn(
-                  "w-12 h-12 rounded-xl flex items-center justify-center",
-                  item.isRead
-                    ? "bg-muted text-muted-foreground"
-                    : "bg-primary/10 text-primary"
-                )}>
-                  {getIconForType(item.type)}
-                </div>
-                {!item.isRead && (
-                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary border-2 border-background rounded-full" />
-                )}
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start gap-2">
-                  <h4 className={cn(
-                    "text-sm leading-tight line-clamp-1",
-                    item.isRead ? "text-muted-foreground" : "text-foreground font-bold"
+          <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
+            {virtualItems.map((virtualItem) => {
+              const item = filteredNotifications[virtualItem.index];
+              return (
+                <div
+                  key={item.id}
+                  data-index={virtualItem.index}
+                  ref={virtualizer.measureElement}
+                  onClick={() => onNotificationClick(item.id, item.targetScreen)}
+                  className={cn(
+                    "absolute top-0 left-0 w-full cursor-pointer animate-fade-in-up",
+                  )}
+                  style={{
+                    transform: `translateY(${virtualItem.start}px)`,
+                    animationDelay: `${Math.min(virtualItem.index, 15) * 40}ms`,
+                    animationFillMode: 'backwards',
+                  }}
+                >
+                  <div className={cn(
+                    "flex gap-4 p-4 rounded-2xl border transition-all active:scale-[0.98]",
+                    item.isRead
+                      ? "bg-transparent border-transparent hover:bg-muted/50"
+                      : "bg-card border-border shadow-sm ring-1 ring-primary/5"
                   )}>
-                    {item.title}
-                  </h4>
-                  <span className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground whitespace-nowrap pt-0.5">
-                    {item.time}
-                  </span>
-                </div>
-                <p className={cn(
-                  "text-sm mt-1 mb-2 line-clamp-2",
-                  item.isRead ? "text-muted-foreground/80" : "text-foreground/80"
-                )}>
-                  {item.message}
-                </p>
-                {!item.isRead && (
-                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-primary uppercase tracking-wider">
-                    <Check className="w-3 h-3" />
-                    New Interaction
+                    <div className="relative shrink-0">
+                      <div className={cn(
+                        "w-12 h-12 rounded-xl flex items-center justify-center",
+                        item.isRead
+                          ? "bg-muted text-muted-foreground"
+                          : "bg-primary/10 text-primary"
+                      )}>
+                        {getIconForType(item.type)}
+                      </div>
+                      {!item.isRead && (
+                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary border-2 border-background rounded-full" />
+                      )}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start gap-2">
+                        <h4 className={cn(
+                          "text-sm leading-tight line-clamp-1",
+                          item.isRead ? "text-muted-foreground" : "text-foreground font-bold"
+                        )}>
+                          {item.title}
+                        </h4>
+                        <span className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground whitespace-nowrap pt-0.5">
+                          {item.time}
+                        </span>
+                      </div>
+                      <p className={cn(
+                        "text-sm mt-1 mb-2 line-clamp-2",
+                        item.isRead ? "text-muted-foreground/80" : "text-foreground/80"
+                      )}>
+                        {item.message}
+                      </p>
+                      {!item.isRead && (
+                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-primary uppercase tracking-wider">
+                          <Check className="w-3 h-3" />
+                          New Interaction
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
-              </div>
-            </div>
-          ))
+                  <div style={{ height: 12 }} />
+                </div>
+              );
+            })}
+          </div>
         )}
         <div className="h-24"></div>
       </main>

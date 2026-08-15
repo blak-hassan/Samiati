@@ -95,8 +95,7 @@ export const follow = mutation({
 
         const existing = await ctx.db
             .query("followers")
-            .withIndex("by_follower", (q) => q.eq("followerId", user._id))
-            .filter(q => q.eq(q.field("followingId"), args.targetUserId))
+            .withIndex("by_follower_following", (q) => q.eq("followerId", user._id).eq("followingId", args.targetUserId))
             .first();
 
         if (existing) return; // Already following
@@ -143,8 +142,7 @@ export const unfollow = mutation({
 
         const existing = await ctx.db
             .query("followers")
-            .withIndex("by_follower", (q) => q.eq("followerId", user._id))
-            .filter(q => q.eq(q.field("followingId"), args.targetUserId))
+            .withIndex("by_follower_following", (q) => q.eq("followerId", user._id).eq("followingId", args.targetUserId))
             .first();
 
         if (!existing) return;

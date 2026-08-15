@@ -7,9 +7,10 @@ import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { ConvexProvider } from "convex/react";
 import * as Mock from "./MockProviders";
 import { UserSync } from "./UserSync";
+import { isDemoMode, clerkPublishableKey } from "@/lib/appMode";
 
 const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-const convex = convexUrl ? new ConvexReactClient(convexUrl) : null;
+const convex = isDemoMode ? null : convexUrl ? new ConvexReactClient(convexUrl) : null;
 
 // Inner provider that checks auth status
 function AuthenticatedConvexProvider({ children }: { children: ReactNode }) {
@@ -56,13 +57,15 @@ export default function ConvexClientProvider({
 }: {
     children: ReactNode;
 }) {
-    // If no convex URL, just render children with mock providers
-    if (!convexUrl || !convex) {
+    // Without a Convex deployment URL or a valid Clerk publishable key the
+    // backend can't run, so render the demo providers instead of mounting
+    // Clerk (which would otherwise error out and blank the whole app).
+    if (isDemoMode || !convex) {
         return <Mock.MockProviders>{children}</Mock.MockProviders>;
     }
 
     return (
-        <ClerkProvider publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
+        <ClerkProvider publishableKey={clerkPublishableKey}>
             <AuthenticatedConvexProvider>
                 {children}
             </AuthenticatedConvexProvider>

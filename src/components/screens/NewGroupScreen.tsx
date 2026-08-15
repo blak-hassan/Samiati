@@ -22,14 +22,7 @@ const NewGroupScreen: React.FC<Props> = ({ navigate, goBack, onCreateGroup }) =>
 
     const nameInputRef = useRef<HTMLInputElement>(null);
 
-    const MOCK_CONTACTS = [
-        { id: '1', name: 'Kwame Mensah', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDuGLE0i9NWNJMGLNeeS7Y-fkwpi4GavU-5tFQGjerfZBUK9A2baVE6a0v9b6Le6AIX-Xejh_WCf4Bb8tk8yqNXUeyVehi927mNkXbnvMb3ggvQTzfMzZcJc0kPiyaqMcPlts57mpPxJLq5-lgGwTjXzXNGyasv8_llUjyNVB2m-dLngZv8en8HyHDdbU1j_Wt2xl1HDaHg_iKgKX7HviRx7y_sXmAmU_NNuzZlrcnkbqtGL8NTvNgBOFaC4sSZ5yd97zBiTylIkog' },
-        { id: '2', name: 'Zahra Ali', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCHGQCh7G1VnjuVj9331GPw-eizTILg3UcwDA4ENWzw4Y4k-YeCgWzwUxAmYXQWIcfUfbQwVHw6sT-X-LP9EspDfXqNOQnm6QUcAN3d9HAxoEJ5kesDAP6W6EUQ6odygBf2Q2-wGIcEgisM6jeCizwsbd9roCE4EDfeK74dHdCooeQh3_eioZBLFJNPfGi8Cp4ke9oJ11DKdl5pNseP-GKgaT-tyieX9Uimavj73AayhR3msq3f9Dcw-BdgSJNRK5-7MQYX9T0wH_8' },
-        { id: '3', name: 'Chike Okoro', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBCf35EoI1LYG_Z-DVruXrhf48EMhNAfhAbaIoN6aNxIOA7VWp8i9i-bmGhJmE0dqxwKZOscNOyTdZhqM8oDoilkrWcTxcmgWw_9TKUo8f2ASQEfAbbjXAelehx2KYPAN8W1qBGBDnvXJmTlMbdPIdPtbLjIMEeo6jhXcD7OkpFeAa7ECkhmLX-DoyYLYn3mUQ7yRcrIkO3DdTcFC-tZ0hxx31yGdTsr7k-44mC1gpIEDYR6Jk63r6sc1JtxESZ_z8CzlfVQD_p38c' },
-        { id: '4', name: 'Fatou Sow', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA33dgvI_8O1U2ZsGRRdIrN6msDVHDnzcOdKb2aEXmYC6BfYJvld3snbK7MQxEUsWkCLK5m9ry75kxZt9sfUj6Lj3S1keqVySoqqDOIddmUfbhh1NdpYKeiNphTGsh0op0pjtMhHziNPcUnCoOwh0BNylf0gclux6S7K-7-UHrGrvKE0tNqLQdIZ2zsi9R4Op0Mw2iKcHKarDj1ikZRS8LF2G1DNUTepgcMC76cBhfsNp4cHQ24AUuqP1KmseLie5Uq-O-YHLOwnM8' },
-        { id: '5', name: 'Thabo Mokoena', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA6LZtwoRZLVf_mfFqdY11OX1RDMuLNBfzg-1-JqIap60sqItIczvKLkOwTmDA2J4pvgnJj5aFZAOk2PIeB-aYBeYRowNGFP8T6NhD2DXsMXeufNtSm-w5qmkobZjLTsvLwAACWIfN9watEHLy7hX6MckJh3IpQmn_5d1cs77_r6spZ27YrpgTvwW_gUlkhejzZ15PFd6Wav0M6iz-05tnZhk6UZkd-dSx3hIpX_jHEGKs4ob8uyhELqdeumxAYPV-uJ49KGz0AbDw' },
-        { id: '6', name: 'Nala Bekele', avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCwIbRrqJ4ZJ8GZcDvg3A8ICBI_glwNU2kT-sFW7-8qY1XYmEp5OPUPcOp1LTcTEL-9WOzc1bMxyURmWkWyrBOe5qFmcJy1VwLlI3U2fRprY3C452LNhCV5ucydy-MWIfij3s9wB7Womu3RmxEVpEBd6YW7i0ty-O2kqgzw4oYkynhtJWwuEqnWs0dyjiruGe25Bcsxd76N3hCs8K0KoGsEYyeM8qS63xvzlpMaTz-GZK-kI1D7zM4blUhv-JzuvkPJODszYC07wbc' }
-    ];
+    const MOCK_CONTACTS: { id: string; name: string; avatar: string }[] = [];
 
     const toggleContact = (id: string) => {
         const newSet = new Set(selectedContacts);
@@ -192,7 +185,7 @@ const NewGroupScreen: React.FC<Props> = ({ navigate, goBack, onCreateGroup }) =>
                             {selectedList.map(c => (
                                 <div key={c.id} className="flex flex-col items-center gap-1 min-w-[60px] animate-in zoom-in duration-200">
                                     <div className="relative">
-                                        <img src={c.avatar} alt={c.name} className="w-12 h-12 rounded-full object-cover" />
+                                        <img src={c.avatar} alt={c.name} className="w-12 h-12 rounded-full object-cover"  loading="lazy" decoding="async" />
                                         <button
                                             onClick={() => toggleContact(c.id)}
                                             className="absolute bottom-0 right-0 bg-stone-500 text-white rounded-full w-4 h-4 flex items-center justify-center hover:bg-stone-700 transition-colors border border-white dark:border-background-dark"
@@ -225,7 +218,7 @@ const NewGroupScreen: React.FC<Props> = ({ navigate, goBack, onCreateGroup }) =>
                                 className={`flex items-center gap-4 px-4 py-3 cursor-pointer transition-colors ${selectedContacts.has(contact.id) ? 'bg-primary/5 dark:bg-primary/10' : 'hover:bg-stone-50 dark:hover:bg-white/5'}`}
                             >
                                 <div className="relative">
-                                    <img src={contact.avatar} alt={contact.name} className="w-10 h-10 rounded-full object-cover" />
+                                    <img src={contact.avatar} alt={contact.name} className="w-10 h-10 rounded-full object-cover"  loading="lazy" decoding="async" />
                                     {selectedContacts.has(contact.id) && (
                                         <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-primary border-2 border-white dark:border-background-dark rounded-full flex items-center justify-center scale-90 animate-in zoom-in">
                                             <span className="material-symbols-outlined text-white text-[10px] font-bold">check</span>

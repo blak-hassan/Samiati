@@ -1,26 +1,9 @@
 import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser, isModerator } from "../users/utils";
-import { getLooseDb, LooseDoc } from "./db";
+import type { Doc } from "../_generated/dataModel";
 
-type SubmissionDoc = LooseDoc & {
-    userId?: string;
-    languageCode?: string;
-    status?: string;
-};
-
-type VoteDoc = LooseDoc & {
-    validatorId?: string;
-    vote?: string;
-};
-
-type StatsDoc = LooseDoc & {
-    userId?: string;
-    trustScore?: number;
-    streakDays?: number;
-    lastActiveDate?: string;
-    badges?: string[];
-};
+type StatsDoc = Doc<"changaUserStats">;
 
 function buildTrustScore(params: {
     contributionCount: number;
@@ -48,22 +31,17 @@ export const getUserContributionStats = query({
             return null;
         }
 
-        const db = getLooseDb(ctx);
+        const submissions = await ctx.db.query("changaSubmissions")
+            .withIndex("by_user_status", (q) => q.eq("userId", targetUserId))
+            .collect();
 
-        // Use index to fetch submissions by user instead of full table scan
-        const submissionsQuery = db.query("changaSubmissions")
-            .withIndex("by_user_status", (q: any) => q.eq("userId", targetUserId));
-        const submissions = (await submissionsQuery.collect()) as SubmissionDoc[];
+        const votes = await ctx.db.query("changaValidationVotes")
+            .withIndex("by_validator", (q) => q.eq("validatorId", targetUserId))
+            .collect();
 
-        // Use index to fetch votes by validator
-        const votesQuery = db.query("changaValidationVotes")
-            .withIndex("by_validator", (q: any) => q.eq("validatorId", targetUserId));
-        const votes = (await votesQuery.collect()) as VoteDoc[];
-
-        // Use index to fetch user stats instead of full table scan
-        const storedStats = (await db.query("changaUserStats")
-            .withIndex("by_user", (q: any) => q.eq("userId", targetUserId))
-            .first()) as StatsDoc | null;
+        const storedStats = await ctx.db.query("changaUserStats")
+            .withIndex("by_user", (q) => q.eq("userId", targetUserId))
+            .first();
 
         const reviewedCount = submissions.filter(
             (submission) => submission.status === "validated" || submission.status === "rejected" || submission.status === "curated",
@@ -78,9 +56,7 @@ export const getUserContributionStats = query({
             : 0;
         const topLanguages = Object.entries(
             submissions.reduce<Record<string, number>>((accumulator, submission) => {
-                if (submission.languageCode) {
-                    accumulator[submission.languageCode] = (accumulator[submission.languageCode] || 0) + 1;
-                }
+                accumulator[submission.languageCode] = (accumulator[submission.languageCode] || 0) + 1;
                 return accumulator;
             }, {}),
         )
@@ -115,36 +91,30 @@ export const getLanguageProgressStats = query({
         languageCode: v.string(),
     },
     handler: async (ctx, args) => {
-        const db = getLooseDb(ctx);
-
-        // Use index for tasks by language + status
-        const openTasksQuery = db.query("changaTasks")
-            .withIndex("by_language_status", (q: any) =>
+        const openTasks = (await ctx.db.query("changaTasks")
+            .withIndex("by_language_status", (q) =>
                 q.eq("languageCode", args.languageCode).eq("status", "open")
-            );
-        const openTasks = await openTasksQuery.collect();
+            )
+            .take(1000)).length;
 
-        // Use index for submissions by language (filter in-memory for now)
-        const submissionsQuery = db.query("changaSubmissions")
-            .withIndex("by_language_status", (q: any) => q.eq("languageCode", args.languageCode));
-        const submissions = await submissionsQuery.collect();
+        const submissionsCount = (await ctx.db.query("changaSubmissions")
+            .withIndex("by_language_status", (q) => q.eq("languageCode", args.languageCode))
+            .take(1000)).length;
 
-        // Use index for curated examples by language
-        const curatedExamples = await db.query("changaCuratedExamples")
-            .withIndex("by_language_releaseStatus", (q: any) => q.eq("languageCode", args.languageCode))
-            .collect();
-        
-        // Use index for campaigns by language + status
-        const campaigns = await db.query("changaCampaigns")
-            .withIndex("by_language_status", (q: any) => q.eq("languageCode", args.languageCode).eq("status", "active"))
-            .collect();
+        const curatedExamplesCount = (await ctx.db.query("changaCuratedExamples")
+            .withIndex("by_language_releaseStatus", (q) => q.eq("languageCode", args.languageCode))
+            .take(1000)).length;
+
+        const activeCampaignsCount = (await ctx.db.query("changaCampaigns")
+            .withIndex("by_language_status", (q) => q.eq("languageCode", args.languageCode).eq("status", "active"))
+            .take(1000)).length;
 
         return {
             languageCode: args.languageCode,
-            openTasks: openTasks.length,
-            submissions: submissions.length,
-            curatedExamples: curatedExamples.length,
-            activeCampaigns: campaigns.length,
+            openTasks,
+            submissions: submissionsCount,
+            curatedExamples: curatedExamplesCount,
+            activeCampaigns: activeCampaignsCount,
         };
     },
 });
@@ -159,22 +129,17 @@ export const recomputeTrustScore = mutation({
             throw new Error("Unauthorized");
         }
 
-        const db = getLooseDb(ctx);
+        const submissions = await ctx.db.query("changaSubmissions")
+            .withIndex("by_user_status", (q) => q.eq("userId", args.userId))
+            .collect();
 
-        // Use index to fetch submissions by user
-        const submissionsQuery = db.query("changaSubmissions")
-            .withIndex("by_user_status", (q: any) => q.eq("userId", args.userId));
-        const submissions = (await submissionsQuery.collect()) as SubmissionDoc[];
+        const votes = await ctx.db.query("changaValidationVotes")
+            .withIndex("by_validator", (q) => q.eq("validatorId", args.userId))
+            .collect();
 
-        // Use index to fetch votes by validator
-        const votesQuery = db.query("changaValidationVotes")
-            .withIndex("by_validator", (q: any) => q.eq("validatorId", args.userId));
-        const votes = (await votesQuery.collect()) as VoteDoc[];
-
-        // Use index for user stats instead of full table scan
-        const existingStats = (await db.query("changaUserStats")
-            .withIndex("by_user", (q: any) => q.eq("userId", args.userId))
-            .first()) as StatsDoc | null;
+        const existingStats = await ctx.db.query("changaUserStats")
+            .withIndex("by_user", (q) => q.eq("userId", args.userId))
+            .first();
 
         const reviewedCount = submissions.filter(
             (submission) => submission.status === "validated" || submission.status === "rejected" || submission.status === "curated",
@@ -195,7 +160,7 @@ export const recomputeTrustScore = mutation({
         });
 
         if (existingStats) {
-            await db.patch(existingStats._id, {
+            await ctx.db.patch(existingStats._id, {
                 contributionCount: submissions.length,
                 validationCount,
                 acceptRate,
@@ -206,7 +171,7 @@ export const recomputeTrustScore = mutation({
             return existingStats._id;
         }
 
-        return db.insert("changaUserStats", {
+        return ctx.db.insert("changaUserStats", {
             userId: args.userId,
             contributionCount: submissions.length,
             validationCount,
@@ -220,3 +185,5 @@ export const recomputeTrustScore = mutation({
         });
     },
 });
+
+export type UserStatsForDisplay = StatsDoc;

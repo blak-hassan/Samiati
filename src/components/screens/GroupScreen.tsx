@@ -7,7 +7,6 @@ import { ArrowLeft, MoreHorizontal, Bell, Search, Users, Info } from "lucide-rea
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PostCard } from '@/components/social/PostCard';
-import { INITIAL_SOCIAL_POSTS } from '@/data/mock';
 
 interface Props {
     navigate: NavigateFn;
@@ -17,7 +16,7 @@ interface Props {
 
 const GroupScreen: React.FC<Props> = ({ navigate, goBack, community }) => {
     // In a real app, fetch posts for this group
-    const [posts, setPosts] = useState<Post[]>(INITIAL_SOCIAL_POSTS);
+    const [posts, setPosts] = useState<Post[]>([]);
 
     return (
         <div className="flex flex-col min-h-screen bg-background pb-12">
@@ -27,7 +26,7 @@ const GroupScreen: React.FC<Props> = ({ navigate, goBack, community }) => {
                     src={community.coverImage}
                     alt="Cover"
                     className="w-full h-full object-cover"
-                />
+                 loading="lazy" decoding="async" />
                 <div className="absolute top-4 left-4">
                     <Button
                         size="icon"

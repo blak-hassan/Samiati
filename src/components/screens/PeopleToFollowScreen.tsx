@@ -1,7 +1,6 @@
 ﻿"use client";
 import React, { useState, useEffect, useRef } from 'react';
 import { Community, ContributionItem, NavigateFn, Screen, User } from '@/types';
-import { INITIAL_COMMUNITIES } from '@/data/mock';
 import { Person, useWatuFilters } from '@/hooks/useWatuFilters';
 import { WatuHeader } from '@/components/watu/WatuHeader';
 import { WatuFilters } from '@/components/watu/WatuFilters';
@@ -18,88 +17,13 @@ interface Props {
 
 const CURRENT_USER_AVATAR = "https://lh3.googleusercontent.com/aida-public/AB6AXuBeLXbWz4AzkUBDUb3vYkhuHrvvC9EFxb7YuDTFXSRV6e6T547HBjftD2_M3MWQ23u8DdygDU3-kcrmReHHcg1xuI2vz_fBK_UAfIaTV6tCpEh1xW7vkPs6qjbSwVjkqUkPXcPuBDRL_I0E_dA3ckyiMN2POsZ3M2E57RwaQqNiSED1NzWUTMmbbesb_Ko-z2BYoXtkkWP0lVOyL0aKlkzlpsNevnW1dPGKRZ5SxqpNtu6pvvjeFLtIUcElhd54x2R98mDwi_k8K4w";
 
-const MOCK_PEOPLE: Person[] = [
-  {
-    id: '1',
-    name: 'Kwame Mensah',
-    handle: 'kwame_m',
-    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDuGLE0i9NWNJMGLNeeS7Y-fkwpi4GavU-5tFQGjerfZBUK9A2baVE6a0v9b6Le6AIX-Xejh_WCf4Bb8tk8yqNXUeyVehi927mNkXbnvMb3ggvQTzfMzZcJc0kPiyaqMcPlts57mpPxJLq5-lgGwTjXzXNGyasv8_llUjyNVB2m-dLngZv8en8HyHDdbU1j_Wt2xl1HDaHg_iKgKX7HviRx7y_sXmAmU_NNuzZlrcnkbqtGL8NTvNgBOFaC4sSZ5yd97zBiTylIkog',
-    languages: ['Akan', 'English'],
-    region: 'West Africa',
-    isFollowing: false,
-    role: 'Storyteller',
-    about: 'Sharing the wisdom of the elders.',
-    contributionCount: 127
-  },
-  {
-    id: '2',
-    name: 'Zahra Ali',
-    handle: 'zahra_ali',
-    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCHGQCh7G1VnjuVj9331GPw-eizTILg3UcwDA4ENWzw4Y4k-YeCgWzwUxAmYXQWIcfUfbQwVHw6sT-X-LP9EspDfXqNOQnm6QUcAN3d9HAxoEJ5kesDAP6W6EUQ6odygBf2Q2-wGIcEgisM6jeCizwsbd9roCE4EDfeK74dHdCooeQh3_eioZBLFJNPfGi8Cp4ke9oJ11DKdl5pNseP-GKgaT-tyieX9Uimavj73AayhR3msq3f9Dcw-BdgSJNRK5-7MQYX9T0wH_8',
-    languages: ['Swahili', 'Arabic'],
-    region: 'East Africa',
-    isFollowing: false,
-    role: 'Historian',
-    about: 'History is the key to our future.',
-    contributionCount: 203
-  },
-  {
-    id: '3',
-    name: 'Chike Okoro',
-    handle: 'chike_o',
-    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBCf35EoI1LYG_Z-DVruXrhf48EMhNAfhAbaIoN6aNxIOA7VWp8i9i-bmGhJmE0dqxwKZOscNOyTdZhqM8oDoilkrWcTxcmgWw_9TKUo8f2ASQEfAbbjXAelehx2KYPAN8W1qBGBDnvXJmTlMbdPIdPtbLjIMEeo6jhXcD7OkpFeAa7ECkhmLX-DoyYLYn3mUQ7yRcrIkO3DdTcFC-tZ0hxx31yGdTsr7k-44mC1gpIEDYR6Jk63r6sc1JtxESZ_z8CzlfVQD_p38c',
-    languages: ['Igbo', 'English', 'Pidgin'],
-    region: 'West Africa',
-    isFollowing: true,
-    role: 'Proverb Expert',
-    about: 'Igbo kwenu!',
-    contributionCount: 89
-  },
-  {
-    id: '4',
-    name: 'Fatou Sow',
-    handle: 'fatou_s',
-    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA33dgvI_8O1U2ZsGRRdIrN6msDVHDnzcOdKb2aEXmYC6BfYJvld3snbK7MQxEUsWkCLK5m9ry75kxZt9sfUj6Lj3S1keqVySoqqDOIddmUfbhh1NdpYKeiNphTGsh0op0pjtMhHziNPcUnCoOwh0BNylf0gclux6S7K-7-UHrGrvKE0tNqLQdIZ2zsi9R4Op0Mw2iKcHKarDj1ikZRS8LF2G1DNUTepgcMC76cBhfsNp4cHQ24AUuqP1KmseLie5Uq-O-YHLOwnM8',
-    languages: ['Wolof', 'French'],
-    region: 'West Africa',
-    isFollowing: false,
-    role: 'Musician',
-    about: 'Music is life.',
-    contributionCount: 45
-  },
-  {
-    id: '5',
-    name: 'Thabo Mokoena',
-    handle: 'thabo_m',
-    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA6LZtwoRZLVf_mfFqdY11OX1RDMuLNBfzg-1-JqIap60sqItIczvKLkOwTmDA2J4pvgnJj5aFZAOk2PIeB-aYBeYRowNGFP8T6NhD2DXsMXeufNtSm-w5qmkobZjLTsvLwAACWIfN9watEHLy7hX6MckJh3IpQmn_5d1cs77_r6spZ27YrpgTvwW_gUlkhejzZ15PFd6Wav0M6iz-05tnZhk6UZkd-dSx3hIpX_jHEGKs4ob8uyhELqdeumxAYPV-uJ49KGz0AbDw',
-    languages: ['Zulu', 'Xhosa', 'English'],
-    region: 'Southern Africa',
-    isFollowing: false,
-    role: 'Community Elder',
-    about: 'Ubuntu.',
-    contributionCount: 156
-  },
-  {
-    id: '6',
-    name: 'Nala Bekele',
-    handle: 'nala_b',
-    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCwIbRrqJ4ZJ8GZcDvg3A8ICBI_glwNU2kT-sFW7-8qY1XYmEp5OPUPcOp1LTcTEL-9WOzc1bMxyURmWkWyrBOe5qFmcJy1VwLlI3U2fRprY3C452LNhCV5ucydy-MWIfij3s9wB7Womu3RmxEVpEBd6YW7i0ty-O2kqgzw4oYkynhtJWwuEqnWs0dyjiruGe25Bcsxd76N3hCs8K0KoGsEYyeM8qS63xvzlpMaTz-GZK-kI1D7zM4blUhv-JzuvkPJODszYC07wbc',
-    languages: ['Amharic', 'English'],
-    region: 'East Africa',
-    isFollowing: false,
-    role: 'Writer',
-    about: 'Words can change the world.',
-    contributionCount: 72
-  }
-];
-
 const PeopleToFollowScreen: React.FC<Props> = ({ navigate, goBack, onViewProfile, initialFilter }) => {
   const isSelectContactMode = initialFilter === 'SelectContact';
 
-  const [people, setPeople] = useState<Person[]>(MOCK_PEOPLE);
+  const [people, setPeople] = useState<Person[]>([]);
   const [activeCommunityTab, setActiveCommunityTab] = useState<'All' | 'People' | 'Communities'>('All');
   const communityTabs: Array<'All' | 'People' | 'Communities'> = ['All', 'People', 'Communities'];
-  const [communities, setCommunities] = useState<Community[]>(INITIAL_COMMUNITIES);
+  const [communities, setCommunities] = useState<Community[]>([]);
 
   // Scroll Header Logic
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);

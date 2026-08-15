@@ -30,7 +30,7 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({ attachments, onRemov
                     <Card key={att.id} className="p-3 bg-muted/20 border-border/50 flex items-center gap-4 group relative overflow-hidden">
                         <div className="h-12 w-12 rounded-xl bg-background flex items-center justify-center shrink-0 border border-border/50">
                             {att.type === 'image' ? (
-                                <img src={att.previewUrl} alt="Preview" className="w-full h-full object-cover rounded-xl" />
+                                <img src={att.previewUrl} alt="Preview" className="w-full h-full object-cover rounded-xl"  loading="lazy" decoding="async" />
                             ) : att.type === 'audio' ? (
                                 <span className="material-symbols-outlined text-primary">audiotrack</span>
                             ) : (

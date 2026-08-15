@@ -1,23 +1,15 @@
 import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser, isModerator } from "../users/utils";
-import { getLooseDb, LooseDoc } from "./db";
 import {
     changaExampleTypeValidator,
     changaReleaseStatusValidator,
     changaSplitRecommendationValidator,
 } from "./validators";
+import type { Doc } from "../_generated/dataModel";
 
-type SubmissionDoc = LooseDoc & {
-    languageCode?: string;
-    dialectCode?: string;
-    regionCode?: string;
-    sourceText?: string;
-    targetText?: string;
-    transcriptText?: string;
-    contextNote?: string;
-    status?: string;
-};
+type SubmissionDoc = Doc<"changaSubmissions">;
+type ExampleDoc = Doc<"changaCuratedExamples">;
 
 export const listCuratedCandidates = query({
     args: {
@@ -25,19 +17,23 @@ export const listCuratedCandidates = query({
         limit: v.optional(v.number()),
     },
     handler: async (ctx, args) => {
-        const db = getLooseDb(ctx);
+        const user = await getCurrentUser(ctx);
+        if (!user || !isModerator(user)) {
+            throw new Error("Unauthorized: Only moderators and admins can view curation candidates");
+        }
 
-        // Use indexed query - filter by language if provided, then status in memory
-        const submissionsQuery = db.query("changaSubmissions")
-            .withIndex("by_language_status", (q: any) =>
+        // Use the status-only index when no language is given, then bound the
+        // result with take() instead of collecting every validated submission.
+        const limit = args.limit ?? 50;
+        const submissions = await ctx.db.query("changaSubmissions")
+            .withIndex(args.languageCode ? "by_language_status" : "by_status", (q) =>
                 args.languageCode
                     ? q.eq("languageCode", args.languageCode).eq("status", "validated")
                     : q.eq("status", "validated")
-            );
+            )
+            .take(limit);
 
-        const submissions = (await submissionsQuery.collect()) as SubmissionDoc[];
-
-        return submissions.slice(0, args.limit ?? 50);
+        return submissions;
     },
 });
 
@@ -47,11 +43,13 @@ export const listDatasetReleaseCandidates = query({
         limit: v.optional(v.number()),
     },
     handler: async (ctx, args) => {
-        const db = getLooseDb(ctx);
-        
-        // Use indexed query for curated examples by release status
-        const examples = await db.query("changaCuratedExamples")
-            .withIndex("by_releaseStatus_createdAt", (q: any) => q.eq("releaseStatus", "candidate"))
+        const user = await getCurrentUser(ctx);
+        if (!user || !isModerator(user)) {
+            throw new Error("Unauthorized: Only moderators and admins can view dataset release candidates");
+        }
+
+        const examples = await ctx.db.query("changaCuratedExamples")
+            .withIndex("by_releaseStatus_createdAt", (q) => q.eq("releaseStatus", "candidate"))
             .collect();
 
         return examples
@@ -74,8 +72,7 @@ export const promoteSubmissionToCuratedExample = mutation({
             throw new Error("Unauthorized: Only moderators and admins can promote submissions");
         }
 
-        const db = getLooseDb(ctx);
-        const submission = (await db.get(args.submissionId)) as SubmissionDoc | null;
+        const submission = await ctx.db.get(args.submissionId);
         if (!submission) {
             throw new Error("Submission not found");
         }
@@ -84,17 +81,32 @@ export const promoteSubmissionToCuratedExample = mutation({
             throw new Error("Submission is not ready for curation");
         }
 
-        const assetsQuery = db.query("changaSubmissionAssets")
-            .withIndex("by_submission", (q: any) => q.eq("submissionId", args.submissionId));
-        const assets = await assetsQuery.collect();
+        // A curated candidate must link to its processing evidence.
+        const processingRuns = await ctx.db.query("changaProcessingRuns")
+            .withIndex("by_submission", (q) => q.eq("submissionId", args.submissionId))
+            .collect();
+        if (processingRuns.length === 0 || !processingRuns.some((run) => run.status === "completed")) {
+            throw new Error("Submission has no completed processing evidence and cannot be curated");
+        }
+
+        const existingExample = await ctx.db.query("changaCuratedExamples")
+            .withIndex("by_sourceSubmission", (q) => q.eq("sourceSubmissionId", args.submissionId))
+            .first();
+        if (existingExample) {
+            return existingExample._id;
+        }
+
+        const assets = await ctx.db.query("changaSubmissionAssets")
+            .withIndex("by_submission", (q) => q.eq("submissionId", args.submissionId))
+            .collect();
         const audioAsset = assets.find(
             (asset) => asset.assetType === "audio",
         );
 
-        const exampleId = await db.insert("changaCuratedExamples", {
+        const exampleId = await ctx.db.insert("changaCuratedExamples", {
             sourceSubmissionId: args.submissionId,
             exampleType: args.exampleType,
-            languageCode: submission.languageCode || "",
+            languageCode: submission.languageCode,
             dialectCode: submission.dialectCode,
             regionCode: submission.regionCode,
             sourceText: submission.sourceText,
@@ -109,7 +121,7 @@ export const promoteSubmissionToCuratedExample = mutation({
             createdAt: Date.now(),
         });
 
-        await db.patch(args.submissionId, {
+        await ctx.db.patch(args.submissionId, {
             status: "curated",
             curatedExampleId: exampleId,
             updatedAt: Date.now(),
@@ -131,8 +143,29 @@ export const approveCuratedExample = mutation({
             throw new Error("Unauthorized: Only moderators and admins can approve curated examples");
         }
 
-        const db = getLooseDb(ctx);
-        await db.patch(args.exampleId, {
+        const example = await ctx.db.get(args.exampleId);
+        if (!example) throw new Error("Curated example not found");
+        if (args.releaseStatus === "exported" && !args.datasetReleaseId) {
+            throw new Error("An exported example must belong to a dataset release");
+        }
+        if (args.datasetReleaseId) {
+            const release = await ctx.db.get(args.datasetReleaseId);
+            if (!release) throw new Error("Dataset release not found");
+            if (args.releaseStatus === "exported" && example.datasetReleaseId !== args.datasetReleaseId) {
+                await ctx.db.patch(args.datasetReleaseId, {
+                    exampleCount: Math.max(0, release.exampleCount + 1),
+                });
+                if (example.datasetReleaseId) {
+                    const previousRelease = await ctx.db.get(example.datasetReleaseId);
+                    if (previousRelease) {
+                        await ctx.db.patch(previousRelease._id, {
+                            exampleCount: Math.max(0, previousRelease.exampleCount - 1),
+                        });
+                    }
+                }
+            }
+        }
+        await ctx.db.patch(args.exampleId, {
             releaseStatus: args.releaseStatus,
             datasetReleaseId: args.datasetReleaseId,
         });
@@ -140,3 +173,55 @@ export const approveCuratedExample = mutation({
         return args.exampleId;
     },
 });
+
+export const createDatasetRelease = mutation({
+    args: {
+        name: v.string(),
+        version: v.string(),
+        languageScope: v.optional(v.array(v.string())),
+        criteria: v.optional(v.string()),
+        releaseNotes: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+        const user = await getCurrentUser(ctx);
+        if (!user || !isModerator(user)) {
+            throw new Error("Unauthorized: Only moderators and admins can create releases");
+        }
+
+        const existing = await ctx.db.query("changaDatasetReleases")
+            .withIndex("by_version", (q) => q.eq("version", args.version.trim()))
+            .first();
+        if (existing) throw new Error("A dataset release with this version already exists");
+
+        return ctx.db.insert("changaDatasetReleases", {
+            name: args.name.trim().slice(0, 200),
+            version: args.version.trim().slice(0, 100),
+            languageScope: args.languageScope,
+            criteria: args.criteria?.trim().slice(0, 4000),
+            exampleCount: 0,
+            releaseNotes: args.releaseNotes?.trim().slice(0, 4000),
+            createdAt: Date.now(),
+            createdBy: user._id,
+        });
+    },
+});
+
+export const retireCuratedExample = mutation({
+    args: {
+        exampleId: v.id("changaCuratedExamples"),
+    },
+    handler: async (ctx, args) => {
+        const user = await getCurrentUser(ctx);
+        if (!user || !isModerator(user)) {
+            throw new Error("Unauthorized: Only moderators and admins can retire examples");
+        }
+
+        const example = await ctx.db.get(args.exampleId);
+        if (!example) throw new Error("Curated example not found");
+        await ctx.db.patch(args.exampleId, { releaseStatus: "retired" });
+        return args.exampleId;
+    },
+});
+
+export type SubmissionDocForCuration = SubmissionDoc;
+export type CuratedExampleDoc = ExampleDoc;

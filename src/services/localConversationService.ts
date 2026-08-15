@@ -1,5 +1,4 @@
-import { Conversation, Message } from "@/types";
-import { INITIAL_CONVERSATIONS } from "@/data/mock";
+import { Conversation } from "@/types";
 
 const STORAGE_KEY = 'samiati_conversations';
 const ACTIVE_CHAT_KEY = 'samiati_active_chat';
@@ -12,12 +11,7 @@ export const localConversationService = {
 
         try {
             const stored = localStorage.getItem(STORAGE_KEY);
-            if (!stored) {
-                // Initialize with mock data if empty (for demo purposes)
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_CONVERSATIONS));
-                return INITIAL_CONVERSATIONS;
-            }
-            return JSON.parse(stored);
+            return stored ? JSON.parse(stored) : [];
         } catch (error) {
             console.error("Failed to load conversations:", error);
             return [];
@@ -41,6 +35,23 @@ export const localConversationService = {
             conversations.unshift(conversation); // Add to top
         }
 
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
+    },
+
+    // Delete a conversation by ID
+    deleteConversation: (id: string) => {
+        const conversations = localConversationService.getConversations();
+        const filtered = conversations.filter(c => c.id !== id);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+
+        if (localStorage.getItem(ACTIVE_CHAT_KEY) === id) {
+            localStorage.removeItem(ACTIVE_CHAT_KEY);
+        }
+    },
+
+    // Replace the whole conversation list (used when reordering/editing from the list screen)
+    saveAll: (conversations: Conversation[]) => {
+        if (typeof window === 'undefined') return;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
     },
 
@@ -75,4 +86,3 @@ export const localConversationService = {
         }
     }
 };
-

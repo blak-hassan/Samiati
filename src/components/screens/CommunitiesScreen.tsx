@@ -9,8 +9,6 @@ import { ArrowLeft, Search, Plus } from "lucide-react";
 
 import { CommunityCard } from '@/components/social/CommunityCard';
 
-import { INITIAL_COMMUNITIES } from '@/data/mock';
-
 interface Props {
     navigate: NavigateFn;
     goBack: () => void;
@@ -19,7 +17,7 @@ interface Props {
 
 const CommunitiesScreen: React.FC<Props> = ({ navigate, goBack, communities: initialCommunities }) => {
     const [searchQuery, setSearchQuery] = useState('');
-    const [communities, setCommunities] = useState<Community[]>(initialCommunities || INITIAL_COMMUNITIES);
+    const [communities, setCommunities] = useState<Community[]>(initialCommunities || []);
 
     // Update local state if prop changes
     React.useEffect(() => {

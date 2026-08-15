@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo, useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { usePaginatedQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { PostCard } from "@/components/social/PostCard";
@@ -19,32 +20,48 @@ export function PostFeedScreen() {
         { initialNumItems: 20 }
     );
 
-    const posts: Post[] = results.map((p: Record<string, unknown>) => ({
-        id: p._id as string,
-        type: (p.type as "standard" | "proverb" | "audio" | "question" | "fireplace") || "standard",
-        author: (p.author as { name: string; handle: string; avatar: string; isVerified?: boolean }) || {
-            name: "Unknown",
-            handle: "unknown",
-            avatar: "",
-        },
-        content: (p.content as string) || "",
-        cw: p.cw as string | undefined,
-        image: p.image as string | undefined,
-        altText: p.altText as string | undefined,
-        languageTag: p.languageTag as string | undefined,
-        isFireplace: p.isFireplace as boolean | undefined,
-        isBounty: p.isBounty as boolean | undefined,
-        timestamp: new Date(p.timestamp as number).toLocaleDateString(),
-        stats: (p.stats as { replies: number; reposts: number; likes: number; validations: number }) || {
-            replies: 0,
-            reposts: 0,
-            likes: 0,
-            validations: 0,
-        },
-        isLiked: (p.isLiked as boolean) || false,
-        isReposted: (p.isReposted as boolean) || false,
-        isValidated: (p.isValidated as boolean) || false,
-    }));
+    const posts = useMemo<Post[]>(() => {
+        const mapped = results.map((p: Record<string, unknown>) => ({
+            id: p._id as string,
+            type: (p.type as "standard" | "proverb" | "audio" | "question" | "fireplace") || "standard",
+            author: (p.author as { name: string; handle: string; avatar: string; isVerified?: boolean }) || {
+                name: "Unknown",
+                handle: "unknown",
+                avatar: "",
+            },
+            content: (p.content as string) || "",
+            cw: p.cw as string | undefined,
+            image: p.image as string | undefined,
+            altText: p.altText as string | undefined,
+            languageTag: p.languageTag as string | undefined,
+            isFireplace: p.isFireplace as boolean | undefined,
+            isBounty: p.isBounty as boolean | undefined,
+            timestamp: new Date(p.timestamp as number).toLocaleDateString(),
+            stats: (p.stats as { replies: number; reposts: number; likes: number; validations: number }) || {
+                replies: 0,
+                reposts: 0,
+                likes: 0,
+                validations: 0,
+            },
+            isLiked: (p.isLiked as boolean) || false,
+            isReposted: (p.isReposted as boolean) || false,
+            isValidated: (p.isValidated as boolean) || false,
+        })) as Post[];
+        // PostCard renders nothing for fireplace posts — drop them here so
+        // virtualization indices stay aligned with real DOM items.
+        return mapped.filter((post) => !post.isFireplace);
+    }, [results]);
+
+    // Virtualization over the scrollable main area — only visible posts are
+    // mounted, so PostCard observers/animations are bounded to the viewport.
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const virtualizer = useVirtualizer({
+        count: posts.length,
+        getScrollElement: () => scrollRef.current,
+        estimateSize: () => 200,
+        overscan: 6,
+    });
+    const virtualItems = virtualizer.getVirtualItems();
 
     const handlePostClick = useCallback((post: Post) => {
         navigate(Screen.POST_THREAD, { postId: post.id });
@@ -73,7 +90,7 @@ export function PostFeedScreen() {
     }, []);
 
     return (
-        <div className="flex flex-col min-h-screen bg-background">
+        <div className="flex flex-col h-[100dvh] bg-background">
             <header className="flex items-center justify-between px-4 py-3 bg-background/95 backdrop-blur-md sticky top-0 z-30 border-b border-border">
                 <Button variant="ghost" size="icon" onClick={goBack} className="rounded-full">
                     <ArrowLeft className="w-5 h-5" />
@@ -89,7 +106,7 @@ export function PostFeedScreen() {
                 </Button>
             </header>
 
-            <main className="flex-1">
+            <main ref={scrollRef} className="flex-1 overflow-y-auto">
                 {status === "LoadingFirstPage" ? (
                     <div className="space-y-0">
                         {[...Array(5)].map((_, i) => (
@@ -119,18 +136,34 @@ export function PostFeedScreen() {
                     </div>
                 ) : (
                     <>
-                        {posts.map((post) => (
-                            <PostCard
-                                key={post.id}
-                                post={post}
-                                onPostClick={handlePostClick}
-                                onUserClick={handleUserClick}
-                                onCommentClick={handleCommentClick}
-                                onLike={handleLike}
-                                onRepost={handleRepost}
-                                onMenuAction={handleMenuAction}
-                            />
-                        ))}
+                        <div
+                            style={{ height: virtualizer.getTotalSize(), position: "relative" }}
+                        >
+                            {virtualItems.map((virtualItem) => (
+                                <div
+                                    key={virtualItem.key}
+                                    data-index={virtualItem.index}
+                                    ref={virtualizer.measureElement}
+                                    style={{
+                                        position: "absolute",
+                                        top: 0,
+                                        left: 0,
+                                        width: "100%",
+                                        transform: `translateY(${virtualItem.start}px)`,
+                                    }}
+                                >
+                                    <PostCard
+                                        post={posts[virtualItem.index]}
+                                        onPostClick={handlePostClick}
+                                        onUserClick={handleUserClick}
+                                        onCommentClick={handleCommentClick}
+                                        onLike={handleLike}
+                                        onRepost={handleRepost}
+                                        onMenuAction={handleMenuAction}
+                                    />
+                                </div>
+                            ))}
+                        </div>
                         {status === "CanLoadMore" && (
                             <div className="p-4 flex justify-center">
                                 <Button

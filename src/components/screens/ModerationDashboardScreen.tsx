@@ -29,9 +29,6 @@ import { CritiqueModal } from '@/components/moderation/CritiqueModal';
 import { ReportModal } from '@/components/moderation/ReportModal';
 import { useUser } from '@/app/MockProviders';
 
-// Mock Data
-import { INITIAL_LANGUAGE_HEALTH } from '@/data/mock';
-
 interface Props {
   navigate: (screen: Screen) => void;
   goBack: () => void;
@@ -54,7 +51,7 @@ const ModerationDashboardScreen: React.FC<Props> = ({
 const moderationItemsToUse = propModerationItems || storedModerationItems || [];
   const userId = user?.id || 'u_current';
   // State
-  const [languages] = useState<LanguageHealth[]>(INITIAL_LANGUAGE_HEALTH);
+  const [languages] = useState<LanguageHealth[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [toastMessage, setToastMessage] = useState<{ text: string, type: 'success' | 'warning' | 'error' } | null>(null);
 

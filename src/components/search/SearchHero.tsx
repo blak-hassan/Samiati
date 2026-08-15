@@ -20,10 +20,12 @@ import {
   Globe,
   ChevronDown,
   Search,
+  X,
   ArrowUp as CheckIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LANGUAGES, Language } from "@/components/chat/LanguageSelector";
+import { SearchAttachment } from "@/services/geminiService";
 
 interface AttachmentItemProps {
   icon: React.ReactNode;
@@ -56,6 +58,12 @@ interface SearchHeroProps {
   compact?: boolean;
   selectedLanguage?: Language;
   onLanguageSelect?: (lang: Language) => void;
+  value?: string;
+  onValueChange?: (value: string) => void;
+  attachments?: SearchAttachment[];
+  onAttachDocument?: () => void;
+  onAttachImage?: () => void;
+  onRemoveAttachment?: (id: string) => void;
 }
 
 const SearchHero: React.FC<SearchHeroProps> = ({
@@ -67,12 +75,26 @@ const SearchHero: React.FC<SearchHeroProps> = ({
   compact = false,
   selectedLanguage,
   onLanguageSelect,
+  value,
+  onValueChange,
+  attachments = [],
+  onAttachDocument,
+  onAttachImage,
+  onRemoveAttachment,
 }) => {
-  const [query, setQuery] = useState("");
+  const [internalQuery, setInternalQuery] = useState("");
   const [isAttachmentOpen, setIsAttachmentOpen] = useState(false);
   const [isLangOpen, setIsLangOpen] = useState(false);
   const [langSearch, setLangSearch] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Controlled when the parent provides value/onValueChange; otherwise
+  // falls back to internal state (keeps the component self-sufficient).
+  const query = value !== undefined ? value : internalQuery;
+  const updateQuery = (next: string) => {
+    if (onValueChange) onValueChange(next);
+    else setInternalQuery(next);
+  };
 
   const filteredLangs = LANGUAGES.filter((l) =>
     l.name.toLowerCase().includes(langSearch.toLowerCase())
@@ -122,7 +144,7 @@ const SearchHero: React.FC<SearchHeroProps> = ({
           <textarea
             ref={textareaRef}
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => updateQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Type or Speak..."
             className={cn(
@@ -134,6 +156,34 @@ const SearchHero: React.FC<SearchHeroProps> = ({
             rows={1}
           />
         </div>
+
+        {/* Attached files */}
+        {attachments.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 pt-1.5 pb-1">
+            {attachments.map((att) => (
+              <span
+                key={att.id}
+                className="inline-flex items-center gap-1.5 pl-2 pr-1 py-1 rounded-full bg-muted/70 border border-border/40 text-[11px] font-bold text-foreground max-w-[180px]"
+              >
+                {att.kind === "doc" ? (
+                  <FileText className="w-3 h-3 text-orange-500 shrink-0" />
+                ) : (
+                  <ImageIcon className="w-3 h-3 text-blue-500 shrink-0" />
+                )}
+                <span className="truncate">{att.name}</span>
+                {onRemoveAttachment && (
+                  <button
+                    onClick={() => onRemoveAttachment(att.id)}
+                    className="w-4 h-4 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-background transition-colors shrink-0"
+                    aria-label={`Remove ${att.name}`}
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* Action Bar */}
         <div className="flex items-center justify-between w-full">
@@ -236,17 +286,26 @@ const SearchHero: React.FC<SearchHeroProps> = ({
                 <AttachmentItem
                   icon={<ImageIcon className="w-4 h-4 text-blue-500" />}
                   label="Photo / Video"
-                  onClick={() => setIsAttachmentOpen(false)}
+                  onClick={() => {
+                    setIsAttachmentOpen(false);
+                    onAttachImage?.();
+                  }}
                 />
                 <AttachmentItem
                   icon={<FileText className="w-4 h-4 text-orange-500" />}
                   label="Document"
-                  onClick={() => setIsAttachmentOpen(false)}
+                  onClick={() => {
+                    setIsAttachmentOpen(false);
+                    onAttachDocument?.();
+                  }}
                 />
                 <AttachmentItem
                   icon={<Camera className="w-4 h-4 text-green-500" />}
                   label="Live Camera"
-                  onClick={() => setIsAttachmentOpen(false)}
+                  onClick={() => {
+                    setIsAttachmentOpen(false);
+                    onAttachImage?.();
+                  }}
                 />
               </PopoverContent>
             </Popover>

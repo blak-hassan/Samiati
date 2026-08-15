@@ -32,7 +32,7 @@ export const WatuUserCard: React.FC<WatuUserCardProps> = ({
                     src={person.avatar}
                     alt={person.name}
                     className={`${isSelectContactMode ? 'w-10 h-10' : 'w-14 h-14'} rounded-full object-cover ring-2 ring-transparent group-hover:ring-primary/20 transition-all`}
-                />
+                 loading="lazy" decoding="async" />
                 {!isSelectContactMode && person.contributionCount && person.contributionCount > 50 && (
                     <div className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center p-0.5" title="Top Contributor">
                         <Star className="w-3 h-3 text-white fill-current" />

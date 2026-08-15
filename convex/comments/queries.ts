@@ -9,11 +9,13 @@ export const list = query({
         targetType: v.union(v.literal('post'), v.literal('contribution')),
     },
     handler: async (ctx, args) => {
+        // Bound the result so a thread with thousands of comments can't
+        // blow up the payload; nested replies stay intact for typical use.
         const comments = await ctx.db
             .query("comments")
             .withIndex("by_target", (q) => q.eq("targetType", args.targetType).eq("targetId", args.targetId))
             .order("desc")
-            .collect();
+            .take(150);
 
         const user = await getCurrentUser(ctx);
 
@@ -22,17 +24,19 @@ export const list = query({
         const authors = await Promise.all(authorIds.map(id => ctx.db.get(id)));
         const authorMap = new Map(authors.filter(Boolean).map(a => [a!._id, a]));
 
-        // Batch fetch all user votes
+        // Batch fetch all user votes in a single query (bounded by the
+        // user's own vote history) instead of one query per comment.
         let commentVoteMap = new Map<string, number>();
-        if (user) {
-            const votes = await Promise.all(comments.map(c =>
-                ctx.db.query("commentVotes")
-                    .withIndex("by_comment", (q) => q.eq("commentId", c._id).eq("userId", user._id))
-                    .first()
-            ));
-            votes.forEach((vote, i) => {
-                if (vote) {
-                    commentVoteMap.set(comments[i]._id, vote.vote === 'up' ? 1 : -1);
+        if (user && comments.length > 0) {
+            const commentIds = new Set(comments.map(c => c._id));
+            const votes = await ctx.db
+                .query("commentVotes")
+                .withIndex("by_user", (q) => q.eq("userId", user._id))
+                .collect();
+
+            votes.forEach((vote) => {
+                if (commentIds.has(vote.commentId)) {
+                    commentVoteMap.set(vote.commentId, vote.vote === 'up' ? 1 : -1);
                 }
             });
         }

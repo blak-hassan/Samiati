@@ -9,17 +9,20 @@ export const listConversations = query({
         const user = await getCurrentUser(ctx);
         if (!user) return [];
 
-        // Query where user is p1
+        // Query where user is p1 (bounded — a DM list beyond 100 threads is
+        // unrealistic and full collects grow with thread count)
         const c1 = await ctx.db
             .query("dmConversations")
             .withIndex("by_participant1", (q) => q.eq("participant1", user._id))
-            .collect();
+            .order("desc")
+            .take(100);
 
         // Query where user is p2
         const c2 = await ctx.db
             .query("dmConversations")
             .withIndex("by_participant2", (q) => q.eq("participant2", user._id))
-            .collect();
+            .order("desc")
+            .take(100);
 
         const all = [...c1, ...c2];
 

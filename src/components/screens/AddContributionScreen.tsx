@@ -744,7 +744,7 @@ const AddContributionScreen: React.FC<Props> = ({
                                 src={att.previewUrl}
                                 alt="Preview"
                                 className="w-full h-full object-cover rounded-lg"
-                              />
+                               loading="lazy" decoding="async" />
                             ) : (
                               <IconRenderer
                                 name={att.type === 'audio' ? 'music_note' : 'videocam'}

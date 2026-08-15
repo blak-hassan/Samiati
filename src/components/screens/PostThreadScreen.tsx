@@ -230,7 +230,7 @@ const PostThreadScreen: React.FC<Props> = ({ goBack, post, onLike, onRepost, aut
 
                             {post.image && (
                                 <div className="mb-6 rounded-3xl overflow-hidden border border-border shadow-2xl relative group bg-muted/10">
-                                    <img src={post.image} alt={post.altText || "Post content"} className="w-full h-auto max-h-[600px] object-contain" />
+                                    <img src={post.image} alt={post.altText || "Post content"} className="w-full h-auto max-h-[600px] object-contain"  loading="lazy" decoding="async" />
                                     {post.altText && (
                                         <>
                                             <Button

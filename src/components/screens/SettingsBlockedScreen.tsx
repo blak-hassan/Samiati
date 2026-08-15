@@ -30,7 +30,7 @@ const SettingsBlockedScreen: React.FC<Props> = ({ goBack }) => {
           blockedUsers.map(user => (
             <div key={user.id} className="flex items-center justify-between bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-stone-200 dark:border-white/5">
               <div className="flex items-center gap-3">
-                <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full bg-stone-200" />
+                <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full bg-stone-200"  loading="lazy" decoding="async" />
                 <div>
                   <p className="font-bold text-stone-900 dark:text-white text-sm">{user.name}</p>
                   <p className="text-xs text-stone-500 dark:text-text-muted">{user.handle}</p>

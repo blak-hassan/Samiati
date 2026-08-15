@@ -137,10 +137,10 @@ export const getPendingApplications = query({
             throw new Error("Unauthorized: Only admins can view applications");
         }
 
-        // Use indexed query to find users with active moderator applications
-        // Filter by role != moderator/admin in memory (small subset)
+        // Bound the scan — admin-only and low frequency, but unbounded
+        // collects grow with the whole users table.
         const allUsers = await ctx.db.query("users")
-            .collect();
+            .take(1000);
 
         const pendingApplications = allUsers.filter(user =>
             user.moderatorStatus?.isActive &&

@@ -183,7 +183,7 @@ export const ValidationCard: React.FC<Props> = ({
                             src={item.author.avatar}
                             alt={item.author.name}
                             className="size-8 rounded-full border border-black/5 dark:border-white/10"
-                        />
+                         loading="lazy" decoding="async" />
                     </button>
                 </div>
             </div>
@@ -203,7 +203,7 @@ export const ValidationCard: React.FC<Props> = ({
                                         alt={review.moderator.name}
                                         className="size-6 rounded-full border-2 border-white dark:border-[#32241a] shadow-sm hover:z-10 transition-transform hover:scale-110 cursor-pointer"
                                         title={review.moderator.name}
-                                    />
+                                     loading="lazy" decoding="async" />
                                 ))
                             ) : (
                                 <div className="size-6 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center border-2 border-white dark:border-[#32241a]">
@@ -235,7 +235,7 @@ export const ValidationCard: React.FC<Props> = ({
                     <div className="mt-3 space-y-2 pt-3 border-t border-black/5 dark:border-white/5 animate-in fade-in duration-300">
                         {item.reviews.map((review, i) => (
                             <div key={i} className="flex gap-3">
-                                <img src={review.moderator.avatar} alt={review.moderator.name} className="size-8 rounded-full h-fit mt-1" />
+                                <img src={review.moderator.avatar} alt={review.moderator.name} className="size-8 rounded-full h-fit mt-1"  loading="lazy" decoding="async" />
                                 <div className="flex-1">
                                     <div className="flex justify-between items-center mb-1">
                                         <p className="text-xs font-black text-stone-900 dark:text-white">{review.moderator.name}</p>

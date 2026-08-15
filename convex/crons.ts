@@ -17,4 +17,14 @@ crons.interval(
     internal.challenges.cron.archiveExpiredChallenges
 );
 
+// Changa processing worker: consumes the queued processing runs (ASR via Paza
+// Whisper, language id, moderation) so raw submissions gain automated evidence
+// before they can route to review. Every 5 minutes, bounded by batch size.
+crons.interval(
+    "changa-processing-worker",
+    { minutes: 5 },
+    internal.changa.worker.processQueuedRuns,
+    {}
+);
+
 export default crons;

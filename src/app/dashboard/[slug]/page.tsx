@@ -1,6 +1,6 @@
 "use client";
 
-import React, { use, useState } from 'react';
+import React, { Suspense, use, useState } from 'react';
 import { notFound } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { ChatPreview, Conversation, RouteSearchParams, Screen, User } from '@/types';
@@ -8,6 +8,16 @@ import { useNavigation } from "@/hooks/useNavigation";
 import { useUser } from "../../MockProviders";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import SignInPrompt from "@/components/auth/SignInPrompt";
+
+function ScreenLoader() {
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-background">
+            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+    );
+}
+
+import { localConversationService } from "@/services/localConversationService";
 
 // Dynamic Screen Imports — each loads only when needed
 const ChallengeDetailsScreen = dynamic(() => import('@/components/screens/ChallengeDetailsScreen'), { ssr: false });
@@ -47,7 +57,8 @@ const ContactInfoScreen = dynamic(() => import('@/components/screens/ContactInfo
 const ComposePostScreen = dynamic(() => import('@/components/screens/ComposePostScreen'), { ssr: false });
 const TermsOfServiceScreen = dynamic(() => import('@/components/screens/TermsOfServiceScreen'), { ssr: false });
 const PrivacyPolicyScreen = dynamic(() => import('@/components/screens/PrivacyPolicyScreen'), { ssr: false });
-const ChangaScreen = dynamic(() => import('@/components/screens/ChangaScreen'), { ssr: false });
+const ChangaHome = dynamic(() => import('@/components/changa/ChangaHome'), { ssr: false });
+const MyChangaActivity = dynamic(() => import('@/components/changa/MyChangaActivity'), { ssr: false });
 const DarasaScreen = dynamic(() => import('@/components/screens/DarasaScreen'), { ssr: false });
 
 export default function DashboardCatchAllPage({ params, searchParams }: { params: Promise<{ slug: string }>, searchParams: Promise<RouteSearchParams> }) {
@@ -102,7 +113,8 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
     const handleAddChat = (_chat: ChatPreview) => { };
 
     // Render logic — each case only triggers the dynamic import of the screen it needs
-    switch (screen) {
+    const renderScreen = () => {
+        switch (screen) {
         case Screen.CHALLENGE_DETAILS: return <ChallengeDetailsScreen navigate={navigate} goBack={goBack} onViewProfile={handleViewProfile} unreadCount={unreadCount} challenge={resolvedSearchParams?.challenge ? JSON.parse(resolvedSearchParams.challenge as string) : undefined} />;
         case Screen.CHALLENGE_WINNERS: return <ChallengeWinnersScreen navigate={navigate} goBack={goBack} onViewProfile={handleViewProfile} />;
         case Screen.SUBMIT_ENTRY: return <SubmitEntryScreen navigate={navigate} goBack={goBack} challenge={resolvedSearchParams?.challenge ? JSON.parse(resolvedSearchParams.challenge as string) : undefined} />;
@@ -136,21 +148,19 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
             />;
 
         case Screen.CHANGA:
-            if (isGuest) return <SignInPrompt feature="Changa" description="Sign in to explore and contribute to cultural challenges." navigate={navigate} />;
-            return <ChangaScreen
-                navigate={navigate}
-                goBack={goBack}
-                user={appUser}
-                unreadCount={unreadCount}
-            />;
+            if (isGuest) return <SignInPrompt feature="Changa" description="Sign in to help your language with quick, consented tasks." navigate={navigate} />;
+            return <ChangaHome onViewActivity={() => navigate(Screen.CHANGA_ACTIVITY)} />;
+
+        case Screen.CHANGA_ACTIVITY:
+            if (isGuest) return <SignInPrompt feature="Changa" description="Sign in to see your Changa contributions and activity." navigate={navigate} />;
+            return <MyChangaActivity navigate={navigate} goBack={goBack} />;
 
         case Screen.NOTIFICATIONS:
             if (isGuest) return <SignInPrompt feature="notifications" description="Sign in to see your activity and updates." navigate={navigate} />;
             return <NotificationsScreen navigate={navigate} goBack={goBack} notifications={notifications} onMarkAllRead={handleMarkAllRead} onNotificationClick={handleNotificationClick} />;
 
         case Screen.SAVED_CONVERSATIONS:
-            if (isGuest) return <SignInPrompt feature="saved conversations" description="Sign in to save and revisit your search conversations." navigate={navigate} />;
-            return <SavedConversationsScreen navigate={navigate} goBack={goBack} conversations={conversations} setConversations={setConversations} onChatSelect={(id) => navigate(Screen.HOME_CHAT, { chatId: id })} />;
+            return <SavedConversationsScreen navigate={navigate} goBack={goBack} conversations={conversations} setConversations={(next) => { setConversations(next); localConversationService.saveAll(next); }} onChatSelect={(id) => navigate(Screen.HOME_CHAT, { chatId: id })} onRename={(id, title) => { const c = localConversationService.getConversation(id); if (c) { localConversationService.saveConversation({ ...c, title }); setConversations(localConversationService.getConversations()); } }} />;
 
         case Screen.PROVERB_DETAIL: return <ProverbDetailScreen navigate={navigate} goBack={goBack} unreadCount={unreadCount} />;
         case Screen.STORY_DETAIL: return <StoryDetailScreen navigate={navigate} goBack={goBack} unreadCount={unreadCount} story={resolvedSearchParams?.story ? JSON.parse(resolvedSearchParams.story as string) : undefined} onViewProfile={handleViewProfile} />;
@@ -199,5 +209,12 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
 
         default:
             return <div>Screen {slug} not found</div>;
-    }
+        }
+    };
+
+    return (
+        <Suspense fallback={<ScreenLoader />}>
+            {renderScreen()}
+        </Suspense>
+    );
 }

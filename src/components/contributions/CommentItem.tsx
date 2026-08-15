@@ -27,7 +27,7 @@ export const CommentItem: React.FC<CommentItemProps> = ({
 }) => {
     return (
         <div className={`flex gap-3 mt-4 ${depth > 0 ? 'ml-8 border-l-2 border-stone-100 dark:border-white/5 pl-4' : ''}`}>
-            <img src={comment.avatar} alt={comment.author} className="w-8 h-8 rounded-full object-cover shrink-0" />
+            <img src={comment.avatar} alt={comment.author} className="w-8 h-8 rounded-full object-cover shrink-0"  loading="lazy" decoding="async" />
             <div className="flex-1 min-w-0">
                 <div className="bg-stone-50 dark:bg-white/5 rounded-2xl rounded-tl-none p-3">
                     <div className="flex justify-between items-start">

@@ -1,106 +1,66 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import AddContributionScreen from "@/components/screens/AddContributionScreen";
-import { useNavigation } from "@/hooks/useNavigation";
-import { useSearchParams } from "next/navigation";
-import { useQuery, useMutation } from "convex/react";
+import { Suspense, use } from "react";
+import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { ContributionItem, Screen } from "@/types";
-import { changaTaskTypeValues } from "../../../../convex/changa/validators";
+import { useNavigation } from "@/hooks/useNavigation";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import TaskContributionScreen from "@/components/changa/TaskContributionScreen";
+import { Screen } from "@/types";
+import type { Doc } from "../../../../convex/_generated/dataModel";
 
-type ChangaTaskType = typeof changaTaskTypeValues[number];
+const TEXT_TASK_TYPES = new Set([
+    "lexicon_entry",
+    "phrase_translation",
+    "sentence_translation",
+    "transcription",
+    "audio_reading",
+]);
 
-const CHANGA_TASK_TYPES = [
-    { ui: 'Word', changa: 'lexicon_entry' },
-    { ui: 'Proverb', changa: 'phrase_translation' },
-    { ui: 'Story', changa: 'sentence_translation' },
-    { ui: 'Translate Paragraphs', changa: 'sentence_translation' },
-] as const;
+type TextTaskDoc = Doc<"changaTasks"> & {
+    taskType: "lexicon_entry" | "phrase_translation" | "sentence_translation" | "transcription" | "audio_reading";
+};
 
-const DEFAULT_LANGUAGE = 'sw';
-
-function AddContributionContent() {
-    const { navigate, goBack } = useNavigation();
-    const searchParams = useSearchParams();
-
-    const [selectedLanguage, setSelectedLanguage] = useState(DEFAULT_LANGUAGE);
-
-    const availableTasks = useQuery(api.changa.tasks.listAvailableTasks, { 
-        languageCode: selectedLanguage,
-        limit: 50 
-    });
-
-    const profile = useQuery(api.users.queries.getProfile, {});
-
-    const createSimpleMutation = useMutation(api.changa.submissions.createSimpleSubmission);
-
-    const initialDataRaw = searchParams.get('initialData');
-    let initialData: ContributionItem | undefined;
-    if (initialDataRaw) {
-        try {
-            initialData = JSON.parse(initialDataRaw);
-        } catch (e) {
-            console.error("Failed to parse initialData", e);
-        }
-    }
-
-    const userLanguage = profile?.languages?.[0]?.id || selectedLanguage;
-
-    const mappedTasks: ContributionItem[] = (availableTasks || []).map((task: { _id: string; taskType?: string; languageCode?: string; promptSourceText?: string; promptTargetText?: string; status?: string }) => {
-        const typeMap = CHANGA_TASK_TYPES.find(t => t.changa === task.taskType);
-        return {
-            id: task._id,
-            type: (typeMap?.ui as ContributionItem["type"]) || "Word",
-            title: task.promptSourceText || task.promptTargetText || "New Task",
-            subtitle: `${task.taskType || "Word"} • ${task.languageCode || "en"}`,
-            status: task.status === "open" ? "Live" : "Under Review",
-            statusColor: task.status === "open" ? "text-success" : "text-warning",
-            dotColor: task.status === "open" ? "bg-success" : "bg-warning",
-            icon: "history_edu",
-            likes: 0,
-            dislikes: 0,
-            commentsCount: 0,
-            userVote: null,
-            comments: [],
-            showComments: false,
-            tags: task.languageCode ? [task.languageCode] : [],
-        };
-    });
-
-    const handleSave = async (item: ContributionItem) => {
-        try {
-            const typeMap = CHANGA_TASK_TYPES.find(t => t.ui === item.type) || CHANGA_TASK_TYPES[0];
-            
-            await createSimpleMutation({
-                taskType: typeMap.changa as ChangaTaskType,
-                languageCode: userLanguage,
-                sourceText: item.content,
-                targetText: item.translation,
-                contextNote: item.context,
-            });
-
-            navigate(Screen.CONTRIBUTIONS, { initialTab: 'My Changa', statusFilter: 'Under Review' });
-        } catch (error) {
-            console.error("Failed to save:", error);
-        }
-    };
-
-    return (
-        <AddContributionScreen
-            navigate={navigate}
-            goBack={goBack}
-            onSave={handleSave}
-            initialData={initialData}
-            availableTasks={mappedTasks}
-        />
-    );
+function isTextTask(task: Doc<"changaTasks">): task is TextTaskDoc {
+    return typeof task.taskType === "string" && TEXT_TASK_TYPES.has(task.taskType);
 }
 
-export default function AddContributionPage() {
+function AddContributionContent({ searchParams }: { searchParams: Promise<{ taskId?: string | string[] }> }) {
+    const { navigate, goBack } = useNavigation();
+    const params = use(searchParams);
+    const requestedTaskId = typeof params.taskId === "string" ? params.taskId : undefined;
+    const tasks = useQuery(api.changa.tasks.listAvailableTasks, { limit: 25 });
+
+    if (tasks === undefined) {
+        return <div className="min-h-screen bg-amber-50 p-8 dark:bg-stone-950">Loading a Changa task…</div>;
+    }
+
+    const textTasks = tasks.filter(isTextTask);
+    const task = textTasks.find((candidate) => candidate._id === requestedTaskId) ?? textTasks[0];
+
+    if (!task) {
+        return (
+            <main className="min-h-screen bg-amber-50 px-4 py-12 dark:bg-stone-950">
+                <Card className="mx-auto max-w-lg space-y-4 p-8 text-center">
+                    <h1 className="text-2xl font-bold">No text tasks are open right now</h1>
+                    <p className="text-sm text-muted-foreground">New language tasks appear here as soon as a campaign needs them.</p>
+                    <Button variant="outline" onClick={goBack}>Go back</Button>
+                </Card>
+            </main>
+        );
+    }
+
+    return <TaskContributionScreen
+        task={task}
+        onComplete={() => navigate(Screen.CHANGA_ACTIVITY)}
+    />;
+}
+
+export default function AddContributionPage({ searchParams }: { searchParams: Promise<{ taskId?: string | string[] }> }) {
     return (
-        <Suspense fallback={<div className="p-4">Loading...</div>}>
-            <AddContributionContent />
+        <Suspense fallback={<div className="min-h-screen bg-amber-50 p-8 dark:bg-stone-950">Loading a Changa task…</div>}>
+            <AddContributionContent searchParams={searchParams} />
         </Suspense>
     );
 }
