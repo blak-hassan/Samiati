@@ -63,6 +63,13 @@ export default defineSchema({
         badges: v.optional(v.array(v.string())),
         followerCount: v.optional(v.number()),
         followingCount: v.optional(v.number()),
+        // Profile identity
+        joinedAt: v.optional(v.number()), // Backfilled on first login for older accounts
+        // Privacy controls (spec §25–26) — null/absent = defaults (public, all on)
+        profileVisible: v.optional(v.boolean()), // default true
+        showChanga: v.optional(v.boolean()),      // default true
+        voiceDataAllowed: v.optional(v.boolean()), // spec §26: voice contribution consent
+        culturalDataAllowed: v.optional(v.boolean()), // spec §27: cultural data consent
         // Presence tracking
         lastSeen: v.optional(v.number()), // Timestamp of last activity
         isOnline: v.optional(v.boolean()), // Current online status
@@ -698,4 +705,13 @@ curatedExampleId: v.optional(v.id("changaCuratedExamples")),
         .index("by_user", ["userId"])
         .index("by_post", ["postId"])
         .index("by_user_post", ["userId", "postId"]),
+
+    // Generic sliding-window rate-limit counters. `key` identifies the
+    // throttled scope (e.g. "ai:chat:user:<id>", "sms:<phone>", "guest-create").
+    rateLimits: defineTable({
+        key: v.string(),
+        windowStart: v.number(),
+        count: v.number(),
+        updatedAt: v.number(),
+    }).index("by_key", ["key"]),
 });

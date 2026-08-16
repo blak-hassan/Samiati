@@ -1,15 +1,23 @@
 import { mutation } from "../_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser, isGuestUser } from "./utils";
+import { checkRateLimit } from "../lib/rateLimit";
+import { isValidHandle, isValidAvatarUrl, sanitizeText } from "../lib/validation";
 
 // Input validation constants
 const MAX_NAME_LENGTH = 100;
 const MAX_BIO_LENGTH = 500;
 const MAX_LOCATION_LENGTH = 200;
+const MAX_HANDLE_LENGTH = 30;
+
+// Guest creation is a public mutation (no Clerk session exists yet), so it
+// is the primary sybil vector. Bound how fast the whole app can mint rows.
+const MAX_GUESTS_PER_HOUR = 200;
+const MAX_GUESTS_PER_DAY = 1000;
 
 // Input sanitization helper
 function sanitizeInput(input: string, maxLength: number): string {
-    return input.trim().slice(0, maxLength);
+    return sanitizeText(input, maxLength);
 }
 
 // Update profile
@@ -55,6 +63,9 @@ export const updateProfile = mutation({
         }
         
         if (args.avatar !== undefined) {
+            if (!isValidAvatarUrl(args.avatar)) {
+                throw new Error("Avatar must be a valid http(s) image URL");
+            }
             updates.avatar = args.avatar;
         }
         
@@ -70,7 +81,12 @@ export const updateProfile = mutation({
             if (args.languages.length > 20) {
                 throw new Error("Too many languages specified");
             }
-            updates.languages = args.languages;
+            updates.languages = args.languages.map((lang) => ({
+                id: lang.id.slice(0, 50),
+                name: lang.name.slice(0, 100),
+                level: lang.level.slice(0, 50),
+                percent: Math.min(100, Math.max(0, Math.round(lang.percent))),
+            }));
         }
 
         await ctx.db.patch(user._id, updates);
@@ -89,6 +105,12 @@ export const follow = mutation({
         // Guests cannot follow users
         if (isGuestUser(user)) {
             throw new Error("Guest users cannot follow other users");
+        }
+
+        // Bound follow churn so a single account cannot spam notifications.
+        const { allowed } = await checkRateLimit(ctx.db, `users:follow:${user._id}`, 60 * 60 * 1000, 60);
+        if (!allowed) {
+            throw new Error("Too many follow actions. Please try again later.");
         }
 
         if (user._id === args.targetUserId) throw new Error("Cannot follow self");
@@ -140,6 +162,11 @@ export const unfollow = mutation({
         const user = await getCurrentUser(ctx);
         if (!user) throw new Error("Unauthorized");
 
+        const { allowed } = await checkRateLimit(ctx.db, `users:follow:${user._id}`, 60 * 60 * 1000, 60);
+        if (!allowed) {
+            throw new Error("Too many follow actions. Please try again later.");
+        }
+
         const existing = await ctx.db
             .query("followers")
             .withIndex("by_follower_following", (q) => q.eq("followerId", user._id).eq("followingId", args.targetUserId))
@@ -171,28 +198,51 @@ export const store = mutation({
             throw new Error("Called storeUser without authentication present");
         }
 
+        const name = args.name.trim().slice(0, MAX_NAME_LENGTH);
+        const handle = args.handle.trim();
+        if (!name) {
+            throw new Error("Name cannot be empty");
+        }
+        if (!isValidHandle(handle)) {
+            throw new Error("Handle must be 3-30 characters: letters, numbers, underscores");
+        }
+        const avatar = args.avatar.trim().slice(0, 2048);
+        // The email is a trusted claim from the Clerk identity, never from
+        // the client request body.
+        const email = identity.email ?? args.email?.trim().slice(0, 254) ?? undefined;
+
         const user = await ctx.db
             .query("users")
             .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
             .unique();
 
         if (user !== null) {
-            if (user.name !== args.name || user.handle !== args.handle || user.avatar !== args.avatar || user.email !== args.email) {
-                await ctx.db.patch(user._id, { name: args.name, handle: args.handle, avatar: args.avatar, email: args.email });
+            if (user.name !== name || user.handle !== handle || user.avatar !== avatar || user.email !== email) {
+                await ctx.db.patch(user._id, { name, handle, avatar, email });
             }
             return user._id;
         }
 
+        // New user — ensure the handle is not already taken.
+        let finalHandle = handle;
+        const existingHandle = await ctx.db
+            .query("users")
+            .withIndex("by_handle", (q) => q.eq("handle", handle))
+            .unique();
+        if (existingHandle) {
+            finalHandle = `${handle.slice(0, 24)}_${Math.random().toString(36).slice(2, 6)}`;
+        }
+
         // New user
         return await ctx.db.insert("users", {
-            name: args.name,
-            handle: args.handle,
-            avatar: args.avatar,
-            email: args.email,
+            name,
+            handle: finalHandle,
+            avatar,
+            email,
             clerkId: identity.subject,
             role: 'member', // Default role
             isGuest: false,
-            // joinedAt and isActive removed to match schema
+            joinedAt: Date.now(),
             followerCount: 0,
             followingCount: 0,
             xp: 0,
@@ -210,6 +260,29 @@ export const storeGuestUser = mutation({
         avatar: v.optional(v.string()) 
     },
     handler: async (ctx, args) => {
+        const name = args.name.trim().slice(0, MAX_NAME_LENGTH);
+        const handle = args.handle.trim();
+        if (!name) {
+            throw new Error("Name cannot be empty");
+        }
+        if (!isValidHandle(handle) || handle.length > MAX_HANDLE_LENGTH) {
+            throw new Error("Handle must be 3-30 characters: letters, numbers, underscores");
+        }
+        const avatar = (args.avatar ?? "").slice(0, 2048);
+
+        // Global rate limits — guest creation is public, so a flood of
+        // unauthenticated requests must not be able to grow the users table
+        // without bound.
+        const now = Date.now();
+        const hourly = await checkRateLimit(ctx.db, "guest-create:hour", 60 * 60 * 1000, MAX_GUESTS_PER_HOUR, now);
+        if (!hourly.allowed) {
+            throw new Error("Too many guest sessions right now. Please try again later.");
+        }
+        const daily = await checkRateLimit(ctx.db, "guest-create:day", 24 * 60 * 60 * 1000, MAX_GUESTS_PER_DAY, now);
+        if (!daily.allowed) {
+            throw new Error("Too many guest sessions today. Please try again later.");
+        }
+
         // For guest users, we generate a unique ID based on timestamp
         // In production, you'd want more robust guest identification
         const guestId = `guest_${Date.now()}_${Math.random().toString(36).slice(2, 15)}`;
@@ -227,27 +300,76 @@ export const storeGuestUser = mutation({
         // Validate handle uniqueness
         const existingHandle = await ctx.db
             .query("users")
-            .withIndex("by_handle", (q) => q.eq("handle", args.handle))
+            .withIndex("by_handle", (q) => q.eq("handle", handle))
             .unique();
             
         if (existingHandle) {
             // Generate a unique handle
-            args.handle = `${args.handle}_${Math.random().toString(36).slice(2, 6)}`;
+            args.handle = `${handle}_${Math.random().toString(36).slice(2, 6)}`;
+        } else {
+            args.handle = handle;
         }
         
         // Create new guest user with restricted role
         return await ctx.db.insert("users", {
-            name: args.name,
+            name,
             handle: args.handle,
-            avatar: args.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=guest",
+            avatar: avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=guest",
             email: undefined,
             clerkId: guestId,
             role: 'guest',
             isGuest: true,
+            joinedAt: Date.now(),
             followerCount: 0,
             followingCount: 0,
             xp: 0,
             level: 1,
         });
+    },
+});
+
+// Update privacy settings for the current user (spec §25).
+// Optional boolean fields: absent = keep current, present = overwrite.
+// Profile query reads these and treats absent/null as "on" (public).
+export const updatePrivacy = mutation({
+    args: {
+        profileVisible: v.optional(v.boolean()),
+        showChanga: v.optional(v.boolean()),
+        voiceDataAllowed: v.optional(v.boolean()),
+        culturalDataAllowed: v.optional(v.boolean()),
+    },
+    handler: async (ctx, args) => {
+        const user = await getCurrentUser(ctx);
+        if (!user) throw new Error("Unauthorized");
+        if (isGuestUser(user)) throw new Error("Guests cannot update privacy settings");
+
+        const updates: Record<string, unknown> = {};
+        if (args.profileVisible !== undefined) updates.profileVisible = args.profileVisible;
+        if (args.showChanga !== undefined) updates.showChanga = args.showChanga;
+        if (args.voiceDataAllowed !== undefined) updates.voiceDataAllowed = args.voiceDataAllowed;
+        if (args.culturalDataAllowed !== undefined) updates.culturalDataAllowed = args.culturalDataAllowed;
+
+        await ctx.db.patch(user._id, updates);
+    },
+});
+
+// One-time backfill: set joinedAt to _creationTime for users created before
+// the field existed. Safe to re-run — skips users that already have it.
+export const backfillJoinedAt = mutation({
+    args: {},
+    handler: async (ctx) => {
+        const caller = await getCurrentUser(ctx);
+        if (!caller || (caller.role !== "admin" && caller.role !== "moderator")) {
+            throw new Error("Unauthorized: only moderators can run backfills");
+        }
+        const all = await ctx.db.query("users").take(1000);
+        let patched = 0;
+        for (const u of all) {
+            if (!u.joinedAt) {
+                await ctx.db.patch(u._id, { joinedAt: u._creationTime });
+                patched++;
+            }
+        }
+        return { total: all.length, patched };
     },
 });

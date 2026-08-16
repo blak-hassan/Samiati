@@ -208,6 +208,56 @@ export interface LanguageSkill {
   percent: number; // For visualization
 }
 
+// Aggregate returned by api.profile.queries.getDashboard — every number is
+// computed server-side from real activity (spec §31/§32), never mocked.
+export interface ProfileDashboard {
+  profile: Record<string, unknown> & {
+    isMe: boolean;
+    isFollowing: boolean;
+  };
+  joinedAt: number;
+  followerCount: number;
+  followingCount: number;
+  contribution: {
+    total: number;
+    accepted: number;
+    inReview: number;
+    drafts: number;
+    needsFix: number;
+    rejected: number;
+    withdrawn: number;
+    acceptRate: number;
+    reviewAgreementRate: number;
+    trustScore: number;
+    validationCount: number;
+    streakDays: number;
+    voiceRecordings: number;
+    voiceAccepted: number;
+    byType: Record<string, { total: number; accepted: number }>;
+    byLanguage: Record<string, { total: number; accepted: number }>;
+    topLanguages: string[];
+    badges: string[];
+  };
+  contributorLevel: { level: number; title: string };
+  activeRoles: { languageCode: string; role: string }[];
+  legacyContributionCount: number;
+  timeline: Array<{
+    kind: 'contribution' | 'validation';
+    id: string;
+    label: string;
+    languageCode?: string;
+    status?: string;
+    snippet?: string;
+    timestamp: number;
+  }>;
+  privacy: {
+    profileVisible: boolean;
+    showChanga: boolean;
+    voiceDataAllowed: boolean;
+    culturalDataAllowed: boolean;
+  };
+}
+
 export interface ChatPreview {
   id: string;
   recipientId?: string;
