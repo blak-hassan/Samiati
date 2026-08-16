@@ -48,3 +48,6 @@ test-translation.js
 
 # opencode config (contains API keys)
 opencode.json
+
+.vercel
+.env*
