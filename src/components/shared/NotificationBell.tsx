@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,14 +21,14 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
     iconClassName
 }) => {
     const [shouldWobble, setShouldWobble] = useState(false);
-    const prevCount = useRef(unreadCount);
+    const [prevCount, setPrevCount] = useState(unreadCount);
 
     // Wobble when the unread count increases. Adjusting state during render,
-    // guarded by a previous-value ref, is React's documented pattern for
+    // guarded by the previous value, is React's documented pattern for
     // deriving state from a prop change — it avoids an effect round-trip.
-    if (unreadCount !== prevCount.current) {
-        const increased = unreadCount > prevCount.current;
-        prevCount.current = unreadCount;
+    if (unreadCount !== prevCount) {
+        const increased = unreadCount > prevCount;
+        setPrevCount(unreadCount);
         if (increased) {
             setShouldWobble(true);
         }
