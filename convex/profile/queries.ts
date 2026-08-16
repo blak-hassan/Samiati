@@ -79,19 +79,28 @@ export const getDashboard = query({
     },
     handler: async (ctx, args) => {
         let user: Doc<"users"> | null = null;
-        if (args.userId) {
-            user = await ctx.db.get(args.userId);
-        } else if (args.handle) {
-            user = await ctx.db
-                .query("users")
-                .withIndex("by_handle", (q) => q.eq("handle", args.handle!))
-                .unique();
-        } else {
-            user = await getCurrentUser(ctx);
+        try {
+            if (args.userId) {
+                user = await ctx.db.get(args.userId);
+            } else if (args.handle) {
+                user = await ctx.db
+                    .query("users")
+                    .withIndex("by_handle", (q) => q.eq("handle", args.handle!))
+                    .unique();
+            } else {
+                user = await getCurrentUser(ctx);
+            }
+        } catch {
+            return null;
         }
         if (!user) return null;
 
-        const currentUser = await getCurrentUser(ctx);
+        let currentUser: Doc<"users"> | null = null;
+        try {
+            currentUser = await getCurrentUser(ctx);
+        } catch {
+            // Auth unavailable — treat as logged out.
+        }
         const isMe = currentUser?._id === user._id;
 
         let isFollowing = false;
