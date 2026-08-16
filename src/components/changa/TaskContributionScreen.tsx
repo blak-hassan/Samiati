@@ -241,7 +241,6 @@ export default function TaskContributionScreen({ task, onComplete }: TaskContrib
                     storageId: storageId as Id<"_storage">,
                     assetType: "audio",
                     mimeType: audioBlob!.type || "audio/webm",
-                    sizeBytes: audioBlob!.size,
                 });
             }
 

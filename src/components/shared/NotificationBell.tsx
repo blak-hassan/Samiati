@@ -23,15 +23,22 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
     const [shouldWobble, setShouldWobble] = useState(false);
     const prevCount = useRef(unreadCount);
 
-    useEffect(() => {
-        if (unreadCount > prevCount.current) {
-            setShouldWobble(true);
-            const timer = setTimeout(() => setShouldWobble(false), 600);
-            prevCount.current = unreadCount;
-            return () => clearTimeout(timer);
-        }
+    // Wobble when the unread count increases. Adjusting state during render,
+    // guarded by a previous-value ref, is React's documented pattern for
+    // deriving state from a prop change — it avoids an effect round-trip.
+    if (unreadCount !== prevCount.current) {
+        const increased = unreadCount > prevCount.current;
         prevCount.current = unreadCount;
-    }, [unreadCount]);
+        if (increased) {
+            setShouldWobble(true);
+        }
+    }
+
+    useEffect(() => {
+        if (!shouldWobble) return;
+        const timer = setTimeout(() => setShouldWobble(false), 600);
+        return () => clearTimeout(timer);
+    }, [shouldWobble]);
 
     return (
         <Button

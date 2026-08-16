@@ -26,7 +26,7 @@ export const list = query({
 
         // Batch fetch all user votes in a single query (bounded by the
         // user's own vote history) instead of one query per comment.
-        let commentVoteMap = new Map<string, number>();
+        const commentVoteMap = new Map<string, number>();
         if (user && comments.length > 0) {
             const commentIds = new Set(comments.map(c => c._id));
             const votes = await ctx.db
