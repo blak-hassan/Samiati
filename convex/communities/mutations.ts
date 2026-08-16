@@ -1,7 +1,7 @@
 import { mutation } from "../_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser } from "../users/utils";
-import { Id } from "../_generated/dataModel";
+import { isValidAvatarUrl } from "../lib/validation";
 
 const MAX_COMMUNITY_NAME = 100;
 const MAX_COMMUNITY_DESCRIPTION = 1000;
@@ -28,6 +28,12 @@ export const create = mutation({
         }
         if (args.description.length > MAX_COMMUNITY_DESCRIPTION) {
             throw new Error(`Description exceeds maximum length of ${MAX_COMMUNITY_DESCRIPTION}`);
+        }
+        if (args.avatar && !isValidAvatarUrl(args.avatar)) {
+            throw new Error("Avatar must be a valid http(s) URL");
+        }
+        if (args.coverImage && !isValidAvatarUrl(args.coverImage)) {
+            throw new Error("Cover image must be a valid http(s) URL");
         }
 
         const communityId = await ctx.db.insert("communities", {

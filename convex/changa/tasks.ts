@@ -14,6 +14,7 @@ import {
 } from "./validators";
 
 const TASK_CLAIM_DURATION_MS = 20 * 60 * 1000;
+const MAX_CONCURRENT_CLAIMS = 10;
 
 const priorityWeight: Record<string, number> = {
     critical: 4,
@@ -176,6 +177,18 @@ export const claimTask = mutation({
 
         if (existingClaims.some((claim) => claim.status === "submitted")) {
             throw new Error("You have already submitted this task");
+        }
+
+        // A single account cannot hoard claims across tasks: bound concurrent
+        // active claims so a scanner cannot lock the whole open queue.
+        const concurrentClaims = await ctx.db.query("changaTaskClaims")
+            .withIndex("by_user_status", (q) => q.eq("userId", user._id))
+            .collect();
+        const activeCount = concurrentClaims.filter((claim) =>
+            claim.status === "active" && claim.expiresAt > now,
+        ).length;
+        if (activeCount >= MAX_CONCURRENT_CLAIMS) {
+            throw new Error("You have too many active task claims. Finish or release one first.");
         }
 
         await Promise.all(existingClaims

@@ -78,9 +78,23 @@ export const submitReport = mutation({
         const user = await getCurrentUser(ctx);
         if (!user) throw new Error("Unauthorized");
 
+        // Bound every user-controlled string and the reasons array so a
+        // single request cannot carry an oversized report payload.
+        const targetContent = args.targetContent.slice(0, 2000);
+        const contextTitle = args.contextTitle.slice(0, 200);
+        const targetId = args.targetId.slice(0, 200);
+        const contextId = args.contextId?.slice(0, 200);
+        const reasons = [...new Set(args.reasons
+            .map((reason) => reason.trim().slice(0, 100))
+            .filter(Boolean))]
+            .slice(0, 10);
+        if (reasons.length === 0) {
+            throw new Error("Select at least one reason");
+        }
+
         const existingReport = await ctx.db
             .query("reports")
-            .withIndex("by_target", (q) => q.eq("targetId", args.targetId))
+            .withIndex("by_target", (q) => q.eq("targetId", targetId))
             .filter((q) => q.eq(q.field("reporterId"), user._id))
             .first();
 
@@ -90,11 +104,11 @@ export const submitReport = mutation({
 
         const reportId = await ctx.db.insert("reports", {
             type: args.type,
-            targetId: args.targetId,
-            targetContent: args.targetContent.slice(0, 2000),
-            contextTitle: args.contextTitle,
-            contextId: args.contextId,
-            reasons: args.reasons,
+            targetId,
+            targetContent,
+            contextTitle,
+            contextId,
+            reasons,
             reporterId: user._id,
             timestamp: Date.now(),
             status: "pending",

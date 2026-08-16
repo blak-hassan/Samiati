@@ -3,7 +3,7 @@ import { v } from "convex/values";
 import { getCurrentUser } from "./utils";
 
 // Fields to strip from public profiles
-const SENSITIVE_FIELDS = ['email', 'clerkId', 'moderatorStatus'] as const;
+const SENSITIVE_FIELDS = ['email', 'clerkId', 'moderatorStatus', 'lastSeen', 'isOnline'] as const;
 
 function sanitizeUser(user: Record<string, unknown>) {
     const sanitized = { ...user };

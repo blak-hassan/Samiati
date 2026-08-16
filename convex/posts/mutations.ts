@@ -1,6 +1,7 @@
 import { mutation } from "../_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser, isGuestUser } from "../users/utils";
+import { isValidAvatarUrl } from "../lib/validation";
 
 // Input validation constants
 const MAX_CONTENT_LENGTH = 5000;
@@ -46,6 +47,12 @@ export const create = mutation({
         const allowedTypes = ['standard', 'proverb', 'question', 'fireplace'];
         if (!allowedTypes.includes(args.type)) {
             throw new Error("Invalid post type");
+        }
+
+        // The image is rendered on public pages; only real http(s) URLs are
+        // allowed (no data:, javascript:, or file: URIs).
+        if (args.image && !isValidAvatarUrl(args.image)) {
+            throw new Error("Image must be a valid http(s) URL");
         }
 
         const postId = await ctx.db.insert("posts", {

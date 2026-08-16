@@ -1,6 +1,7 @@
 
 import { v } from "convex/values";
 import { action } from "./_generated/server";
+import { requireAuthenticatedAction, enforceAiQuotaAction } from "./lib/aiSecurity";
 
 // =============================================================================
 // SUNFLOWER-GEMMA4-E2B TRANSLATION SERVICE (HuggingFace Inference API)
@@ -171,8 +172,14 @@ export const translateText = action({
         targetLanguage: v.string(),
     },
     handler: async (ctx, args) => {
+        await requireAuthenticatedAction(ctx);
+        await enforceAiQuotaAction(ctx, "translate");
+
         if (args.text.length > MAX_TRANSLATE_LENGTH) {
             return "ERROR: Text too long. Please keep text under 5,000 characters.";
+        }
+        if (args.targetLanguage.length > 50) {
+            return "ERROR: Invalid language code.";
         }
         return await callSunflower(args.text, args.targetLanguage);
     },

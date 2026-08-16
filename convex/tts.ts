@@ -1,6 +1,7 @@
 
 import { v } from "convex/values";
 import { action } from "./_generated/server";
+import { requireAuthenticatedAction, enforceAiQuotaAction } from "./lib/aiSecurity";
 
 // =============================================================================
 // ORPHEUS-3B TTS SERVICE (HuggingFace Inference API)
@@ -64,6 +65,9 @@ export const synthesizeSpeech = action({
         language: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
+        await requireAuthenticatedAction(ctx);
+        await enforceAiQuotaAction(ctx, "tts");
+
         if (args.text.length > MAX_TTS_LENGTH) {
             return { audioBase64: null, error: "ERROR: Text too long. Please keep text under 5,000 characters." };
         }

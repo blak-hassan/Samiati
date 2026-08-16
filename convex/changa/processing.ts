@@ -10,6 +10,7 @@ export const HARD_QUALITY_FLAGS = [
     "low_transcription_confidence",
     "transcript_missing",
     "potential_duplicate",
+    "audio_analysis_pending",
 ] as const;
 
 // Processors that must produce evidence before a raw record is considered for

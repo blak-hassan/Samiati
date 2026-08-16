@@ -2,6 +2,14 @@ import { mutation } from "../_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser } from "../users/utils";
 
+const MAX_TYPE_LENGTH = 50;
+const MAX_TITLE_LENGTH = 200;
+const MAX_SUBTITLE_LENGTH = 300;
+const MAX_CONTENT_LENGTH = 5000;
+const MAX_SHORT_FIELD_LENGTH = 100;
+const MAX_EXAMPLES = 10;
+const MAX_EXAMPLE_LENGTH = 500;
+
 // Submit a new contribution
 export const submit = mutation({
     args: {
@@ -21,17 +29,31 @@ export const submit = mutation({
         const user = await getCurrentUser(ctx);
         if (!user) throw new Error("Unauthorized");
 
+        if (args.title.length > MAX_TITLE_LENGTH) {
+            throw new Error(`Title exceeds maximum length of ${MAX_TITLE_LENGTH}`);
+        }
+        if (args.subtitle.length > MAX_SUBTITLE_LENGTH) {
+            throw new Error(`Subtitle exceeds maximum length of ${MAX_SUBTITLE_LENGTH}`);
+        }
+        if (args.content.length > MAX_CONTENT_LENGTH) {
+            throw new Error(`Content exceeds maximum length of ${MAX_CONTENT_LENGTH}`);
+        }
+        const examples = args.examples?.slice(0, MAX_EXAMPLES).map((example) => ({
+            local: example.local.slice(0, MAX_EXAMPLE_LENGTH),
+            translation: example.translation.slice(0, MAX_EXAMPLE_LENGTH),
+        }));
+
         const contributionId = await ctx.db.insert("contributions", {
             userId: user._id,
-            type: args.type,
-            title: args.title,
-            subtitle: args.subtitle,
-            content: args.content,
-            language: args.language,
-            dialect: args.dialect,
-            partOfSpeech: args.partOfSpeech,
-            phoneticText: args.phoneticText,
-            examples: args.examples,
+            type: args.type.slice(0, MAX_TYPE_LENGTH),
+            title: args.title.slice(0, MAX_TITLE_LENGTH),
+            subtitle: args.subtitle.slice(0, MAX_SUBTITLE_LENGTH),
+            content: args.content.slice(0, MAX_CONTENT_LENGTH),
+            language: args.language?.slice(0, MAX_SHORT_FIELD_LENGTH),
+            dialect: args.dialect?.slice(0, MAX_SHORT_FIELD_LENGTH),
+            partOfSpeech: args.partOfSpeech?.slice(0, MAX_SHORT_FIELD_LENGTH),
+            phoneticText: args.phoneticText?.slice(0, MAX_SHORT_FIELD_LENGTH),
+            examples,
             status: args.isDraft ? "Draft" : "Under Review",
             statusColor: args.isDraft ? "text-stone-500" : "text-warning",
             dotColor: args.isDraft ? "bg-stone-500" : "bg-warning",

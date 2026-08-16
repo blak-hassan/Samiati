@@ -1,4 +1,4 @@
-import { internalAction, internalMutation, internalQuery } from "../_generated/server";import { api, internal } from "../_generated/api";
+import { internalAction, internalMutation, internalQuery } from "../_generated/server";import { internal } from "../_generated/api";
 import { v } from "convex/values";
 import {
     HARD_QUALITY_FLAGS,
@@ -77,7 +77,7 @@ export const processQueuedRuns = internalAction({
                         }
                         const bytes = await response.arrayBuffer();
                         const audioBase64 = Buffer.from(bytes).toString("base64");
-                        const result = await ctx.runAction(api.asr.transcribeAudio, { audioBase64 });
+                        const result = await ctx.runAction(internal.asr.transcribeAudioInternal, { audioBase64 });
                         if (result.error) {
                             await ctx.runMutation(internal.changa.worker.completeAsrRun, {
                                 runId: run._id,
@@ -148,6 +148,11 @@ export const completeAsrRun = internalMutation({
                 modelVersion: ASR_MODEL_VERSION,
                 completedAt: now,
             });
+            // Route now that the queue is drained: the submission stays in
+            // the human lane while `audio_analysis_pending` is a hard flag.
+            await ctx.runMutation(internal.changa.worker.finalizeSubmissionRouting, {
+                submissionId: run.submissionId,
+            });
             return run._id;
         }
 
@@ -162,6 +167,13 @@ export const completeAsrRun = internalMutation({
 
         const flags = [...(submission?.qualityFlags || [])];
         const text = args.text ?? "";
+        // ASR evidence has arrived; drop the pending marker so the item may
+        // route to peer review. A failed or empty ASR keeps the hard flag
+        // and the item stays in the human lane.
+        if (text.trim()) {
+            const pendingIdx = flags.indexOf("audio_analysis_pending");
+            if (pendingIdx >= 0) flags.splice(pendingIdx, 1);
+        }
         if (audioAsset) {
             await ctx.db.patch(audioAsset._id, { asrText: text });
         }

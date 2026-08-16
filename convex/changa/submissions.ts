@@ -13,10 +13,12 @@ import {
 } from "./validators";
 
 function createDefaultConsent() {
+    // Consent is never assumed: a contributor must opt in explicitly before
+    // their data may be used for training or research.
     return {
-        isGranted: true,
-        allowTraining: true,
-        allowResearch: true,
+        isGranted: false,
+        allowTraining: false,
+        allowResearch: false,
         allowPublicAttribution: false,
         grantedAt: Date.now(),
     };
@@ -37,7 +39,24 @@ const MAX_TARGET_TEXT = 5000;
 const MAX_TRANSCRIPT_TEXT = 5000;
 const MAX_CONTEXT_NOTE = 1000;
 const MAX_GLOSS = 500;
+const MAX_OPEN_SUBMISSIONS_PER_TASK = 3;
 const ACTIVE_CONSENT_POLICY_VERSION = FALLBACK_CONSENT_POLICY_VERSION;
+const MAX_AUDIO_BYTES = 25 * 1024 * 1024; // 25 MB
+// The client's declared MIME type is never trusted; the real stored file is
+// verified against this whitelist via storage metadata.
+const ALLOWED_AUDIO_MIME_TYPES = new Set([
+    "audio/webm",
+    "audio/wav",
+    "audio/wave",
+    "audio/x-wav",
+    "audio/mpeg",
+    "audio/mp4",
+    "audio/ogg",
+    "audio/aac",
+    "audio/flac",
+    "audio/opus",
+    "audio/x-m4a",
+]);
 
 // Anti-abuse velocity limits. These are deliberately conservative for the
 // pilot; they prevent a single account from flooding the review queue.
@@ -173,22 +192,72 @@ export const createDraftSubmission = mutation({
             throw new Error("Unauthorized");
         }
 
+        // Never spread client fields into the database. Only the whitelisted
+        // fields below may be stored, each bounded to its max length.
+        const sourceText = args.sourceText?.slice(0, MAX_TARGET_TEXT);
+        const targetText = args.targetText?.slice(0, MAX_TARGET_TEXT);
+        const transcriptText = args.transcriptText?.slice(0, MAX_TRANSCRIPT_TEXT);
+        const contextNote = args.contextNote?.slice(0, MAX_CONTEXT_NOTE);
+        const gloss = args.gloss?.slice(0, MAX_GLOSS);
+        const clientIdempotencyKey = args.clientIdempotencyKey?.slice(0, 100);
+        // The server decides quality/checks — a client may not pre-declare
+        // itself clean.
+        const qualityFlags: string[] = [];
+        const autoChecks = undefined;
+
+        // Cross-check the declared submission type against the task contract
+        // so a task can never be answered with mismatched content.
+        const task = await ctx.db.get(args.taskId);
+        if (task?.taskType && task.taskType !== args.submissionType) {
+            throw new Error("Submission type does not match the task");
+        }
+        if (task?.languageCode && task.languageCode !== args.languageCode) {
+            throw new Error("Submission language does not match the task");
+        }
+
         // Idempotent draft creation: a retried request with the same key
         // returns the existing draft instead of creating a duplicate.
-        if (args.clientIdempotencyKey) {
+        if (clientIdempotencyKey) {
             const existing = await ctx.db.query("changaSubmissions")
                 .withIndex("by_user_key", (q) =>
-                    q.eq("userId", user._id).eq("clientIdempotencyKey", args.clientIdempotencyKey),
+                    q.eq("userId", user._id).eq("clientIdempotencyKey", clientIdempotencyKey),
                 )
                 .first();
             if (existing) return existing._id;
         }
 
+        // Bound open work per (user, task): a contributor cannot park an
+        // unlimited number of drafts on one task.
+        const openSubmissions = await ctx.db.query("changaSubmissions")
+            .withIndex("by_user_status", (q) => q.eq("userId", user._id))
+            .filter((q) => q.eq(q.field("taskId"), args.taskId))
+            .collect();
+        const openCount = openSubmissions.filter((s) =>
+            s.status === "draft" || s.status === "submitted" || s.status === "in_validation",
+        ).length;
+        if (openCount >= MAX_OPEN_SUBMISSIONS_PER_TASK) {
+            throw new Error("You already have the maximum number of open submissions for this task");
+        }
+
         return ctx.db.insert("changaSubmissions", {
-            ...args,
-            userId: user._id,
+            taskId: args.taskId,
+            submissionType: args.submissionType,
+            languageCode: args.languageCode.slice(0, 20),
+            dialectCode: args.dialectCode?.slice(0, 20),
+            regionCode: args.regionCode?.slice(0, 20),
+            sourceText,
+            targetText,
+            transcriptText,
+            contextNote,
+            gloss,
+            partOfSpeech: args.partOfSpeech?.slice(0, 50),
+            speakerProfile: args.speakerProfile,
             consent: args.consent ?? createDefaultConsent(),
             license: args.license ?? "community",
+            qualityFlags,
+            autoChecks,
+            clientIdempotencyKey,
+            userId: user._id,
             status: "draft",
             updatedAt: Date.now(),
         });
@@ -358,7 +427,7 @@ export const submitSubmission = mutation({
             transcriptText: args.transcriptText?.slice(0, MAX_TRANSCRIPT_TEXT),
             contextNote: args.contextNote?.slice(0, MAX_CONTEXT_NOTE),
             gloss: args.gloss?.slice(0, MAX_GLOSS),
-            partOfSpeech: args.partOfSpeech,
+            partOfSpeech: args.partOfSpeech?.slice(0, 50),
             clientIdempotencyKey: args.clientIdempotencyKey,
             qualityFlags,
             revision: (submission.revision ?? 0) + 1,
@@ -427,15 +496,6 @@ export const attachSubmissionAsset = mutation({
         storageId: v.id("_storage"),
         assetType: v.union(v.literal("audio"), v.literal("image")),
         mimeType: v.string(),
-        durationMs: v.optional(v.number()),
-        sampleRate: v.optional(v.number()),
-        channels: v.optional(v.number()),
-        sizeBytes: v.optional(v.number()),
-        waveformPreview: v.optional(v.string()),
-        asrText: v.optional(v.string()),
-        asrConfidence: v.optional(v.number()),
-        snrScore: v.optional(v.number()),
-        clippingScore: v.optional(v.number()),
     },
     handler: async (ctx, args) => {
         const user = await getCurrentUser(ctx);
@@ -457,11 +517,21 @@ export const attachSubmissionAsset = mutation({
         if (args.assetType !== "audio") {
             throw new Error("Only audio assets are supported in this Changa collection flow");
         }
-        if (!args.mimeType.startsWith("audio/")) {
-            throw new Error("Upload a supported audio recording");
+
+        // Never trust the client's declared MIME type or size. Verify the
+        // bytes that were actually stored in Convex storage.
+        const metadata = await ctx.storage.getMetadata(args.storageId);
+        if (!metadata) {
+            throw new Error("Uploaded file not found. Please upload again.");
         }
-        if (args.sizeBytes !== undefined && args.sizeBytes > 25 * 1024 * 1024) {
+        if (!ALLOWED_AUDIO_MIME_TYPES.has(metadata.contentType ?? "")) {
+            throw new Error("Upload a supported audio recording (webm, wav, mpeg, mp4, ogg)");
+        }
+        if (metadata.size > MAX_AUDIO_BYTES) {
             throw new Error("Audio recordings must be 25 MB or smaller");
+        }
+        if (metadata.size <= 0) {
+            throw new Error("Uploaded file is empty");
         }
 
         const existingAssets = await ctx.db.query("changaSubmissionAssets")
@@ -471,8 +541,15 @@ export const attachSubmissionAsset = mutation({
             throw new Error("This submission already has an audio recording");
         }
 
+        // Signal metadata (snrScore, clipping, ASR text, waveform, ...) is never
+        // accepted here: only fields verified against the stored file are
+        // recorded.
         const assetId = await ctx.db.insert("changaSubmissionAssets", {
-            ...args,
+            submissionId: args.submissionId,
+            storageId: args.storageId,
+            assetType: args.assetType,
+            mimeType: metadata.contentType ?? "audio/webm",
+            sizeBytes: metadata.size,
             createdAt: Date.now(),
         });
 

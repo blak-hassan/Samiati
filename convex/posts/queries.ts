@@ -37,9 +37,9 @@ export const feed = query({
         const authorMap = new Map(authors.filter(Boolean).map(a => [a!._id, a]));
 
         // Batch fetch user interactions for all posts at once
-        let likedPostIds = new Set<string>();
-        let repostedPostIds = new Set<string>();
-        let validatedPostIds = new Set<string>();
+        const likedPostIds = new Set<string>();
+        const repostedPostIds = new Set<string>();
+        const validatedPostIds = new Set<string>();
 
         if (user && posts.page.length > 0) {
             const postIds = new Set(posts.page.map(p => p._id));

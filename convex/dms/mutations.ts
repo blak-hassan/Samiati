@@ -1,6 +1,7 @@
 import { mutation } from "../_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser } from "../users/utils";
+import { checkRateLimit } from "../lib/rateLimit";
 
 const MAX_DM_LENGTH = 5000;
 
@@ -14,6 +15,13 @@ export const send = mutation({
     handler: async (ctx, args) => {
         const user = await getCurrentUser(ctx);
         if (!user) throw new Error("Unauthorized");
+
+        // Bound message velocity so a single account cannot flood inboxes,
+        // notifications, and the conversations table.
+        const { allowed } = await checkRateLimit(ctx.db, `dms:send:${user._id}`, 60 * 60 * 1000, 60);
+        if (!allowed) {
+            throw new Error("Too many messages sent. Please try again later.");
+        }
 
         if (args.recipientId === user._id) throw new Error("Cannot message self");
 

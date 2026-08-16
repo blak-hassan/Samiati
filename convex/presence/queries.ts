@@ -2,13 +2,20 @@ import { query } from "../_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser } from "../users/utils";
 
+// Presence is only meaningful between signed-in users; guests receive
+// closed values and never learn another user's activity times.
+const ONLINE_THRESHOLD = 2 * 60 * 1000; // 2 minutes
+
 // Check if specific users are online
 export const getOnlineStatus = query({
     args: {
         userIds: v.array(v.id("users")),
     },
     handler: async (ctx, args) => {
-        const ONLINE_THRESHOLD = 2 * 60 * 1000; // 2 minutes
+        const currentUser = await getCurrentUser(ctx);
+        if (!currentUser) {
+            return args.userIds.map((userId) => ({ userId, isOnline: false, lastSeen: null }));
+        }
         const now = Date.now();
 
         const statuses = await Promise.all(
@@ -41,7 +48,10 @@ export const getUserPresence = query({
         userId: v.id("users"),
     },
     handler: async (ctx, args) => {
-        const ONLINE_THRESHOLD = 2 * 60 * 1000; // 2 minutes
+        const currentUser = await getCurrentUser(ctx);
+        if (!currentUser) {
+            return { isOnline: false, lastSeen: null, lastSeenFormatted: "Never" };
+        }
         const now = Date.now();
 
         const user = await ctx.db.get(args.userId);

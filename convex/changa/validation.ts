@@ -2,6 +2,7 @@ import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser, isModerator } from "../users/utils";
 import { recordValidationStats } from "./reputation";
+import { checkRateLimit } from "../lib/rateLimit";
 import {
     changaAssignmentStatusValidator,
     changaValidatorRoleValidator,
@@ -11,6 +12,14 @@ import type { Doc, Id } from "../_generated/dataModel";
 
 const rejectVotes = new Set(["reject", "duplicate", "unsafe", "unclear_audio", "wrong_language"]);
 const DECISION_EVIDENCE_VERSION = "votes-v1";
+
+function clampConfidence(value: number | undefined): number | undefined {
+    return value === undefined ? undefined : Math.min(100, Math.max(0, value));
+}
+
+function boundIssueCodes(codes: string[] | undefined): string[] | undefined {
+    return codes?.slice(0, 10).map((code) => code.slice(0, 100));
+}
 
 type SubmissionDoc = Doc<"changaSubmissions">;
 
@@ -120,6 +129,9 @@ export const getValidationBundle = query({
         if (!user || submission.userId === user._id) {
             throw new Error("Unauthorized");
         }
+        if (submission.status !== "in_validation") {
+            throw new Error("This submission is not open for validation");
+        }
 
         const assets = await ctx.db.query("changaSubmissionAssets")
             .withIndex("by_submission", (q) => q.eq("submissionId", args.submissionId))
@@ -182,6 +194,9 @@ export const submitValidationVote = mutation({
         if (submission.userId === user._id) {
             throw new Error("Cannot validate your own submission");
         }
+        if (submission.status !== "in_validation") {
+            throw new Error("This submission is not open for validation");
+        }
 
         // One vote per reviewer per submission, indexed by the reviewer.
         const existingVote = await ctx.db.query("changaValidationVotes")
@@ -207,9 +222,9 @@ export const submitValidationVote = mutation({
             await ctx.db.patch(existingVote._id, {
                 validatorRole,
                 vote: args.vote,
-                confidence: args.confidence,
-                issueCodes: args.issueCodes,
-                comment: args.comment,
+                confidence: clampConfidence(args.confidence),
+                issueCodes: boundIssueCodes(args.issueCodes),
+                comment: args.comment?.slice(0, 1000),
                 trustSnapshot: user.level ?? 0,
                 createdAt: now,
             });
@@ -219,9 +234,9 @@ export const submitValidationVote = mutation({
                 validatorId: user._id,
                 validatorRole,
                 vote: args.vote,
-                confidence: args.confidence,
-                issueCodes: args.issueCodes,
-                comment: args.comment,
+                confidence: clampConfidence(args.confidence),
+                issueCodes: boundIssueCodes(args.issueCodes),
+                comment: args.comment?.slice(0, 1000),
                 trustSnapshot: user.level ?? 0,
                 createdAt: now,
             });
@@ -358,18 +373,35 @@ export const escalateSubmission = mutation({
         if (!submission) throw new Error("Submission not found");
         if (submission.userId === user._id) throw new Error("Cannot escalate your own submission");
 
+        // Escalation writes a moderator-facing decision row; bound how fast a
+        // single account can flood the decisions log.
+        const { allowed } = await checkRateLimit(ctx.db, `changa:escalate:${user._id}`, 60 * 60 * 1000, 10);
+        if (!allowed) {
+            throw new Error("Too many escalations. Please try again later.");
+        }
+
         const existingAssignment = await ctx.db.query("changaValidationAssignments")
             .withIndex("by_submission_status", (q) =>
                 q.eq("submissionId", args.submissionId).eq("status", "open"),
             )
             .first();
+
+        // Idempotent escalation: one open assignment per submission, and
+        // nothing to record once a moderator has already resolved the item.
         if (!existingAssignment) {
+            if (submission.status === "validated"
+                || submission.status === "rejected"
+                || submission.status === "curated") {
+                return args.submissionId;
+            }
             await ctx.db.insert("changaValidationAssignments", {
                 submissionId: args.submissionId,
                 roleRequired: "moderator",
                 status: "open",
                 assignedAt: Date.now(),
             });
+        } else {
+            return args.submissionId;
         }
 
         await ctx.db.insert("changaDecisions", {

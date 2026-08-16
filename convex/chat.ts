@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { action } from "./_generated/server";
+import { requireAuthenticatedAction, enforceAiQuotaAction } from "./lib/aiSecurity";
 
 // =============================================================================
 // CHAT SERVICE — Sunflower-Gemma4-E2B via HuggingFace Inference API
@@ -24,14 +25,17 @@ export const sendMessage = action({
         targetLanguage: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
+        await requireAuthenticatedAction(ctx);
+        await enforceAiQuotaAction(ctx, "chat");
+
         const apiKey = process.env.HUGGINGFACE_API_KEY;
         if (!apiKey) {
             return "ERROR: HUGGINGFACE_API_KEY not configured. Set it in Convex Dashboard.";
         }
 
         const limitedMessages = args.messages.slice(-MAX_MESSAGES_HISTORY);
-        const lastMessage = limitedMessages[limitedMessages.length - 1];
-        if (lastMessage && lastMessage.content.length > MAX_CHAT_MESSAGE_LENGTH) {
+        const oversizedMessage = limitedMessages.find((msg) => msg.content.length > MAX_CHAT_MESSAGE_LENGTH);
+        if (oversizedMessage) {
             return "ERROR: Message too long. Please keep messages under 5,000 characters.";
         }
 
