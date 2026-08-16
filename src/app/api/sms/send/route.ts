@@ -1,70 +1,13 @@
 import { NextResponse } from "next/server";
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "../../../../../convex/_generated/api";
+import { isValidTwilioSignature } from "@/lib/smsSignature";
 
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
+const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
+const SMS_WEBHOOK_SECRET = process.env.SMS_WEBHOOK_SECRET;
 const MAX_SMS_LENGTH = 1600;
-
-interface SearchOutcome {
-  answer: string;
-  followUps: string[];
-}
-
-async function runSearch(query: string, language: string): Promise<SearchOutcome> {
-  if (!CONVEX_URL) {
-    throw new Error("NEXT_PUBLIC_CONVEX_URL is not configured.");
-  }
-
-  const response = await fetch(`${CONVEX_URL}/api/action`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      path: "gemini:search",
-      args: { query, language, links: [], document: "" },
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown error");
-    throw new Error(`Search failed: ${response.status} ${errorText}`);
-  }
-
-  const result = await response.json();
-  if (result.status === "error") {
-    throw new Error(result.errorMessage || "Search action failed");
-  }
-
-  const value = result.value ?? {};
-  return {
-    answer: typeof value.answer === "string" ? value.answer : "",
-    followUps: Array.isArray(value.followUps) ? value.followUps : [],
-  };
-}
-
-async function sendSms(to: string, body: string): Promise<void> {
-  const sid = process.env.TWILIO_ACCOUNT_SID;
-  const token = process.env.TWILIO_AUTH_TOKEN;
-  const from = process.env.TWILIO_FROM_NUMBER;
-
-  if (!sid || !token || !from) {
-    throw new Error("Twilio is not configured (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER).");
-  }
-
-  const auth = "Basic " + Buffer.from(`${sid}:${token}`).toString("base64");
-  const params = new URLSearchParams({ To: to, From: from, Body: body });
-
-  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
-    method: "POST",
-    headers: {
-      Authorization: auth,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: params.toString(),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown error");
-    throw new Error(`Twilio error ${response.status}: ${errorText}`);
-  }
-}
+const MAX_QUERY_LENGTH = 5000;
 
 function truncateForSms(answer: string): string {
   if (answer.length <= MAX_SMS_LENGTH) return answer;
@@ -88,15 +31,27 @@ function twimlReply(body: string): Response {
 }
 
 export async function POST(request: Request) {
+  // The SMS pipeline is server-to-server only. Refuse to run without the
+  // shared secret configured server-side.
+  if (!SMS_WEBHOOK_SECRET || !CONVEX_URL) {
+    return NextResponse.json({ error: "SMS service is not configured." }, { status: 503 });
+  }
+
   const contentType = request.headers.get("content-type") ?? "";
-  const isForm = contentType.includes("application/x-www-form-urlencoded") || contentType.includes("multipart/form-data");
+  const isForm =
+    contentType.includes("application/x-www-form-urlencoded") ||
+    contentType.includes("multipart/form-data");
 
   let to = "";
   let query = "";
   let language = "English";
+  const formParams = new URLSearchParams();
 
   if (isForm) {
     const form = await request.formData();
+    for (const [key, value] of form.entries()) {
+      formParams.set(key, String(value));
+    }
     to = String(form.get("From") ?? form.get("to") ?? form.get("To") ?? "").trim();
     query = String(form.get("Body") ?? form.get("query") ?? form.get("message") ?? "").trim();
     const lang = form.get("language");
@@ -111,41 +66,77 @@ export async function POST(request: Request) {
   if (!query) {
     return NextResponse.json({ error: "query (or Body) is required." }, { status: 400 });
   }
+  if (query.length > MAX_QUERY_LENGTH) {
+    return NextResponse.json({ error: "query is too long." }, { status: 400 });
+  }
+  if (!/^\+?[0-9]{6,15}$/.test(to)) {
+    return NextResponse.json({ error: "Invalid recipient phone number." }, { status: 400 });
+  }
 
+  // Twilio webhook requests carry X-Twilio-Signature; JSON calls must present
+  // the shared webhook secret. Either one proves the caller is trusted.
+  const twilioSignature = request.headers.get("x-twilio-signature");
+  const bearerSecret = request.headers.get("x-samiati-secret");
+  const signatureValid =
+    (isForm && isValidTwilioSignature(request.url, formParams, twilioSignature, TWILIO_AUTH_TOKEN)) ||
+    (bearerSecret !== null && bearerSecret === SMS_WEBHOOK_SECRET);
+  if (!signatureValid) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const convex = new ConvexHttpClient(CONVEX_URL);
+  let outcome: { answer: string; followUps: string[] };
   try {
-    const outcome = await runSearch(query, language);
-    const trimmed = truncateForSms(outcome.answer || "Sorry, I could not find an answer for that question.");
-
-    if (isForm && to) {
-      return twimlReply(trimmed);
-    }
-
-    if (!to) {
-      return NextResponse.json({ error: "A recipient (to / From) is required to send SMS." }, { status: 400 });
-    }
-
-    await sendSms(to, trimmed);
-
-    return NextResponse.json({
-      ok: true,
-      to,
-      length: trimmed.length,
-      followUps: outcome.followUps.slice(0, 2),
+    const result = await convex.action(api.sms.processSmsSearch, {
+      secret: SMS_WEBHOOK_SECRET,
+      phoneNumber: to,
+      query,
+      language,
     });
+    outcome = {
+      answer: result.answer ?? "Sorry, I could not find an answer for that question.",
+      followUps: result.followUps ?? [],
+    };
   } catch (error) {
     console.error("[SMS send] failed:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
-    if (isForm && to) {
+    if (isForm) {
       return twimlReply(`Samiati: ${message}`);
     }
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
 
-export async function GET() {
+  const trimmed = truncateForSms(outcome.answer || "Sorry, I could not find an answer for that question.");
+
+  if (isForm) {
+    return twimlReply(trimmed);
+  }
+
+  if (!TWILIO_AUTH_TOKEN || !process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_FROM_NUMBER) {
+    return NextResponse.json({ error: "Twilio is not configured." }, { status: 503 });
+  }
+
+  const auth = "Basic " + Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString("base64");
+  const params = new URLSearchParams({ To: to, From: process.env.TWILIO_FROM_NUMBER!, Body: trimmed });
+
+  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`, {
+    method: "POST",
+    headers: {
+      Authorization: auth,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: params.toString(),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    return NextResponse.json({ error: `Twilio error ${response.status}: ${errorText}` }, { status: 502 });
+  }
+
   return NextResponse.json({
-    service: "samiati-sms",
-    status: "ok",
-    twilio: Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM_NUMBER),
+    ok: true,
+    to,
+    length: trimmed.length,
+    followUps: outcome.followUps.slice(0, 2),
   });
 }

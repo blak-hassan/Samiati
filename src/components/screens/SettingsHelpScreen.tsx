@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import React, { useState, useRef } from 'react';
+import { useAuth } from "@clerk/nextjs";
 import { Screen, Message } from '@/types';
 import { sendMessageToGemini } from '@/services/geminiService';
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ const FAQItem = ({ question, answer }: { question: string, answer: string }) => 
 };
 
 const SettingsHelpScreen: React.FC<Props> = ({ goBack }) => {
+    const { getToken } = useAuth();
     const [query, setQuery] = useState('');
     const [conversation, setConversation] = useState<Message[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -57,7 +59,7 @@ const SettingsHelpScreen: React.FC<Props> = ({ goBack }) => {
         setIsLoading(true);
 
         try {
-            const responseText = await sendMessageToGemini(userText, currentHistory);
+            const responseText = await sendMessageToGemini(userText, currentHistory, (await getToken()) ?? undefined);
 
             const aiMsg: Message = {
                 id: (Date.now() + 1).toString(),

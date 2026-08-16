@@ -17,6 +17,11 @@ const guestRoutes = [
 
 function isPublicRoute(req: NextRequest): boolean {
   const path = req.nextUrl.pathname;
+  // SMS webhooks are called by Twilio without a Clerk session. The route
+  // handler itself verifies the Twilio signature and the shared secret.
+  if (path.startsWith("/api/sms/")) {
+    return true;
+  }
   return publicRoutes.some((route) =>
     route === "/" ? path === route : path === route || path.startsWith(`${route}/`)
   );

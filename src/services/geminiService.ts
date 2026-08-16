@@ -55,7 +55,8 @@ export function getWikiLangCode(code: string): string {
 
 export async function sendMessageToGemini(
     userMessage: string,
-    conversationHistory: Message[]
+    conversationHistory: Message[],
+    accessToken?: string
 ): Promise<string> {
     // Use the Convex action directly via fetch
     const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
@@ -63,7 +64,10 @@ export async function sendMessageToGemini(
 
     const response = await fetch(`${convexUrl}/api/action`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
         body: JSON.stringify({
             path: 'gemini:sendMessage',
             args: {
@@ -196,13 +200,16 @@ interface ConvexActionResult {
     errorMessage?: string;
 }
 
-async function callConvexAction(path: string, args: Record<string, unknown>): Promise<unknown> {
+async function callConvexAction(path: string, args: Record<string, unknown>, accessToken?: string): Promise<unknown> {
     const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
     if (!convexUrl) throw new Error("Convex URL not configured");
 
     const response = await fetch(`${convexUrl}/api/action`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
         body: JSON.stringify({ path, args }),
     });
 
@@ -226,7 +233,8 @@ export async function searchWithGrounding(
     query: string,
     language: string,
     langCode = 'en',
-    documentText = ''
+    documentText = '',
+    accessToken?: string
 ): Promise<SearchResult> {
     const wikiLang = getWikiLangCode(langCode);
 
@@ -236,7 +244,7 @@ export async function searchWithGrounding(
     const document = documentText.trim().slice(0, 8000);
 
     const [value, images] = await Promise.all([
-        callConvexAction('gemini:search', { query, language, links, document }),
+        callConvexAction('gemini:search', { query, language, links, document }, accessToken),
         fetchCommonsImages(query).catch(() => []),
     ]);
 
@@ -262,9 +270,10 @@ export async function searchWithGrounding(
 // -----------------------------------------------------------------------------
 
 export async function transcribeAudioBase64(
-    audioBase64: string
+    audioBase64: string,
+    accessToken?: string
 ): Promise<{ text: string; error: string | null }> {
-    const value = await callConvexAction('asr:transcribeAudio', { audioBase64 });
+    const value = await callConvexAction('asr:transcribeAudio', { audioBase64 }, accessToken);
     if (!value || typeof value !== 'object') {
         return { text: '', error: 'ASR returned an unexpected response.' };
     }
@@ -274,9 +283,10 @@ export async function transcribeAudioBase64(
 
 export async function synthesizeSpeech(
     text: string,
-    language: string
+    language: string,
+    accessToken?: string
 ): Promise<{ audioBase64: string | null; contentType: string; error: string | null }> {
-    const value = await callConvexAction('tts:synthesizeSpeech', { text, language });
+    const value = await callConvexAction('tts:synthesizeSpeech', { text, language }, accessToken);
     if (!value || typeof value !== 'object') {
         return { audioBase64: null, contentType: 'audio/wav', error: 'TTS returned an unexpected response.' };
     }

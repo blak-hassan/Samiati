@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
+import { useAuth } from "@clerk/nextjs";
 import { Screen, Message, Conversation } from "@/types";
 import SamiatiLogo from "@/components/SamiatiLogo";
 import { Language, LANGUAGES } from "@/components/chat/LanguageSelector";
@@ -66,6 +67,9 @@ const HomeSearchScreen: React.FC<Props> = ({
   onNewChat,
   onSaveChat,
 }) => {
+  // Clerk session — AI actions require an authenticated caller
+  const { getToken } = useAuth();
+
   // Language
   const [selectedLanguage, setSelectedLanguage] = useState<Language>(
     LANGUAGES.find((l) => l.code === "sw") || LANGUAGES[0]
@@ -160,7 +164,8 @@ const HomeSearchScreen: React.FC<Props> = ({
           searchQuery,
           selectedLanguage.name,
           selectedLanguage.code,
-          documentText
+          documentText,
+          (await getToken()) ?? undefined
         );
         setAnswer(result.answer);
         setSources(result.sources);
@@ -235,7 +240,7 @@ const HomeSearchScreen: React.FC<Props> = ({
           try {
             const base64String = String(reader.result ?? "").split(",")[1];
             if (base64String) {
-              const response = await transcribeAudioBase64(base64String);
+              const response = await transcribeAudioBase64(base64String, (await getToken()) ?? undefined);
               if (response.text) {
                 setQuery((prev) => (prev ? `${prev} ${response.text}` : response.text));
               } else if (response.error) {
@@ -284,7 +289,7 @@ const HomeSearchScreen: React.FC<Props> = ({
     if (!answer) return;
 
     try {
-      const result = await synthesizeSpeech(answer, selectedLanguage.code);
+      const result = await synthesizeSpeech(answer, selectedLanguage.code, (await getToken()) ?? undefined);
       if (result.audioBase64) {
         const audio = new Audio(`data:${result.contentType};base64,${result.audioBase64}`);
         audioRef.current = audio;
