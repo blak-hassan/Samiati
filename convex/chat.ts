@@ -7,10 +7,10 @@ import { requireAuthenticatedAction, enforceAiQuotaAction } from "./lib/aiSecuri
 // =============================================================================
 // Replaces Ollama tunnel. Same model used for all AI services.
 // API key: HUGGINGFACE_API_KEY (Set in Convex Dashboard)
-// Model: Sunbird/Sunflower-Gemma4-E2B
+// Model: BlakHasan/Sunflower-Gemma4-E2B
 // =============================================================================
 
-const SUNFLOWER_URL = "https://router.huggingface.co/Sunbird/Sunflower-Gemma4-E2B";
+const SUNFLOWER_URL = "https://router.huggingface.co/BlakHasan/Sunflower-Gemma4-E2B";
 const MAX_CHAT_MESSAGE_LENGTH = 5000;
 const MAX_MESSAGES_HISTORY = 20;
 
@@ -59,7 +59,7 @@ export const sendMessage = action({
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    model: "Sunbird/Sunflower-Gemma4-E2B",
+                    model: "BlakHasan/Sunflower-Gemma4-E2B",
                     messages,
                     max_tokens: 350,
                     temperature: 0.7,

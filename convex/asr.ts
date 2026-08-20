@@ -10,7 +10,7 @@ import { requireAuthenticatedAction, enforceAiQuotaAction } from "./lib/aiSecuri
 // Kalenjin, Maasai, and Somali, while maintaining general Whisper robustness.
 //
 // API: HuggingFace Inference API (Automatic Speech Recognition Pipeline)
-// MODEL: microsoft/paza-whisper-large-v3-turbo
+// MODEL: BlakHasan/asr-whisper-51-african-languages
 // KEY: HUGGINGFACE_API_KEY (Set in Convex Dashboard)
 // =============================================================================
 
@@ -45,7 +45,7 @@ async function transcribeCore(audioBase64: string): Promise<TranscribeResult> {
         }
 
         // Use router.huggingface.co for better reliability on free tier
-        const url = "https://router.huggingface.co/microsoft/paza-whisper-large-v3-turbo";
+        const url = "https://router.huggingface.co/BlakHasan/asr-whisper-51-african-languages";
 
         const response = await fetch(url, {
             method: "POST",
@@ -63,7 +63,7 @@ async function transcribeCore(audioBase64: string): Promise<TranscribeResult> {
 
             // Handle 403 Forbidden specifically
             if (response.status === 403) {
-                return { text: "", error: "ERROR: ASR API access forbidden. This may be due to: (1) Invalid API key, (2) Model requires accepting terms at https://huggingface.co/models/microsoft/paza-whisper-large-v3-turbo, or (3) API quota exceeded." };
+                return { text: "", error: "ERROR: ASR API access forbidden. This may be due to: (1) Invalid API key, (2) Model requires accepting terms at https://huggingface.co/models/BlakHasan/asr-whisper-51-african-languages, or (3) API quota exceeded." };
             }
 
             // Handle 429 Rate Limit

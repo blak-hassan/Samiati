@@ -71,7 +71,7 @@ export const processSmsSearch = action({
         }
 
         const result: { answer: string; followUps: string[] } = await ctx.runAction(
-            internal.gemini.searchInternal,
+            internal.sunflower.searchInternal,
             {
                 query: args.query,
                 language,

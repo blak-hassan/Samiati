@@ -35,7 +35,6 @@ import type * as crons from "../crons.js";
 import type * as dms_mutations from "../dms/mutations.js";
 import type * as dms_queries from "../dms/queries.js";
 import type * as files from "../files.js";
-import type * as gemini from "../gemini.js";
 import type * as lib_aiQuota from "../lib/aiQuota.js";
 import type * as lib_aiSecurity from "../lib/aiSecurity.js";
 import type * as lib_rateLimit from "../lib/rateLimit.js";
@@ -54,11 +53,13 @@ import type * as reposts_mutations from "../reposts/mutations.js";
 import type * as reposts_queries from "../reposts/queries.js";
 import type * as sms from "../sms.js";
 import type * as smsRateLimit from "../smsRateLimit.js";
+import type * as sunflower from "../sunflower.js";
 import type * as translate from "../translate.js";
 import type * as tts from "../tts.js";
 import type * as users_mutations from "../users/mutations.js";
 import type * as users_queries from "../users/queries.js";
 import type * as users_utils from "../users/utils.js";
+import type * as wiki from "../wiki.js";
 
 import type {
   ApiFromModules,
@@ -94,7 +95,6 @@ declare const fullApi: ApiFromModules<{
   "dms/mutations": typeof dms_mutations;
   "dms/queries": typeof dms_queries;
   files: typeof files;
-  gemini: typeof gemini;
   "lib/aiQuota": typeof lib_aiQuota;
   "lib/aiSecurity": typeof lib_aiSecurity;
   "lib/rateLimit": typeof lib_rateLimit;
@@ -113,11 +113,13 @@ declare const fullApi: ApiFromModules<{
   "reposts/queries": typeof reposts_queries;
   sms: typeof sms;
   smsRateLimit: typeof smsRateLimit;
+  sunflower: typeof sunflower;
   translate: typeof translate;
   tts: typeof tts;
   "users/mutations": typeof users_mutations;
   "users/queries": typeof users_queries;
   "users/utils": typeof users_utils;
+  wiki: typeof wiki;
 }>;
 
 /**

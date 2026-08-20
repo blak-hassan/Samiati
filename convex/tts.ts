@@ -10,7 +10,7 @@ import { requireAuthenticatedAction, enforceAiQuotaAction } from "./lib/aiSecuri
 // Supports 20+ African languages with multi-speaker voices.
 //
 // API: HuggingFace Inference API (Text Generation Pipeline)
-// MODEL: Sunbird/orpheus-3b-tts-multilingual
+// MODEL: BlakHasan/orpheus-3b-tts-multilingual
 // KEY: HUGGINGFACE_API_KEY (Set in Convex Dashboard)
 //
 // Note: Orpheus-3B uses a special prompt format with speaker_id tags.
@@ -91,7 +91,7 @@ export const synthesizeSpeech = action({
             // Use router.huggingface.co for better reliability on free tier
             // Note: Orpheus-3B requires self-hosting or using a dedicated endpoint
             // This uses the HuggingFace Inference API with the text-generation pipeline
-            const url = "https://router.huggingface.co/Sunbird/orpheus-3b-tts-multilingual";
+            const url = "https://router.huggingface.co/BlakHasan/orpheus-3b-tts-multilingual";
 
             const response = await fetch(url, {
                 method: "POST",
@@ -100,7 +100,7 @@ export const synthesizeSpeech = action({
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    model: "Sunbird/orpheus-3b-tts-multilingual",
+                    model: "BlakHasan/orpheus-3b-tts-multilingual",
                     inputs: `${speakerId}: ${text}`,
                     parameters: {
                         max_new_tokens: 1200,
@@ -117,7 +117,7 @@ export const synthesizeSpeech = action({
 
                 // Handle 403 Forbidden specifically
                 if (response.status === 403) {
-                    return { audioBase64: null, error: "ERROR: TTS API access forbidden. This may be due to: (1) Invalid API key, (2) Model requires accepting terms at https://huggingface.co/models/Sunbird/orpheus-3b-tts-multilingual, or (3) API quota exceeded." };
+                    return { audioBase64: null, error: "ERROR: TTS API access forbidden. This may be due to: (1) Invalid API key, (2) Model requires accepting terms at https://huggingface.co/models/BlakHasan/orpheus-3b-tts-multilingual, or (3) API quota exceeded." };
                 }
 
                 // Handle 429 Rate Limit

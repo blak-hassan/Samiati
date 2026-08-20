@@ -6,11 +6,11 @@ import { requireAuthenticatedAction, enforceAiQuotaAction } from "./lib/aiSecuri
 // =============================================================================
 // SUNFLOWER-GEMMA4-E2B TRANSLATION SERVICE (HuggingFace Inference API)
 // =============================================================================
-// Uses Sunbird/Sunflower-Gemma4-E2B via HuggingFace Inference API
+// Uses BlakHasan/Sunflower-Gemma4-E2B via HuggingFace Inference API
 // for multilingual translation across 69 African languages.
 //
 // API: HuggingFace Inference API (Text Generation Pipeline)
-// MODEL: Sunbird/Sunflower-Gemma4-E2B
+// MODEL: BlakHasan/Sunflower-Gemma4-E2B
 // KEY: HUGGINGFACE_API_KEY (Set in Convex Dashboard)
 // =============================================================================
 
@@ -100,7 +100,7 @@ async function callSunflower(text: string, targetLang: string): Promise<string> 
 
     try {
         // Use router.huggingface.co for better reliability on free tier
-        const url = "https://router.huggingface.co/Sunbird/Sunflower-Gemma4-E2B";
+        const url = "https://router.huggingface.co/BlakHasan/Sunflower-Gemma4-E2B";
 
         const response = await fetch(url, {
             method: "POST",
@@ -109,7 +109,7 @@ async function callSunflower(text: string, targetLang: string): Promise<string> 
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                model: "Sunbird/Sunflower-Gemma4-E2B",
+                model: "BlakHasan/Sunflower-Gemma4-E2B",
                 messages: [
                     {
                         role: "system",
@@ -132,7 +132,7 @@ async function callSunflower(text: string, targetLang: string): Promise<string> 
             
             // Handle 403 Forbidden specifically
             if (response.status === 403) {
-                return "ERROR: Translation API access forbidden. This may be due to: (1) Invalid API key, (2) Model requires accepting terms at https://huggingface.co/models/Sunbird/Sunflower-Gemma4-E2B, or (3) API quota exceeded.";
+                return "ERROR: Translation API access forbidden. This may be due to: (1) Invalid API key, (2) Model requires accepting terms at https://huggingface.co/models/BlakHasan/Sunflower-Gemma4-E2B, or (3) API quota exceeded.";
             }
             
             // Handle 429 Rate Limit
