@@ -84,8 +84,17 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
     }
 
-    const res = await fetch(`${url}?${params.toString()}`);
+    const res = await fetch(`${url}?${params.toString()}`, {
+        // Wikipedia's API rejects requests without a descriptive UA (403).
+        headers: {
+            'User-Agent': 'Samiati/1.0 (https://samiati-10.vercel.app; educational African languages assistant)',
+            'Api-User-Agent': 'Samiati/1.0',
+        },
+    });
     if (!res.ok) {
+        if (res.status === 429 || res.status === 403) {
+            return NextResponse.json({ error: `Upstream ${res.status} — retry later` }, { status: 503 });
+        }
         return NextResponse.json({ error: `Upstream ${res.status}` }, { status: 502 });
     }
 
