@@ -22,6 +22,9 @@ function isPublicRoute(req: NextRequest): boolean {
   if (path.startsWith("/api/sms/")) {
     return true;
   }
+  if (path.startsWith("/api/wiki")) {
+    return true;
+  }
   return publicRoutes.some((route) =>
     route === "/" ? path === route : path === route || path.startsWith(`${route}/`)
   );

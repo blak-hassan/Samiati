@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { useAuth } from "@clerk/nextjs";
+import { useAction } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 import { Screen, Message, Conversation } from "@/types";
 import SamiatiLogo from "@/components/SamiatiLogo";
 import { Language, LANGUAGES } from "@/components/chat/LanguageSelector";
@@ -10,7 +11,7 @@ import SuggestionSentences from "@/components/search/SuggestionSentences";
 import SearchPhaseIndicator from "@/components/search/SearchPhaseIndicator";
 import SearchResults from "@/components/search/SearchResults";
 import { NotificationBell } from "@/components/shared/NotificationBell";
-import { searchWithGrounding, SearchResult, SearchImage, SearchAttachment, transcribeAudioBase64, synthesizeSpeech } from "@/services/geminiService";
+import { fetchWikipediaLinks, fetchCommonsImages, SearchResult, SearchImage, SearchAttachment } from "@/services/sunflowerService";
 import { Source } from "@/components/search/SourceCard";
 import { Button } from "@/components/ui/button";
 import { Menu, SquarePen, ArrowDown } from "lucide-react";
@@ -67,8 +68,10 @@ const HomeSearchScreen: React.FC<Props> = ({
   onNewChat,
   onSaveChat,
 }) => {
-  // Clerk session — AI actions require an authenticated caller
-  const { getToken } = useAuth();
+  // Convex actions — auth handled automatically by the Convex React client
+  const searchAction = useAction(api.sunflower.search);
+  const transcribeAction = useAction(api.asr.transcribeAudio);
+  const ttsAction = useAction(api.tts.synthesizeSpeech);
 
   // Language
   const [selectedLanguage, setSelectedLanguage] = useState<Language>(
@@ -160,13 +163,32 @@ const HomeSearchScreen: React.FC<Props> = ({
           .join("\n\n")
           .slice(0, 8000);
 
-        const result: SearchResult = await searchWithGrounding(
-          searchQuery,
-          selectedLanguage.name,
-          selectedLanguage.code,
-          documentText,
-          (await getToken()) ?? undefined
-        );
+        // Fetch Wikipedia links + images in parallel while calling the search action
+        const wikiLang = selectedLanguage.code === 'sw' ? 'sw' : 'en';
+        const [links, images, actionResult] = await Promise.all([
+          fetchWikipediaLinks(searchQuery, wikiLang),
+          fetchCommonsImages(searchQuery).catch(() => []),
+          searchAction({
+            query: searchQuery,
+            language: selectedLanguage.name,
+            links: [],
+            document: documentText,
+          }),
+        ]);
+
+        const result: SearchResult = {
+          answer: actionResult?.answer ?? '',
+          sources: Array.isArray(actionResult?.sources) && actionResult.sources.length > 0
+            ? actionResult.sources.map((s: { title: string; url: string; snippet?: string }) => ({
+                title: s.title,
+                url: s.url,
+                snippet: s.snippet ?? '',
+              }))
+            : links,
+          followUps: Array.isArray(actionResult?.followUps) ? actionResult.followUps : [],
+          images,
+        };
+
         setAnswer(result.answer);
         setSources(result.sources);
         setImages(result.images);
@@ -201,7 +223,7 @@ const HomeSearchScreen: React.FC<Props> = ({
         setSearchComplete(true);
       }
     },
-    [selectedLanguage, onSaveChat, activeConversation?.id, attachments]
+    [selectedLanguage, onSaveChat, activeConversation?.id, attachments, searchAction]
   );
 
   const handleSuggestionSelect = (suggestionQuery: string) => {
@@ -240,9 +262,9 @@ const HomeSearchScreen: React.FC<Props> = ({
           try {
             const base64String = String(reader.result ?? "").split(",")[1];
             if (base64String) {
-              const response = await transcribeAudioBase64(base64String, (await getToken()) ?? undefined);
+              const response = await transcribeAction({ audioBase64: base64String }) as { text?: string; error?: string | null };
               if (response.text) {
-                setQuery((prev) => (prev ? `${prev} ${response.text}` : response.text));
+                setQuery((prev) => (prev ? `${prev} ${response.text}` : response.text ?? ''));
               } else if (response.error) {
                 console.error("Transcription error:", response.error);
               }
@@ -289,7 +311,7 @@ const HomeSearchScreen: React.FC<Props> = ({
     if (!answer) return;
 
     try {
-      const result = await synthesizeSpeech(answer, selectedLanguage.code, (await getToken()) ?? undefined);
+      const result = await ttsAction({ text: answer, language: selectedLanguage.code }) as { audioBase64?: string | null; contentType?: string; error?: string | null };
       if (result.audioBase64) {
         const audio = new Audio(`data:${result.contentType};base64,${result.audioBase64}`);
         audioRef.current = audio;

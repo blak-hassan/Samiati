@@ -1,9 +1,9 @@
 ﻿"use client";
 
 import React, { useState, useRef } from 'react';
-import { useAuth } from "@clerk/nextjs";
+import { useAction } from "convex/react";
+import { api } from '../../../convex/_generated/api';
 import { Screen, Message } from '@/types';
-import { sendMessageToGemini } from '@/services/geminiService';
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
@@ -34,7 +34,7 @@ const FAQItem = ({ question, answer }: { question: string, answer: string }) => 
 };
 
 const SettingsHelpScreen: React.FC<Props> = ({ goBack }) => {
-    const { getToken } = useAuth();
+    const sendMessageAction = useAction(api.sunflower.sendMessage);
     const [query, setQuery] = useState('');
     const [conversation, setConversation] = useState<Message[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -59,7 +59,13 @@ const SettingsHelpScreen: React.FC<Props> = ({ goBack }) => {
         setIsLoading(true);
 
         try {
-            const responseText = await sendMessageToGemini(userText, currentHistory, (await getToken()) ?? undefined);
+            const responseText = await sendMessageAction({
+                userMessage: userText,
+                conversationHistory: currentHistory.map(msg => ({
+                    sender: msg.sender,
+                    text: msg.text,
+                })),
+            });
 
             const aiMsg: Message = {
                 id: (Date.now() + 1).toString(),

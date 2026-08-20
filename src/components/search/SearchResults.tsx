@@ -3,7 +3,7 @@
 import React from "react";
 import SourceCard, { Source, getSourceDomain } from "./SourceCard";
 import FollowUpChips from "./FollowUpChips";
-import { SearchImage } from "@/services/geminiService";
+import { SearchImage } from "@/services/sunflowerService";
 import { cn } from "@/lib/utils";
 import {
   Copy,

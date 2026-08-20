@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LANGUAGES, Language } from "@/components/chat/LanguageSelector";
-import { SearchAttachment } from "@/services/geminiService";
+import { SearchAttachment } from "@/services/sunflowerService";
 
 interface AttachmentItemProps {
   icon: React.ReactNode;
