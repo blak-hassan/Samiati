@@ -178,3 +178,58 @@ Full register: [`plans/security-hardening-plan.md`](plans/security-hardening-pla
 - `npm run lint` — no new problems in touched files (5 pre-existing errors in
   untouched files remain).
 - `npm run build` — production build succeeds on next 16.3.1.
+
+## Security Hardening Round 3 (2026-08) — post-deployment review
+
+Reviewed the newly added AI/search surface (Gemini → Sunflower migration in
+progress, public Wikipedia proxy route, Colab model server) and updated the
+deployment notes. Register: [`plans/security-hardening-plan.md`](plans/security-hardening-plan.md).
+
+### Verified clean (no changes needed)
+- `convex/sunflower.ts` (new) reuses the hardening gates: `sendMessage` and
+  `search` require an authenticated user + per-service quota
+  (`requireAuthenticatedAction`/`enforceAiQuotaAction`), messages/history/query
+  are length-capped; `searchInternal` is an `internalAction` (unreachable from
+  the public HTTP API) and is what the SMS pipeline calls.
+- `src/services/sunflowerService.ts` holds no secrets; it calls Convex actions
+  with the caller's session token.
+- Model renames (Sunbird→BlakHasan) in `asr`/`chat`/`translate`/`tts` keep the
+  auth/quota/error-handling paths intact.
+
+### Fixed in this round
+1. **Public Wikipedia proxy (Medium)** — `src/app/api/wiki/route.ts` was a
+   new public route (added to the middleware allowlist) with no rate limit,
+   no input caps, and an unvalidated `lang`/`limit`.
+   - **After:** `query` capped at 200 chars, `limit` clamped to 1-50, `lang`
+     restricted to `[a-z]{2,10}` before it touches the host template; every
+     request is throttled per IP (120/min sliding window) through a new
+     `convex/wiki.ts` mutation on the shared `rateLimits` table (429 with
+     `Retry-After` when exceeded; fails open if the limiter is unavailable).
+2. **Colab model server (High)** — `colab_server.py` contained a **real ngrok
+   auth token in plaintext** and exposed unauthenticated `/chat`, `/translate`,
+   `/asr`, `/tts` inference endpoints over a public ngrok URL (anyone with the
+   link could burn the free GPU).
+   - **After:** token now read from environment (`NGROK_AUTH_TOKEN`); all four
+     inference endpoints require the `x-samiati-secret` header matching
+     `SAMIAI_COLAB_SECRET` (401/503 otherwise); health check stays open. The
+     file is now gitignored (`colab_server.py`) so it cannot be committed.
+   - **Action needed:** rotate the previously committed-in-working-tree ngrok
+     token at https://dashboard.ngrok.com and set both secrets in Colab.
+
+### Deployment notes (updated)
+- Convex prod (`gregarious-rat-550`) and dev (`amicable-chipmunk-121`) are
+  linked via `.env.local` (`CONVEX_DEPLOYMENT`) — `npx convex deploy` and
+  `npx convex codegen` now work without a `convex.json`.
+- Server env vars set on prod: `CLERK_ISSUER_URL`, `HUGGINGFACE_API_KEY`,
+  `SMS_WEBHOOK_SECRET` (same value synced to dev and `.env.local`).
+- Vercel project `blak-hassans-projects/samiati-1.0` is linked with GitHub
+  auto-deploy; production env vars set (Clerk keys, `HUGGINGFACE_API_KEY`,
+  `NEXT_PUBLIC_CONVEX_URL=https://gregarious-rat-550.convex.cloud`,
+  `NEXT_PUBLIC_GEMINI_API_KEY`, `SMS_WEBHOOK_SECRET`).
+- Live at https://samiati-10.vercel.app — home 200; `/api/sms/send` returns
+  401 for unauthenticated calls; `/api/wiki` now rate-limited.
+- `.gitignore` now covers `.vercel`, `.env*`, `colab_server.py`, `*.log`.
+- **Migration sequencing:** the Sunflower migration is uncommitted; when it
+  ships, run `npx convex deploy` together with the frontend push (prod Convex
+  still serves the `gemini` module until then; the new `wiki` module is
+  already present in the working tree + dev deployment).

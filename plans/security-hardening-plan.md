@@ -110,6 +110,21 @@ Second audit pass after Section A-K landed. All findings fixed.
 Round 2 verification: `npx tsc --noEmit` clean, `npm test` 22/22, lint clean
 for touched files, `npm run build` succeeds on next 16.3.1.
 
+## Round 3 register (2026-08) — post-deployment review
+
+Reviewed the newly added AI/search surface after deploying to Convex prod
+(`gregarious-rat-550`) and Vercel (https://samiati-10.vercel.app).
+
+| ID | Severity | Finding | Fix | Status |
+|---|---|---|---|---|
+| SEC-027 | High | `colab_server.py`: real ngrok token hardcoded; unauthenticated `/chat` `/translate` `/asr` `/tts` over public ngrok URL | Token from env; all endpoints require `x-samiati-secret` header (401/503); file gitignored; rotate token | Fixed (2026-08): `colab_server.py`, `.gitignore` |
+| SEC-028 | Medium | Public `/api/wiki` proxy: no rate limit, uncapped query/limit, unvalidated lang into host template | Query ≤200, limit 1-50, lang `[a-z]{2,10}`; per-IP 120/min via `convex/wiki.ts` on `rateLimits` (429 + Retry-After, fails open) | Fixed (2026-08): `src/app/api/wiki/route.ts`, `convex/wiki.ts` |
+| SEC-029 | Info | New `convex/sunflower.ts` module (migration) — audited | Auth + quota gates, length caps, internal-only search core — no changes needed | Verified clean (2026-08) |
+
+Deployment notes updated in `SECURITY_FIXES.md` (env vars set on Convex
+prod/dev + Vercel, codegen works via `CONVEX_DEPLOYMENT`, migration
+sequencing: run `npx convex deploy` together with the frontend push).
+
 ## Deferred (documented, out of scope for this pass)
 
 - CSP tightening (`unsafe-eval`/`unsafe-inline`) — needs Next.js bundle testing.

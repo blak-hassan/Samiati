@@ -51,3 +51,7 @@ opencode.json
 
 .vercel
 .env*
+
+# scratch / dev artifacts (contains local secrets)
+colab_server.py
+*.log
