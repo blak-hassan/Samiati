@@ -12,7 +12,14 @@ import { Label } from "@/components/ui/label";
 import { AudioRecorder } from "@/components/media/AudioRecorder";
 import { useUploadFile } from "@/hooks/useUploadFile";
 import { logChangaEvent } from "@/lib/changaTelemetry";
-import { CheckCircle2, Clock3, Languages, Loader2, Sparkles, XCircle } from "lucide-react";
+import { CheckCircle2, Clock3, Languages, Loader2, MessageSquare, Sparkles, XCircle } from "lucide-react";
+
+const CODE_SWITCHING_OPTIONS = [
+    { id: "pure_sheng", label: "Pure Sheng" },
+    { id: "sheng_english", label: "Sheng + English" },
+    { id: "sheng_swahili", label: "Sheng + Kiswahili" },
+    { id: "heavy_mix", label: "Heavy code-switching" },
+] as const;
 
 type TextTask = {
     _id: Id<"changaTasks">;
@@ -116,6 +123,7 @@ const PROCESSOR_LABELS: Record<string, string> = {
 export default function TaskContributionScreen({ task, onComplete }: TaskContributionScreenProps) {
     const [answer, setAnswer] = useState("");
     const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+    const [codeSwitchingType, setCodeSwitchingType] = useState<string>("pure_sheng");
     const [hasTrainingConsent, setHasTrainingConsent] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSavingDraft, setIsSavingDraft] = useState(false);
@@ -162,8 +170,8 @@ export default function TaskContributionScreen({ task, onComplete }: TaskContrib
     };
 
     const consent = {
-        isGranted: true,
-        allowTraining: true,
+        isGranted: hasTrainingConsent,
+        allowTraining: hasTrainingConsent,
         allowResearch: false,
         allowPublicAttribution: false,
         grantedAt: Date.now(),
@@ -180,7 +188,7 @@ export default function TaskContributionScreen({ task, onComplete }: TaskContrib
                 logChangaEvent({ name: "task_claimed", ...telemetryContext });
                 submissionId = await startClaimedSubmission({
                     claimId: claim.claimId as Id<"changaTaskClaims">,
-                    consent: { ...consent, isGranted: hasTrainingConsent },
+                    consent,
                     consentPolicyVersion: ACTIVE_CONSENT_POLICY_VERSION,
                 });
             }
@@ -307,6 +315,34 @@ export default function TaskContributionScreen({ task, onComplete }: TaskContrib
                                 className="min-h-28 text-base"
                                 maxLength={5000}
                             />
+                        </div>
+                    )}
+
+                    {/* Code-switching metadata for Sheng translation tasks */}
+                    {task.languageCode === "sheng" && task.taskType === "sentence_translation" && (
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-1.5">
+                                <MessageSquare className="size-3.5 text-muted-foreground" />
+                                <Label className="text-xs font-semibold text-muted-foreground">
+                                    What type of Sheng did you use?
+                                </Label>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {CODE_SWITCHING_OPTIONS.map((option) => (
+                                    <button
+                                        key={option.id}
+                                        type="button"
+                                        onClick={() => setCodeSwitchingType(option.id)}
+                                        className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                                            codeSwitchingType === option.id
+                                                ? "bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100"
+                                                : "bg-muted text-muted-foreground hover:bg-accent"
+                                        }`}
+                                    >
+                                        {option.label}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     )}
 

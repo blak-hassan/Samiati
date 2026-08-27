@@ -19,7 +19,12 @@ import {
   BookOpen,
   ShieldCheck,
   Settings,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  MessageSquare,
 } from "lucide-react";
+import { Conversation } from "@/types";
 
 const SidebarItem: React.FC<{
   icon: React.ReactNode;
@@ -62,6 +67,8 @@ interface SidebarContentProps {
     contributions?: number;
     moderation?: number;
   };
+  conversations?: Conversation[];
+  onChatSelect?: (id: string) => void;
 }
 
 const SidebarContent: React.FC<SidebarContentProps> = ({
@@ -69,11 +76,16 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
   onNavigate,
   onNewSearch,
   notificationCounts,
+  conversations = [],
+  onChatSelect,
 }) => {
+  const [sessionsExpanded, setSessionsExpanded] = React.useState(false);
   const userName = user?.name || "Guest";
   const userHandle = user?.handle || "@guest";
   const userAvatar = user?.avatar || "";
   const isGuest = user?.isGuest ?? true;
+
+  const recentConversations = conversations.slice(0, 5);
 
   return (
     <div className="flex flex-col h-full bg-muted/30">
@@ -126,16 +138,66 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
           </>
         ) : (
           <>
-            <SidebarItem
-              icon={<History className="w-5 h-5" />}
-              label="Kaendelee"
-              onClick={() => onNavigate(Screen.SAVED_CONVERSATIONS)}
-            />
+            <div>
+              <button
+                onClick={() => setSessionsExpanded(!sessionsExpanded)}
+                className="w-full h-11 flex items-center gap-3.5 px-3 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-muted-foreground hover:text-foreground transition-all group"
+              >
+                <div className="text-muted-foreground group-hover:text-primary transition-colors">
+                  <History className="w-5 h-5" />
+                </div>
+                <span className="font-bold text-sm tracking-tight flex-1 text-left">
+                  Sessions
+                </span>
+                {conversations.length > 0 && (
+                  <span className="text-[10px] font-bold text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
+                    {conversations.length}
+                  </span>
+                )}
+                <div className="text-muted-foreground transition-transform duration-200">
+                  {sessionsExpanded ? (
+                    <ChevronDown className="w-4 h-4" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4" />
+                  )}
+                </div>
+              </button>
+              
+              {sessionsExpanded && (
+                <div className="ml-4 mt-1 space-y-1 border-l-2 border-border pl-3">
+                  {recentConversations.length > 0 ? (
+                    recentConversations.map((conv) => (
+                      <button
+                        key={conv.id}
+                        onClick={() => {
+                          onChatSelect?.(conv.id);
+                          onNavigate(Screen.HOME_CHAT);
+                        }}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left hover:bg-muted/50 transition-colors group"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary shrink-0" />
+                        <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground truncate">
+                          {conv.title}
+                        </span>
+                      </button>
+                    ))
+                  ) : (
+                    <p className="text-xs text-muted-foreground px-2 py-1">No sessions yet</p>
+                  )}
+                  <button
+                    onClick={() => onNavigate(Screen.SAVED_CONVERSATIONS)}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left hover:bg-muted/50 transition-colors"
+                  >
+                    <span className="text-xs font-bold text-primary">View all sessions</span>
+                  </button>
+                </div>
+              )}
+            </div>
             <SidebarItem
               icon={<Flame className="w-5 h-5" />}
               label="Changa"
               count={notificationCounts?.contributions}
-              onClick={() => onNavigate(Screen.CONTRIBUTIONS)}
+              onClick={() => onNavigate(Screen.CHANGA)}
             />
             <SidebarItem
               icon={<MessagesSquare className="w-5 h-5" />}
@@ -179,6 +241,8 @@ interface AppSidebarProps {
   onNavigate: (screen: Screen) => void;
   onNewSearch: () => void;
   notificationCounts?: SidebarContentProps["notificationCounts"];
+  conversations?: Conversation[];
+  onChatSelect?: (id: string) => void;
 }
 
 export const AppSidebar: React.FC<AppSidebarProps> = ({
@@ -188,6 +252,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   onNavigate,
   onNewSearch,
   notificationCounts,
+  conversations = [],
+  onChatSelect,
 }) => {
   return (
     <>
@@ -208,6 +274,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
               onNewSearch();
             }}
             notificationCounts={notificationCounts}
+            conversations={conversations}
+            onChatSelect={onChatSelect}
           />
         </SheetContent>
       </Sheet>
@@ -219,6 +287,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
           onNavigate={onNavigate}
           onNewSearch={onNewSearch}
           notificationCounts={notificationCounts}
+          conversations={conversations}
+          onChatSelect={onChatSelect}
         />
       </aside>
     </>

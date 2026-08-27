@@ -21,11 +21,30 @@ import {
   ChevronDown,
   Search,
   X,
-  ArrowUp as CheckIcon,
+  Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LANGUAGES, Language } from "@/components/chat/LanguageSelector";
 import { SearchAttachment } from "@/services/sunflowerService";
+
+const PLACEHOLDER_MAP: Record<string, string> = {
+  sw: "Andika au ongea...",
+  ki: "Andika kanaũa...",
+  luo: "Nyalo ka nyingo...",
+  kam: "Woa ka ñae...",
+  kln: "Kiye ka kap Kennedy...",
+  luy: "Wandika kana ongea...",
+  mer: "Andika kanaũa...",
+  mas: "Ndaa ka olmurrensi...",
+  en: "Type or Speak...",
+};
+
+const getMaturityBadge = (score: number) => {
+  if (score >= 90) return { label: "Excellent", color: "text-green-600 bg-green-500/10" };
+  if (score >= 75) return { label: "Good", color: "text-blue-600 bg-blue-500/10" };
+  if (score >= 50) return { label: "Beta", color: "text-yellow-600 bg-yellow-500/10" };
+  return { label: "Basic", color: "text-muted-foreground bg-muted/50" };
+};
 
 interface AttachmentItemProps {
   icon: React.ReactNode;
@@ -146,7 +165,7 @@ const SearchHero: React.FC<SearchHeroProps> = ({
             value={query}
             onChange={(e) => updateQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Type or Speak..."
+            placeholder={PLACEHOLDER_MAP[selectedLanguage?.code ?? ""] ?? PLACEHOLDER_MAP.en}
             className={cn(
               "w-full bg-transparent border-none text-foreground placeholder-muted-foreground/70",
               "focus:ring-0 outline-none resize-none font-medium leading-relaxed",
@@ -226,33 +245,41 @@ const SearchHero: React.FC<SearchHeroProps> = ({
                   </div>
                   <div className="max-h-56 overflow-y-auto p-1 py-1.5">
                     {filteredLangs.length > 0 ? (
-                      filteredLangs.map((lang) => (
-                        <button
-                          key={lang.code}
-                          onClick={() => handleLangSelect(lang)}
-                          className={cn(
-                            "w-full px-3 py-2 text-left hover:bg-muted transition-all flex items-center justify-between rounded-lg",
-                            selectedLanguage.code === lang.code &&
-                              "bg-primary/5 shadow-inner"
-                          )}
-                        >
-                          <span
+                      filteredLangs.map((lang) => {
+                        const badge = getMaturityBadge(lang.score);
+                        return (
+                          <button
+                            key={lang.code}
+                            onClick={() => handleLangSelect(lang)}
                             className={cn(
-                              "text-sm font-bold",
-                              selectedLanguage.code === lang.code
-                                ? "text-primary"
-                                : "text-foreground"
+                              "w-full px-3 py-2 text-left hover:bg-muted transition-all flex items-center justify-between rounded-lg",
+                              selectedLanguage.code === lang.code &&
+                                "bg-primary/5 shadow-inner"
                             )}
                           >
-                            {lang.name}
-                          </span>
-                          {selectedLanguage.code === lang.code && (
-                            <div className="w-5 h-5 bg-primary rounded-full flex items-center justify-center text-white">
-                              <CheckIcon className="w-3 h-3" />
+                            <div className="flex flex-col">
+                              <span
+                                className={cn(
+                                  "text-sm font-bold",
+                                  selectedLanguage.code === lang.code
+                                    ? "text-primary"
+                                    : "text-foreground"
+                                )}
+                              >
+                                {lang.name}
+                              </span>
+                              <span className={cn("text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full w-fit mt-0.5", badge.color)}>
+                                {badge.label}
+                              </span>
                             </div>
-                          )}
-                        </button>
-                      ))
+                            {selectedLanguage.code === lang.code && (
+                              <div className="w-5 h-5 bg-primary rounded-full flex items-center justify-center text-white">
+                                <Check className="w-3 h-3" />
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })
                     ) : (
                       <div className="p-4 text-center text-muted-foreground text-xs italic font-medium">
                         No matching languages found
@@ -312,28 +339,35 @@ const SearchHero: React.FC<SearchHeroProps> = ({
 
             {/* Microphone Button */}
             {onVoiceInput && (
-              <Button
-                size="icon"
-                onClick={onVoiceInput}
-                disabled={isTranscribing}
-                className={cn(
-                  "w-9 h-9 rounded-full transition-all duration-300 shadow-sm transition-transform active:scale-95",
-                  isTranscribing
-                    ? "bg-muted text-muted-foreground opacity-50 cursor-not-allowed"
-                    : isRecording
-                    ? "bg-red-500 text-white animate-pulse"
-                    : "bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted"
+              <div className="flex flex-col items-center gap-0.5">
+                <Button
+                  size="icon"
+                  onClick={onVoiceInput}
+                  disabled={isTranscribing}
+                  className={cn(
+                    "w-9 h-9 rounded-full transition-all duration-300 shadow-sm transition-transform active:scale-95",
+                    isTranscribing
+                      ? "bg-muted text-muted-foreground opacity-50 cursor-not-allowed"
+                      : isRecording
+                      ? "bg-red-500 text-white animate-pulse"
+                      : "bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted"
+                  )}
+                  aria-label="Voice search"
+                >
+                  {isTranscribing ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : isRecording ? (
+                    <Square className="w-4 h-4 fill-current" />
+                  ) : (
+                    <Mic className="w-4 h-4" />
+                  )}
+                </Button>
+                {!isRecording && !isTranscribing && (
+                  <span className="text-[8px] font-bold text-muted-foreground/50 leading-none">
+                    Voice
+                  </span>
                 )}
-                aria-label="Voice search"
-              >
-                {isTranscribing ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : isRecording ? (
-                  <Square className="w-4 h-4 fill-current" />
-                ) : (
-                  <Mic className="w-4 h-4" />
-                )}
-              </Button>
+              </div>
             )}
 
             {/* Submit */}

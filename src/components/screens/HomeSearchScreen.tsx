@@ -10,12 +10,12 @@ import SearchHero from "@/components/search/SearchHero";
 import SuggestionSentences from "@/components/search/SuggestionSentences";
 import SearchPhaseIndicator from "@/components/search/SearchPhaseIndicator";
 import SearchResults from "@/components/search/SearchResults";
-import { NotificationBell } from "@/components/shared/NotificationBell";
 import { fetchWikipediaLinks, fetchCommonsImages, SearchResult, SearchImage, SearchAttachment } from "@/services/sunflowerService";
 import { Source } from "@/components/search/SourceCard";
 import { Button } from "@/components/ui/button";
-import { Menu, SquarePen, ArrowDown } from "lucide-react";
+import { Menu, SquarePen, ArrowDown, Compass } from "lucide-react";
 import { AppSidebar } from "@/components/shared/AppSidebar";
+import FeedbackBar from "@/components/feedback/FeedbackBar";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -28,7 +28,7 @@ interface Props {
     culturalBackground?: string;
     isGuest?: boolean;
   };
-  navigate: (screen: Screen) => void;
+  navigate: (screen: Screen, params?: Record<string, unknown>) => void;
   unreadCount?: number;
   notificationCounts?: {
     contributions?: number;
@@ -37,10 +37,17 @@ interface Props {
   activeConversation?: Conversation | null;
   onNewChat?: () => void;
   onSaveChat?: (conversationId: string | null, messages: Message[]) => void;
+  conversations?: Conversation[];
+  initialQuery?: string;
 }
 
 // User queries keep a bubble; AI replies render as plain text (Perplexity style)
-const ThreadMessage: React.FC<{ msg: Message }> = ({ msg }) => (
+const ThreadMessage: React.FC<{
+  msg: Message;
+  contextType?: "chat" | "translate" | "voice" | "tts" | "search";
+  conversationId?: string;
+  language?: string;
+}> = ({ msg, contextType = "search", conversationId, language }) => (
   <div
     className={cn(
       "w-full animate-in fade-in slide-in-from-bottom-2 duration-300",
@@ -52,9 +59,19 @@ const ThreadMessage: React.FC<{ msg: Message }> = ({ msg }) => (
         {msg.text}
       </div>
     ) : (
-      <p className="text-sm md:text-base leading-relaxed tracking-tight whitespace-pre-wrap font-medium text-foreground/85">
-        {msg.text}
-      </p>
+      <div className="space-y-1.5">
+        <p className="text-sm md:text-base leading-relaxed tracking-tight whitespace-pre-wrap font-medium text-foreground/85">
+          {msg.text}
+        </p>
+        <FeedbackBar
+          contextType={contextType}
+          messageId={msg.id}
+          conversationId={conversationId}
+          language={language}
+          originalText={msg.text}
+          compact
+        />
+      </div>
     )}
   </div>
 );
@@ -67,6 +84,8 @@ const HomeSearchScreen: React.FC<Props> = ({
   activeConversation,
   onNewChat,
   onSaveChat,
+  conversations = [],
+  initialQuery,
 }) => {
   // Convex actions — auth handled automatically by the Convex React client
   const searchAction = useAction(api.sunflower.search);
@@ -82,6 +101,7 @@ const HomeSearchScreen: React.FC<Props> = ({
   const [query, setQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [answer, setAnswer] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [sources, setSources] = useState<Source[]>([]);
   const [images, setImages] = useState<SearchImage[]>([]);
   const [followUps, setFollowUps] = useState<string[]>([]);
@@ -104,6 +124,20 @@ const HomeSearchScreen: React.FC<Props> = ({
 
   // Navigation drawer
   const [isNavOpen, setIsNavOpen] = useState(false);
+
+  // Pre-fill search from Discover "Explore with Samiati"
+  const [hasAutoSearched, setHasAutoSearched] = useState(false);
+  useEffect(() => {
+    if (initialQuery && !hasAutoSearched && user) {
+      setQuery(initialQuery);
+      setHasAutoSearched(true);
+      // Auto-trigger search after a short delay
+      const timer = setTimeout(() => {
+        handleSearch(initialQuery);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [initialQuery, hasAutoSearched, user]);
 
   // Chat-scroll state — auto-scroll to the latest message when the user is
   // near the bottom; otherwise offer a scroll-to-bottom button.
@@ -146,14 +180,33 @@ const HomeSearchScreen: React.FC<Props> = ({
 
   const handleSearch = useCallback(
     async (searchQuery: string) => {
+      // Guests can browse the hero, but AI features require sign-in.
+      // The backend rejects anonymous actions, so gate up front instead of
+      // surfacing a raw "Unauthorized" error as if it were an AI answer.
+      if (!user) {
+        navigate(Screen.SIGN_IN);
+        return;
+      }
+
       setQuery(searchQuery);
       setIsSearching(true);
       setSearchComplete(false);
       setAnswer("");
+      setError(null);
       setSources([]);
       setImages([]);
       setFollowUps([]);
       nearBottomRef.current = true;
+
+      // Timeout: if no response in 12 seconds, show a retry message
+      // (covers slow 3G where the phase indicator looks broken)
+      let timedOut = false;
+      const timeoutId = setTimeout(() => {
+        timedOut = true;
+        setIsSearching(false);
+        setSearchComplete(true);
+        setError("Still working — this can take longer on slower connections. Tap to retry.");
+      }, 12_000);
 
       try {
         // Attached documents become grounding context for the answer
@@ -176,6 +229,9 @@ const HomeSearchScreen: React.FC<Props> = ({
           }),
         ]);
 
+        if (timedOut) return; // response arrived after timeout — discard
+
+        clearTimeout(timeoutId);
         const result: SearchResult = {
           answer: actionResult?.answer ?? '',
           sources: Array.isArray(actionResult?.sources) && actionResult.sources.length > 0
@@ -211,19 +267,21 @@ const HomeSearchScreen: React.FC<Props> = ({
         messagesRef.current = next;
         setMessages(next);
         onSaveChat?.(activeConversation?.id ?? null, next);
-      } catch (error) {
-        console.error("Search failed:", error);
-        setAnswer(
-          error instanceof Error
-            ? `Sorry, I encountered an error: ${error.message}`
-            : "Sorry, I encountered an error while searching. Please try again."
+      } catch (err) {
+        if (timedOut) return;
+        clearTimeout(timeoutId);
+        console.error("Search failed:", err);
+        setError(
+          "Sorry, I encountered an error while searching. Please try again."
         );
       } finally {
-        setIsSearching(false);
-        setSearchComplete(true);
+        if (!timedOut) {
+          setIsSearching(false);
+          setSearchComplete(true);
+        }
       }
     },
-    [selectedLanguage, onSaveChat, activeConversation?.id, attachments, searchAction]
+    [selectedLanguage, onSaveChat, activeConversation?.id, attachments, searchAction, user, navigate]
   );
 
   const handleSuggestionSelect = (suggestionQuery: string) => {
@@ -236,6 +294,11 @@ const HomeSearchScreen: React.FC<Props> = ({
 
   const startRecording = async () => {
     try {
+      if (!user) {
+        navigate(Screen.SIGN_IN);
+        return;
+      }
+
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         alert("Microphone access is not supported. Please use a secure connection (HTTPS) or localhost.");
         return;
@@ -299,6 +362,11 @@ const HomeSearchScreen: React.FC<Props> = ({
   };
 
   const handlePlayAudio = async () => {
+    if (!user) {
+      navigate(Screen.SIGN_IN);
+      return;
+    }
+
     if (isPlaying) {
       if (audioRef.current) {
         audioRef.current.pause();
@@ -369,6 +437,7 @@ const HomeSearchScreen: React.FC<Props> = ({
     setSearchComplete(false);
     setQuery("");
     setAnswer("");
+    setError(null);
     setSources([]);
     setImages([]);
     setFollowUps([]);
@@ -417,6 +486,8 @@ const HomeSearchScreen: React.FC<Props> = ({
         onNavigate={navigate}
         onNewSearch={handleNewSearch}
         notificationCounts={notificationCounts}
+        conversations={conversations}
+        onChatSelect={(id) => navigate(Screen.HOME_CHAT, { chatId: id })}
       />
 
       {/* Main Content */}
@@ -456,7 +527,17 @@ const HomeSearchScreen: React.FC<Props> = ({
             </div>
 
             <div className="flex items-center gap-2">
-              {user && <NotificationBell unreadCount={unreadCount} onNavigate={navigate} />}
+              {user && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => navigate(Screen.DISCOVER)}
+                  className="rounded-full"
+                  title="Discover"
+                >
+                  <Compass className="w-5 h-5" />
+                </Button>
+              )}
               {!user && (
                 <Button
                   variant="ghost"
@@ -504,6 +585,18 @@ const HomeSearchScreen: React.FC<Props> = ({
                 selectedLanguage={selectedLanguage}
                 onSelect={handleSuggestionSelect}
               />
+
+              {!user && (
+                <p className="mt-8 text-sm text-muted-foreground text-center">
+                  Sign in to search, use voice, and save your conversations —{" "}
+                  <button
+                    onClick={() => navigate(Screen.SIGN_IN)}
+                    className="font-bold text-primary hover:underline"
+                  >
+                    it&apos;s free
+                  </button>
+                </p>
+              )}
             </div>
           </main>
         ) : (
@@ -516,16 +609,21 @@ const HomeSearchScreen: React.FC<Props> = ({
             >
               <div className="max-w-2xl mx-auto px-4 py-5 space-y-6">
                 {/* Fresh Result — tabs + answer at the top of the page */}
-                {searchComplete && answer && (
+                {searchComplete && (answer || error) && (
                   <div className="animate-in fade-in duration-500 delay-200">
                     <SearchResults
                       answer={answer}
+                      error={error}
                       sources={sources}
                       images={images}
                       followUps={followUps}
                       onFollowUpSelect={handleFollowUpSelect}
+                      onRetry={error ? () => handleSearch(query) : undefined}
                       isPlaying={isPlaying}
                       onPlayAudio={handlePlayAudio}
+                      contextType="search"
+                      conversationId={activeConversation?.id}
+                      language={selectedLanguage.code}
                     />
                   </div>
                 )}
@@ -549,7 +647,13 @@ const HomeSearchScreen: React.FC<Props> = ({
                 {threadMessages.length > 0 && (
                   <div className="space-y-3 animate-in fade-in duration-500">
 {threadMessages.map((msg) => (
-                      <ThreadMessage key={msg.id} msg={msg} />
+                      <ThreadMessage
+                        key={msg.id}
+                        msg={msg}
+                        contextType="search"
+                        conversationId={activeConversation?.id}
+                        language={selectedLanguage.code}
+                      />
                     ))}
                   </div>
                 )}

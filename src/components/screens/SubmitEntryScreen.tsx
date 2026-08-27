@@ -4,7 +4,7 @@ import { Challenge, ContributionItem, NavigateFn, Screen } from '@/types';
 import { AccentRecorder } from '../changa/inputs/AccentRecorder';
 import { DialectMapper } from '../changa/inputs/DialectMapper';
 import { TotemUploader } from '../changa/inputs/TotemUploader';
-import { useUser } from '@/app/MockProviders';
+import { useAppUser } from '@/hooks/useAppUser';
 
 interface Props {
   navigate: NavigateFn;
@@ -25,7 +25,7 @@ const DEFAULT_CHALLENGE: Challenge = {
 };
 
 const SubmitEntryScreen: React.FC<Props> = ({ navigate, goBack, challenge }) => {
-  const { saveContribution } = useUser();
+  const { saveContribution } = useAppUser();
   const activeChallenge = challenge || DEFAULT_CHALLENGE;
   const [textEntry, setTextEntry] = useState('');
 

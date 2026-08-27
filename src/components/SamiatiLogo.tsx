@@ -9,13 +9,13 @@ interface SamiatiLogoProps {
 const SamiatiLogo: React.FC<SamiatiLogoProps> = ({ className, size = 48, variant = 'primary' }) => {
     const colors = {
         primary: {
-            text: '#FFFFFF',  // White for better visibility on dark backgrounds
+            text: '#FFFFFF',
         },
         white: {
             text: '#FFFFFF',
         },
         dark: {
-            text: '#FFFFFF',
+            text: '#1a1a1a',
         },
     }[variant];
 

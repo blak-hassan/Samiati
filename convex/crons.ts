@@ -17,13 +17,53 @@ crons.interval(
     internal.challenges.cron.archiveExpiredChallenges
 );
 
-// Changa processing worker: consumes the queued processing runs (ASR via Paza
-// Whisper, language id, moderation) so raw submissions gain automated evidence
-// before they can route to review. Every 5 minutes, bounded by batch size.
+// Changa processing worker
 crons.interval(
     "changa-processing-worker",
     { minutes: 5 },
     internal.changa.worker.processQueuedRuns,
+    {}
+);
+
+// Daily subscription renewal processor (runs at 6:00 AM UTC)
+crons.daily(
+    "process-subscription-renewals",
+    { hourUTC: 6, minuteUTC: 0 },
+    internal.payments.billing.processRenewals,
+    {}
+);
+
+// ── Discover Cron Jobs ────────────────────────────────────────────────────────
+
+// Fetch RSS/GDELT and process raw items (every 15 minutes)
+crons.interval(
+    "discover-fetch-and-process",
+    { minutes: 15 },
+    internal.discover.cron.fetchAndProcess,
+    {}
+);
+
+// Cluster items and enrich with AI summaries (every 30 minutes)
+crons.interval(
+    "discover-cluster-and-enrich",
+    { minutes: 30 },
+    internal.discover.cron.clusterAndEnrich,
+    {}
+);
+
+// Compute trend scores (every hour)
+crons.interval(
+    "discover-compute-trend-scores",
+    { minutes: 60 },
+    internal.discover.cron.computeTrendScores,
+    {}
+);
+
+// Daily cleanup of old content (runs at 3:00 AM UTC)
+crons.daily(
+    "discover-cleanup",
+    { hourUTC: 3, minuteUTC: 0 },
+    internal.discover.cron.cleanup,
     {}
 );
 

@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { ChatPreview, Conversation, RouteSearchParams, Screen, User } from '@/types';
 import { useNavigation } from "@/hooks/useNavigation";
-import { useUser } from "../../MockProviders";
+import { useAppUser } from "@/hooks/useAppUser";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import SignInPrompt from "@/components/auth/SignInPrompt";
 
@@ -59,11 +59,12 @@ const TermsOfServiceScreen = dynamic(() => import('@/components/screens/TermsOfS
 const PrivacyPolicyScreen = dynamic(() => import('@/components/screens/PrivacyPolicyScreen'), { ssr: false });
 const ChangaHome = dynamic(() => import('@/components/changa/ChangaHome'), { ssr: false });
 const MyChangaActivity = dynamic(() => import('@/components/changa/MyChangaActivity'), { ssr: false });
+const ChangaCampaigns = dynamic(() => import('@/components/changa/ChangaCampaigns'), { ssr: false });
 const DarasaScreen = dynamic(() => import('@/components/screens/DarasaScreen'), { ssr: false });
 
 export default function DashboardCatchAllPage({ params, searchParams }: { params: Promise<{ slug: string }>, searchParams: Promise<RouteSearchParams> }) {
     const { navigate, goBack } = useNavigation();
-    const { user: clerkUser, languages, setLanguages, notifications, unreadCount, markAllAsRead, markAsRead, myContributions, setMyContributions } = useUser();
+    const { user: clerkUser, languages, setLanguages, notifications, unreadCount, markAllAsRead, markAsRead, myContributions, setMyContributions } = useAppUser();
     const { isGuest } = useCurrentUser();
 
     // Unwrap params synchronously using React.use() where needed, but params/searchParams are Promises in Next.js 15
@@ -149,11 +150,23 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
 
         case Screen.CHANGA:
             if (isGuest) return <SignInPrompt feature="Changa" description="Sign in to help your language with quick, consented tasks." navigate={navigate} />;
-            return <ChangaHome onViewActivity={() => navigate(Screen.CHANGA_ACTIVITY)} />;
+            return <ContributionsScreen
+                navigate={navigate}
+                goBack={goBack}
+                myContributions={myContributions}
+                setMyContributions={setMyContributions}
+                languages={languages}
+                onViewProfile={handleViewProfile}
+                unreadCount={unreadCount}
+            />;
 
         case Screen.CHANGA_ACTIVITY:
             if (isGuest) return <SignInPrompt feature="Changa" description="Sign in to see your Changa contributions and activity." navigate={navigate} />;
             return <MyChangaActivity navigate={navigate} goBack={goBack} />;
+
+        case Screen.CHANGA_CAMPAIGNS:
+            if (isGuest) return <SignInPrompt feature="Changa" description="Sign in to view and join campaigns." navigate={navigate} />;
+            return <ChangaCampaigns navigate={navigate} goBack={goBack} />;
 
         case Screen.NOTIFICATIONS:
             if (isGuest) return <SignInPrompt feature="notifications" description="Sign in to see your activity and updates." navigate={navigate} />;

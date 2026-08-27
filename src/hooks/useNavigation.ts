@@ -85,6 +85,7 @@ export const useNavigation = () => {
             case Screen.COMMUNITIES: go("/dashboard/communities" + queryString); break;
             case Screen.GROUP_VIEW: go("/dashboard/group-view" + queryString); break;
             case Screen.DARASA: go("/dashboard/darasa" + queryString); break;
+            case Screen.DISCOVER: go("/dashboard/discover" + queryString); break;
 
             case Screen.MODERATION_LOG: go("/dashboard/moderation-log" + queryString); break;
             case Screen.MODERATION_APPLICATION: go("/dashboard/moderation-application" + queryString); break;

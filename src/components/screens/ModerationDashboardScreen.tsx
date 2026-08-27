@@ -27,7 +27,7 @@ import { LanguageHealthWidget } from '@/components/moderation/LanguageHealthWidg
 import { ValidationCard } from '@/components/moderation/ValidationCard';
 import { CritiqueModal } from '@/components/moderation/CritiqueModal';
 import { ReportModal } from '@/components/moderation/ReportModal';
-import { useUser } from '@/app/MockProviders';
+import { useAppUser } from '@/hooks/useAppUser';
 
 interface Props {
   navigate: (screen: Screen) => void;
@@ -46,7 +46,7 @@ const ModerationDashboardScreen: React.FC<Props> = ({
   moderationItems: propModerationItems,
   onVote
 }) => {
-  const storedUser = useUser();
+  const storedUser = useAppUser();
   const { moderationItems: storedModerationItems, reviewContribution, voteOnModerationItem, user } = storedUser;
 const moderationItemsToUse = propModerationItems || storedModerationItems || [];
   const userId = user?.id || 'u_current';

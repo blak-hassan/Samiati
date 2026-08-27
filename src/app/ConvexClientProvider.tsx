@@ -5,12 +5,11 @@ import { ClerkProvider, useAuth } from "@clerk/nextjs";
 import { ConvexReactClient } from "convex/react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { ConvexProvider } from "convex/react";
-import * as Mock from "./MockProviders";
 import { UserSync } from "./UserSync";
 import { isDemoMode, clerkPublishableKey } from "@/lib/appMode";
 
 const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-const convex = isDemoMode ? null : convexUrl ? new ConvexReactClient(convexUrl) : null;
+const convex = convexUrl ? new ConvexReactClient(convexUrl) : null;
 
 // Inner provider that checks auth status
 function AuthenticatedConvexProvider({ children }: { children: ReactNode }) {
@@ -39,7 +38,6 @@ function AuthenticatedConvexProvider({ children }: { children: ReactNode }) {
     }
     
     // For guests (no Clerk session), use Convex without Clerk authentication
-    // This allows guests to browse but with limited permissions
     if (convex) {
         return (
             <ConvexProvider client={convex}>
@@ -48,8 +46,7 @@ function AuthenticatedConvexProvider({ children }: { children: ReactNode }) {
         );
     }
     
-    // Fallback to mock providers
-    return <Mock.MockProviders>{children}</Mock.MockProviders>;
+    return <>{children}</>;
 }
 
 export default function ConvexClientProvider({
@@ -57,13 +54,21 @@ export default function ConvexClientProvider({
 }: {
     children: ReactNode;
 }) {
-    // Without a Convex deployment URL or a valid Clerk publishable key the
-    // backend can't run, so render the demo providers instead of mounting
-    // Clerk (which would otherwise error out and blank the whole app).
-    if (isDemoMode || !convex) {
-        return <Mock.MockProviders>{children}</Mock.MockProviders>;
+    // No Convex URL configured — render children directly
+    if (!convex) {
+        return <>{children}</>;
     }
 
+    // Demo mode: connect to Convex directly without Clerk
+    if (isDemoMode) {
+        return (
+            <ConvexProvider client={convex}>
+                {children}
+            </ConvexProvider>
+        );
+    }
+
+    // Production mode: use Clerk + Convex
     return (
         <ClerkProvider publishableKey={clerkPublishableKey}>
             <AuthenticatedConvexProvider>

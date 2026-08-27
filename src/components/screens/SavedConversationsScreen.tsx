@@ -97,7 +97,7 @@ const SavedConversationsScreen: React.FC<Props> = ({
                     >
                         <ArrowLeft className="w-6 h-6" />
                     </Button>
-                    <h1 className="text-xl font-black tracking-tight text-foreground">Kaendelee</h1>
+                    <h1 className="text-xl font-black tracking-tight text-foreground">Sessions</h1>
                 </div>
                 <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground bg-muted/50 px-3 py-1 rounded-full border border-border/30">
                     {conversations.length} Saved

@@ -2,12 +2,12 @@
 
 import ManageLanguagesScreen from "@/components/screens/ManageLanguagesScreen";
 import { useNavigation } from "@/hooks/useNavigation";
-import { useUser } from "@/app/MockProviders";
+import { useAppUser } from "@/hooks/useAppUser";
 import { LanguageSkill } from "@/types";
 
 export default function ManageLanguagesPage() {
     const { navigate, goBack } = useNavigation();
-    const { languages, setLanguages } = useUser();
+    const { languages, setLanguages } = useAppUser();
 
     const handleUpdateLanguages = (updatedLanguages: LanguageSkill[]) => {
         setLanguages(updatedLanguages);

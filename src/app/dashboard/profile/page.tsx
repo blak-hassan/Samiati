@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import dynamicImport from "next/dynamic";
 import { useNavigation } from "@/hooks/useNavigation";
-import { useUser } from "../../MockProviders";
+import { useAppUser } from "@/hooks/useAppUser";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { LanguageSkill, User } from "@/types";
@@ -17,7 +17,7 @@ const ProfileScreen = dynamicImport(() => import("@/components/screens/ProfileSc
 
 export default function ProfilePage() {
     const { navigate, goBack } = useNavigation();
-    const { languages, user: clerkUser } = useUser();
+    const { languages, user: clerkUser } = useAppUser();
     const dashboard = useQuery(api.profile.queries.getDashboard, {});
 
     // Conversations live in localStorage (client-side only), so their counts

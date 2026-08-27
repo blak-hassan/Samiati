@@ -75,7 +75,10 @@ const SettingsScreen: React.FC<Props> = ({ navigate, goBack, onSignOut, isDarkMo
                                 <h3 className="font-bold text-xl mb-1 tracking-tight">Samiati+</h3>
                                 <p className="text-xs text-white/80 leading-relaxed max-w-[200px]">Unlock unlimited translations, exclusive cultural badges, and an ad-free journey.</p>
                             </div>
-                            <Button className="bg-white text-primary hover:bg-stone-50 px-5 h-9 rounded-full text-xs font-bold shadow-lg transition-all active:scale-95 border-none">
+                            <Button
+                                onClick={() => window.location.href = "/pricing"}
+                                className="bg-white text-primary hover:bg-stone-50 px-5 h-9 rounded-full text-xs font-bold shadow-lg transition-all active:scale-95 border-none"
+                            >
                                 Upgrade Now
                             </Button>
                         </div>

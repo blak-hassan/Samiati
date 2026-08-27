@@ -2,13 +2,13 @@
 
 import EditProfileScreen from "@/components/screens/EditProfileScreen";
 import { useNavigation } from "@/hooks/useNavigation";
+import { useAppUser } from "@/hooks/useAppUser";
 import { Screen } from "@/types";
-import { useUser } from "../../MockProviders";
 import { User } from "@/types";
 
 export default function EditProfilePage() {
     const { navigate, goBack } = useNavigation();
-    const { user: clerkUser } = useUser();
+    const { user: clerkUser } = useAppUser();
 
     const appUser: User = clerkUser ? {
         name: clerkUser.fullName || "User",

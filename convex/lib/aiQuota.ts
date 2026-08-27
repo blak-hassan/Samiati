@@ -2,41 +2,45 @@
  * AI service quota configuration and pure math. Kept free of Convex imports
  * so it can be unit-tested without a Convex runtime.
  *
- * Every value is deliberately bounded so a single malicious (or runaway)
- * account has a hard ceiling on external API cost.
- *
- * Window semantics: `hourly` allows `hourly.max` requests per
- * `hourly.windowMs`; `daily` allows `daily.max` per `daily.windowMs`.
- * A request must pass BOTH windows.
+ * Limits are defined per plan tier. Voice services (ASR + TTS) use
+ * a weighted counting system where voice = 5x text cost.
  */
-export const AI_SERVICE_LIMITS = {
-    chat: {
-        hourly: { windowMs: 60 * 60 * 1000, max: 30 },
-        daily: { windowMs: 24 * 60 * 60 * 1000, max: 120 },
+export type AiService = "chat" | "search" | "translate" | "tts" | "asr";
+export type PlanTier = "free" | "learner" | "fluent" | "organization";
+
+export const AI_SERVICE_LIMITS: Record<PlanTier, Record<AiService, { hourly: { windowMs: number; max: number }; daily: { windowMs: number; max: number } }>> = {
+    free: {
+        chat: { hourly: { windowMs: 60 * 60 * 1000, max: 5 }, daily: { windowMs: 24 * 60 * 60 * 1000, max: 10 } },
+        search: { hourly: { windowMs: 60 * 60 * 1000, max: 5 }, daily: { windowMs: 24 * 60 * 60 * 1000, max: 10 } },
+        translate: { hourly: { windowMs: 60 * 60 * 1000, max: 5 }, daily: { windowMs: 24 * 60 * 60 * 1000, max: 5 } },
+        tts: { hourly: { windowMs: 60 * 60 * 1000, max: 2 }, daily: { windowMs: 24 * 60 * 60 * 1000, max: 2 } },
+        asr: { hourly: { windowMs: 60 * 60 * 1000, max: 1 }, daily: { windowMs: 24 * 60 * 60 * 1000, max: 2 } },
     },
-    search: {
-        hourly: { windowMs: 60 * 60 * 1000, max: 30 },
-        daily: { windowMs: 24 * 60 * 60 * 1000, max: 120 },
+    learner: {
+        chat: { hourly: { windowMs: 60 * 60 * 1000, max: 20 }, daily: { windowMs: 24 * 60 * 60 * 1000, max: 50 } },
+        search: { hourly: { windowMs: 60 * 60 * 1000, max: 20 }, daily: { windowMs: 24 * 60 * 60 * 1000, max: 50 } },
+        translate: { hourly: { windowMs: 60 * 60 * 1000, max: 25 }, daily: { windowMs: 24 * 60 * 60 * 1000, max: 100 } },
+        tts: { hourly: { windowMs: 60 * 60 * 1000, max: 10 }, daily: { windowMs: 24 * 60 * 60 * 1000, max: 30 } },
+        asr: { hourly: { windowMs: 60 * 60 * 1000, max: 8 }, daily: { windowMs: 24 * 60 * 60 * 1000, max: 20 } },
     },
-    translate: {
-        hourly: { windowMs: 60 * 60 * 1000, max: 40 },
-        daily: { windowMs: 24 * 60 * 60 * 1000, max: 200 },
+    fluent: {
+        chat: { hourly: { windowMs: 60 * 60 * 1000, max: 50 }, daily: { windowMs: 24 * 60 * 60 * 1000, max: 200 } },
+        search: { hourly: { windowMs: 60 * 60 * 1000, max: 50 }, daily: { windowMs: 24 * 60 * 60 * 1000, max: 200 } },
+        translate: { hourly: { windowMs: 60 * 60 * 1000, max: 50 }, daily: { windowMs: 24 * 60 * 60 * 1000, max: 250 } },
+        tts: { hourly: { windowMs: 60 * 60 * 1000, max: 20 }, daily: { windowMs: 24 * 60 * 60 * 1000, max: 80 } },
+        asr: { hourly: { windowMs: 60 * 60 * 1000, max: 15 }, daily: { windowMs: 24 * 60 * 60 * 1000, max: 50 } },
     },
-    tts: {
-        hourly: { windowMs: 60 * 60 * 1000, max: 15 },
-        daily: { windowMs: 24 * 60 * 60 * 1000, max: 40 },
-    },
-    asr: {
-        hourly: { windowMs: 60 * 60 * 1000, max: 10 },
-        daily: { windowMs: 24 * 60 * 60 * 1000, max: 30 },
+    organization: {
+        chat: { hourly: { windowMs: 60 * 60 * 1000, max: 100 }, daily: { windowMs: 24 * 60 * 60 * 1000, max: 500 } },
+        search: { hourly: { windowMs: 60 * 60 * 1000, max: 100 }, daily: { windowMs: 24 * 60 * 60 * 1000, max: 500 } },
+        translate: { hourly: { windowMs: 60 * 60 * 1000, max: 100 }, daily: { windowMs: 24 * 60 * 60 * 1000, max: 500 } },
+        tts: { hourly: { windowMs: 60 * 60 * 1000, max: 40 }, daily: { windowMs: 24 * 60 * 60 * 1000, max: 200 } },
+        asr: { hourly: { windowMs: 60 * 60 * 1000, max: 30 }, daily: { windowMs: 24 * 60 * 60 * 1000, max: 100 } },
     },
 } as const;
 
-export type AiService = keyof typeof AI_SERVICE_LIMITS;
-
 /**
- * Estimate remaining quota in the current windows — used for friendly
- * "n calls left" hints. Pure math over the counters.
+ * Estimate remaining quota in the current windows.
  */
 export function estimateRemaining(
     counters: { windowStart: number; count: number }[],

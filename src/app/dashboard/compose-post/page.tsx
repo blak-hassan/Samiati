@@ -2,15 +2,15 @@
 
 import ComposePostScreen from "@/components/screens/ComposePostScreen";
 import { useNavigation } from "@/hooks/useNavigation";
+import { useAppUser } from "@/hooks/useAppUser";
 import { Screen } from "@/types";
-import { useUser } from "../../MockProviders";
 import { User } from "@/types";
 import { useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 
 export default function ComposePostPage() {
     const { navigate, goBack } = useNavigation();
-    const { user: clerkUser } = useUser();
+    const { user: clerkUser } = useAppUser();
     const createPost = useMutation(api.posts.mutations.create);
 
     const appUser: User = clerkUser ? {

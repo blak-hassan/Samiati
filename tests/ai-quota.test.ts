@@ -1,28 +1,42 @@
 import { describe, it, expect } from "vitest";
-import { AI_SERVICE_LIMITS, estimateRemaining, type AiService } from "../convex/lib/aiQuota";
+import { AI_SERVICE_LIMITS, estimateRemaining, type AiService, type PlanTier } from "../convex/lib/aiQuota";
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * 60 * 60 * 1000;
 
 describe("AI_SERVICE_LIMITS", () => {
-    it("defines bounded quotas for every AI service", () => {
-        const services = Object.keys(AI_SERVICE_LIMITS) as AiService[];
-        expect(services.sort()).toEqual(["asr", "chat", "search", "translate", "tts"].sort());
-        for (const service of services) {
-            const limits = AI_SERVICE_LIMITS[service];
-            expect(limits.hourly.max).toBeGreaterThan(0);
-            expect(limits.hourly.windowMs).toBeLessThanOrEqual(HOUR);
-            expect(limits.daily.max).toBeGreaterThanOrEqual(limits.hourly.max);
-            expect(limits.daily.windowMs).toBe(DAY);
+    it("defines bounded quotas for every AI service across all tiers", () => {
+        const tiers: PlanTier[] = ["free", "learner", "fluent", "organization"];
+        const services: AiService[] = ["asr", "chat", "search", "translate", "tts"];
+
+        for (const tier of tiers) {
+            for (const service of services) {
+                const limits = AI_SERVICE_LIMITS[tier][service];
+                expect(limits.hourly.max).toBeGreaterThan(0);
+                expect(limits.hourly.windowMs).toBeLessThanOrEqual(HOUR);
+                expect(limits.daily.max).toBeGreaterThanOrEqual(limits.hourly.max);
+                expect(limits.daily.windowMs).toBe(DAY);
+            }
         }
     });
 
-    it("caps daily usage below any plausible cost-explosion threshold", () => {
-        // The maximum daily requests any single account can trigger.
-        const totalPerDay = (Object.values(AI_SERVICE_LIMITS) as {
-            daily: { max: number };
-        }[]).reduce((sum, limits) => sum + limits.daily.max, 0);
+    it("caps daily usage below any plausible cost-explosion threshold for free tier", () => {
+        const services: AiService[] = ["chat", "search", "translate", "tts", "asr"];
+        const totalPerDay = services.reduce(
+            (sum, service) => sum + AI_SERVICE_LIMITS.free[service].daily.max,
+            0
+        );
         expect(totalPerDay).toBeLessThan(1000);
+    });
+
+    it("higher tiers have higher limits than free tier", () => {
+        const services: AiService[] = ["chat", "search", "translate", "tts", "asr"];
+        for (const service of services) {
+            expect(AI_SERVICE_LIMITS.learner[service].daily.max)
+                .toBeGreaterThanOrEqual(AI_SERVICE_LIMITS.free[service].daily.max);
+            expect(AI_SERVICE_LIMITS.fluent[service].daily.max)
+                .toBeGreaterThanOrEqual(AI_SERVICE_LIMITS.learner[service].daily.max);
+        }
     });
 });
 

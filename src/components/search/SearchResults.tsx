@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import SourceCard, { Source, getSourceDomain } from "./SourceCard";
 import FollowUpChips from "./FollowUpChips";
 import { SearchImage } from "@/services/sunflowerService";
@@ -15,18 +16,28 @@ import {
   Link2,
   ImageOff,
   Link2Off,
+  AlertTriangle,
+  RotateCcw,
+  Share2,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import FeedbackBar, { type FeedbackContext } from "@/components/feedback/FeedbackBar";
 
 interface SearchResultsProps {
   answer: string;
+  error?: string | null;
   sources: Source[];
   followUps: string[];
   images?: SearchImage[];
   onFollowUpSelect: (query: string) => void;
+  onRetry?: () => void;
   isPlaying?: boolean;
   onPlayAudio?: () => void;
+  contextType?: FeedbackContext;
+  messageId?: string;
+  conversationId?: string;
+  language?: string;
 }
 
 type ResultTab = "answer" | "images" | "links";
@@ -40,22 +51,37 @@ interface TabDef {
 
 const SearchResults: React.FC<SearchResultsProps> = ({
   answer,
+  error,
   sources,
   followUps,
   images = [],
   onFollowUpSelect,
+  onRetry,
   isPlaying = false,
   onPlayAudio,
+  contextType = "search",
+  messageId,
+  conversationId,
+  language,
 }) => {
   const [copied, setCopied] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<ResultTab>("answer");
   const [highlighted, setHighlighted] = React.useState<number | null>(null);
+  const [shared, setShared] = React.useState(false);
   const highlightTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(answer);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Share: copy a formatted snippet for WhatsApp/Twitter
+  const handleShare = () => {
+    const snippet = `🔎 ${answer.slice(0, 200)}${answer.length > 200 ? '...' : ''}\n\n— Samiati`;
+    navigator.clipboard.writeText(snippet);
+    setShared(true);
+    setTimeout(() => setShared(false), 2000);
   };
 
   // Jump to the source card and flash-highlight it (Perplexity behavior)
@@ -141,76 +167,124 @@ const SearchResults: React.FC<SearchResultsProps> = ({
       {/* Answer Tab */}
       {activeTab === "answer" && (
         <div className="space-y-5">
-          {/* Sources Row */}
-          {sources.length > 0 && (
-            <div>
-              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2.5">
-                Sources
-              </p>
-              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                {sources.map((source, i) => (
-                  <div
-                    key={i}
-                    id={`source-${i + 1}`}
-                    className={cn(
-                      "rounded-2xl transition-all duration-300",
-                      highlighted === i + 1 && "ring-2 ring-primary/60 bg-primary/5"
-                    )}
-                  >
-                    <SourceCard source={source} index={i} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Answer — plain text, no bubble */}
-          <div>
-            <p className="text-sm md:text-base leading-relaxed tracking-tight font-medium text-foreground whitespace-pre-wrap">
-              {renderAnswer(answer)}
-            </p>
-
-            {/* Answer actions */}
-            <div className="flex items-center gap-2 mt-3">
-              {onPlayAudio && (
+          {/* Error State — visually distinct from a real answer */}
+          {error ? (
+            <div className="flex flex-col items-center text-center py-8 px-4 rounded-2xl bg-destructive/5 border border-destructive/20">
+              <AlertTriangle className="w-8 h-8 text-destructive mb-3" />
+              <p className="text-sm font-bold text-foreground mb-1">Something went wrong</p>
+              <p className="text-xs text-muted-foreground mb-4">{error}</p>
+              {onRetry && (
                 <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={onPlayAudio}
-                  className={cn(
-                    "h-7 w-7 rounded-full transition-all",
-                    isPlaying
-                      ? "text-primary bg-primary/10 animate-pulse"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                  )}
-                  title={isPlaying ? "Stop audio" : "Listen to answer"}
+                  size="sm"
+                  onClick={onRetry}
+                  className="gap-1.5 rounded-full"
                 >
-                  {isPlaying ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Volume2 className="w-3.5 h-3.5" />
-                  )}
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Try again
                 </Button>
               )}
-
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleCopy}
-                className="h-7 w-7 rounded-full hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-all"
-                title="Copy answer"
-              >
-                {copied ? (
-                  <Check className="w-3.5 h-3.5 text-green-500" />
-                ) : (
-                  <Copy className="w-3.5 h-3.5" />
-                )}
-              </Button>
             </div>
-          </div>
+          ) : (
+            <>
+              {/* Sources Row */}
+              {sources.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2.5">
+                    Sources
+                  </p>
+                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                    {sources.map((source, i) => (
+                      <div
+                        key={i}
+                        id={`source-${i + 1}`}
+                        className={cn(
+                          "rounded-2xl transition-all duration-300",
+                          highlighted === i + 1 && "ring-2 ring-primary/60 bg-primary/5"
+                        )}
+                      >
+                        <SourceCard source={source} index={i} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-          {/* Follow-up Suggestions */}
-          <FollowUpChips suggestions={followUps} onSelect={onFollowUpSelect} />
+              {/* Answer — plain text, no bubble */}
+              <div>
+                <p className="text-sm md:text-base leading-relaxed tracking-tight font-medium text-foreground whitespace-pre-wrap">
+                  {renderAnswer(answer)}
+                </p>
+
+                {/* Answer actions */}
+                <div className="flex items-center gap-1.5 mt-3">
+                  {onPlayAudio && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={onPlayAudio}
+                      className={cn(
+                        "h-7 w-7 rounded-full transition-all",
+                        isPlaying
+                          ? "text-primary bg-primary/10 animate-pulse"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      )}
+                      title={isPlaying ? "Stop audio" : "Listen to answer"}
+                    >
+                      {isPlaying ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Volume2 className="w-3.5 h-3.5" />
+                      )}
+                    </Button>
+                  )}
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleCopy}
+                    className="h-7 w-7 rounded-full hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-all"
+                    title="Copy answer"
+                  >
+                    {copied ? (
+                      <Check className="w-3.5 h-3.5 text-green-500" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </Button>
+
+                  {/* G12: Share */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleShare}
+                    className="h-7 w-7 rounded-full hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-all"
+                    title="Copy shareable snippet"
+                  >
+                    {shared ? (
+                      <Check className="w-3.5 h-3.5 text-green-500" />
+                    ) : (
+                      <Share2 className="w-3.5 h-3.5" />
+                    )}
+                  </Button>
+
+                  {/* G11: Feedback */}
+                  <div className="ml-auto">
+                    <FeedbackBar
+                      contextType={contextType}
+                      messageId={messageId}
+                      conversationId={conversationId}
+                      language={language}
+                      originalText={answer}
+                      compact
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Follow-up Suggestions */}
+              <FollowUpChips suggestions={followUps} onSelect={onFollowUpSelect} />
+            </>
+          )}
         </div>
       )}
 
@@ -227,12 +301,12 @@ const SearchResults: React.FC<SearchResultsProps> = ({
                 className="group flex flex-col rounded-xl overflow-hidden border border-border/30 bg-card/40 hover:bg-card/70 hover:border-border/60 hover:shadow-md transition-all duration-200"
               >
                 <div className="aspect-square overflow-hidden bg-muted/20">
-                  <img
+                  <Image
                     src={img.thumbnail}
                     alt={img.title}
+                    width={200}
+                    height={200}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    loading="lazy"
-                    decoding="async"
                   />
                 </div>
                 <div className="p-2.5 flex-1 min-w-0">

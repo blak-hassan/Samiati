@@ -11,7 +11,7 @@ import { CONTRIBUTION_TYPES, CATEGORY_COLORS } from '@/lib/constants';
 import ModerationDashboardScreen from './ModerationDashboardScreen';
 import { ContributionCard } from '@/components/contributions/ContributionCard';
 import { ModerationLogContent } from './ModerationLogScreen';
-import { useUser } from '@/app/MockProviders';
+import { useAppUser } from '@/hooks/useAppUser';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn, copyToClipboard } from '@/lib/utils';
@@ -353,7 +353,7 @@ const PAST_CHALLENGES = [
 ];
 
 const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = 'My Changa', initialTypeFilter, initialStatusFilter = 'All', onViewProfile, unreadCount = 0, myContributions = [], setMyContributions, languages = [] }) => {
-    const { challenges } = useUser();
+    const { challenges } = useAppUser();
     const [activeTab, setActiveTab] = useState<'My Changa' | 'Challenges' | 'Moderation' | 'Saved'>(initialTab || 'My Changa');
     const [moderationView, setModerationView] = useState<'dashboard' | 'history'>('dashboard');
 

@@ -15,7 +15,7 @@ const SettingsNotificationsScreen: React.FC<Props> = ({ goBack }) => {
   const [pauseAll, setPauseAll] = useState(false);
   const [changa, setChanga] = useState(true);
   const [moderation, setModeration] = useState(true);
-  const [kaendelee, setKaendelee] = useState(true);
+  const [sessions, setSessions] = useState(true);
   const [emailDigest, setEmailDigest] = useState(false);
 
   return (
@@ -70,11 +70,11 @@ const SettingsNotificationsScreen: React.FC<Props> = ({ goBack }) => {
               <div className="flex items-center gap-3">
                 <Bell className="w-5 h-5 text-muted-foreground" />
                 <div>
-                  <p className="font-medium text-foreground">Kaendelee</p>
+                  <p className="font-medium text-foreground">Sessions</p>
                   <p className="text-xs text-muted-foreground">Saved content updates</p>
                 </div>
               </div>
-              <Switch checked={kaendelee} onCheckedChange={setKaendelee} className="data-[state=checked]:bg-primary" />
+              <Switch checked={sessions} onCheckedChange={setSessions} className="data-[state=checked]:bg-primary" />
             </div>
           </div>
         </div>

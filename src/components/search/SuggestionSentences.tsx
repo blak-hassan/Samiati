@@ -93,9 +93,10 @@ const LANGUAGE_SUGGESTIONS: Record<string, Suggestion[]> = {
   ],
 };
 
-function getSuggestions(language: Language): Suggestion[] {
-  const pool = LANGUAGE_SUGGESTIONS[language.code] || LANGUAGE_SUGGESTIONS.en;
-  return pool.slice(0, 4);
+function getSuggestions(language: Language): { suggestions: Suggestion[]; isFallback: boolean } {
+  const pool = LANGUAGE_SUGGESTIONS[language.code];
+  if (pool) return { suggestions: pool.slice(0, 4), isFallback: false };
+  return { suggestions: LANGUAGE_SUGGESTIONS.en.slice(0, 4), isFallback: true };
 }
 
 interface SuggestionSentencesProps {
@@ -107,7 +108,7 @@ const SuggestionSentences: React.FC<SuggestionSentencesProps> = ({
   selectedLanguage,
   onSelect,
 }) => {
-  const suggestions = useMemo(
+  const { suggestions, isFallback } = useMemo(
     () => getSuggestions(selectedLanguage),
     [selectedLanguage]
   );
@@ -119,6 +120,11 @@ const SuggestionSentences: React.FC<SuggestionSentencesProps> = ({
         <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
           Trending Searches
         </span>
+        {isFallback && (
+          <span className="text-[9px] font-bold text-muted-foreground/50 bg-muted/50 px-1.5 py-0.5 rounded-full">
+            in English
+          </span>
+        )}
       </div>
       <div className="flex flex-col gap-1.5">
         {suggestions.map((suggestion, i) => (

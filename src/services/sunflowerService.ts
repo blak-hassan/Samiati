@@ -9,8 +9,6 @@
 // results always have data.
 // =============================================================================
 
-import { Message } from '@/types';
-
 export interface SearchSource {
     title: string;
     url: string;
@@ -51,47 +49,6 @@ const WIKI_LANG_MAP: Record<string, string> = {
 
 export function getWikiLangCode(code: string): string {
     return WIKI_LANG_MAP[code] ?? 'en';
-}
-
-export async function sendMessageToSunflower(
-    userMessage: string,
-    conversationHistory: Message[],
-    accessToken?: string
-): Promise<string> {
-    // Use the Convex action directly via fetch
-    const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-    if (!convexUrl) throw new Error("Convex URL not configured");
-
-    const response = await fetch(`${convexUrl}/api/action`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-        },
-        body: JSON.stringify({
-            path: 'sunflower:sendMessage',
-            args: {
-                userMessage,
-                conversationHistory: conversationHistory.map(msg => ({
-                    sender: msg.sender,
-                    text: msg.text,
-                })),
-            },
-        }),
-    });
-
-    if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Unknown error');
-        throw new Error(`Failed to call AI API: ${response.status} ${errorText}`);
-    }
-
-    const result = await response.json();
-
-    if (result.status === 'error') {
-        throw new Error(result.errorMessage || 'Convex action failed');
-    }
-
-    return result.value ?? '';
 }
 
 // -----------------------------------------------------------------------------
@@ -168,112 +125,4 @@ export async function fetchCommonsImages(query: string, limit = 9): Promise<Sear
             };
         })
         .filter(img => img.url && img.thumbnail);
-}
-
-// -----------------------------------------------------------------------------
-// Generic Convex action caller
-// -----------------------------------------------------------------------------
-
-interface ConvexActionResult {
-    status: 'success' | 'error';
-    value?: unknown;
-    errorMessage?: string;
-}
-
-async function callConvexAction(path: string, args: Record<string, unknown>, accessToken?: string): Promise<unknown> {
-    const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-    if (!convexUrl) throw new Error("Convex URL not configured");
-
-    const response = await fetch(`${convexUrl}/api/action`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-        },
-        body: JSON.stringify({ path, args }),
-    });
-
-    if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Unknown error');
-        throw new Error(`Failed to call Convex action: ${response.status} ${errorText}`);
-    }
-
-    const result: ConvexActionResult = await response.json();
-    if (result.status === 'error') {
-        throw new Error(result.errorMessage || 'Convex action failed');
-    }
-    return result.value;
-}
-
-// -----------------------------------------------------------------------------
-// Search — answer from Convex (Sunflower), links + images in parallel
-// -----------------------------------------------------------------------------
-
-export async function searchWithGrounding(
-    query: string,
-    language: string,
-    langCode = 'en',
-    documentText = '',
-    accessToken?: string
-): Promise<SearchResult> {
-    const wikiLang = getWikiLangCode(langCode);
-
-    // Fetch links first so the model can cite them by number
-    const links = await fetchWikipediaLinks(query, wikiLang);
-
-    const document = documentText.trim().slice(0, 8000);
-
-    const [value, images] = await Promise.all([
-        callConvexAction('sunflower:search', { query, language, links, document }, accessToken),
-        fetchCommonsImages(query).catch(() => []),
-    ]);
-
-    if (!value || typeof value !== 'object') {
-        throw new Error('Invalid response format from search');
-    }
-
-    const result = value as { answer?: string; sources?: SearchSource[]; followUps?: string[] };
-
-    return {
-        answer: result.answer || '',
-        sources:
-            Array.isArray(result.sources) && result.sources.length > 0
-                ? result.sources
-                : links,
-        followUps: Array.isArray(result.followUps) ? result.followUps : [],
-        images,
-    };
-}
-
-// -----------------------------------------------------------------------------
-// ASR — Paza Whisper (Kenyan languages), TTS — Orpheus (African voices)
-// -----------------------------------------------------------------------------
-
-export async function transcribeAudioBase64(
-    audioBase64: string,
-    accessToken?: string
-): Promise<{ text: string; error: string | null }> {
-    const value = await callConvexAction('asr:transcribeAudio', { audioBase64 }, accessToken);
-    if (!value || typeof value !== 'object') {
-        return { text: '', error: 'ASR returned an unexpected response.' };
-    }
-    const result = value as { text?: string; error?: string | null };
-    return { text: result.text ?? '', error: result.error ?? null };
-}
-
-export async function synthesizeSpeech(
-    text: string,
-    language: string,
-    accessToken?: string
-): Promise<{ audioBase64: string | null; contentType: string; error: string | null }> {
-    const value = await callConvexAction('tts:synthesizeSpeech', { text, language }, accessToken);
-    if (!value || typeof value !== 'object') {
-        return { audioBase64: null, contentType: 'audio/wav', error: 'TTS returned an unexpected response.' };
-    }
-    const result = value as { audioBase64?: string | null; contentType?: string; error?: string | null };
-    return {
-        audioBase64: result.audioBase64 ?? null,
-        contentType: result.contentType ?? 'audio/wav',
-        error: result.error ?? null,
-    };
 }

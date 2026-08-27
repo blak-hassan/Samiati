@@ -543,6 +543,18 @@ curatedExampleId: v.optional(v.id("changaCuratedExamples")),
         .index("by_release", ["releaseId"])
         .index("by_example", ["exampleId"]),
 
+    changaInvites: defineTable({
+        inviterUserId: v.id("users"),
+        inviteCode: v.string(),
+        channel: v.optional(v.string()), // "whatsapp", "sms", "twitter", "clipboard", etc.
+        clickedAt: v.optional(v.number()),
+        clickedByUserId: v.optional(v.id("users")),
+        firstContributionAt: v.optional(v.number()),
+        createdAt: v.number(),
+    })
+        .index("by_code", ["inviteCode"])
+        .index("by_inviter", ["inviterUserId"]),
+
     reports: defineTable({
         type: v.union(v.literal('comment'), v.literal('link'), v.literal('post')),
         targetId: v.string(), // ID of the reported content
@@ -714,4 +726,185 @@ curatedExampleId: v.optional(v.id("changaCuratedExamples")),
         count: v.number(),
         updatedAt: v.number(),
     }).index("by_key", ["key"]),
+
+    // ── Subscription & Billing (Paystack) ──────────────────────────────────
+
+    subscriptions: defineTable({
+        userId: v.id("users"),
+        plan: v.union(
+            v.literal("free"),
+            v.literal("learner"),
+            v.literal("fluent"),
+            v.literal("organization"),
+        ),
+        status: v.union(
+            v.literal("pending"),
+            v.literal("active"),
+            v.literal("past_due"),
+            v.literal("canceled"),
+            v.literal("expired"),
+        ),
+        // Paystack references
+        paystackCustomerCode: v.optional(v.string()),
+        paystackSubscriptionCode: v.optional(v.string()),
+        paystackPlanCode: v.optional(v.string()),
+        // Billing periods
+        currentPeriodStart: v.number(),
+        currentPeriodEnd: v.number(),
+        // For organization tier
+        seatCount: v.optional(v.number()),
+        customPriceCents: v.optional(v.number()),
+        // Metadata
+        createdAt: v.number(),
+        updatedAt: v.number(),
+        canceledAt: v.optional(v.number()),
+        // Dunning
+        failedPaymentAttempts: v.number(),
+        lastFailedPaymentAt: v.optional(v.number()),
+        nextRetryAt: v.optional(v.number()),
+    })
+        .index("by_user", ["userId"])
+        .index("by_status", ["status"])
+        .index("by_currentPeriodEnd", ["currentPeriodEnd"]),
+
+    billingEvents: defineTable({
+        userId: v.id("users"),
+        subscriptionId: v.id("subscriptions"),
+        type: v.union(
+            v.literal("subscription.created"),
+            v.literal("subscription.renewed"),
+            v.literal("subscription.upgraded"),
+            v.literal("subscription.downgraded"),
+            v.literal("subscription.canceled"),
+            v.literal("payment.succeeded"),
+            v.literal("payment.failed"),
+            v.literal("payment.retried"),
+            v.literal("usage.limit_reached"),
+        ),
+        amountCents: v.number(),
+        currency: v.string(),
+        paystackReference: v.optional(v.string()),
+        description: v.string(),
+        metadata: v.optional(v.any()),
+        createdAt: v.number(),
+    })
+        .index("by_user", ["userId"])
+        .index("by_subscription", ["subscriptionId"])
+        .index("by_type", ["type"])
+        .index("by_createdAt", ["createdAt"]),
+
+    // ── Discover ──────────────────────────────────────────────────────────────
+
+    // Raw ingested items from external sources (temporary, pruned after 7 days)
+    discoverRawItems: defineTable({
+        sourceId: v.string(),           // "rss:nation-africa", "gdelt:event-123"
+        sourceUrl: v.string(),
+        title: v.string(),
+        description: v.string(),
+        publishedAt: v.number(),
+        ingestedAt: v.number(),
+        raw: v.string(),                // full raw data JSON
+    }).index("by_source_published", ["sourceId", "publishedAt"])
+      .index("by_ingested", ["ingestedAt"]),
+
+    // Normalized items ready for clustering
+    discoverItems: defineTable({
+        rawItemId: v.id("discoverRawItems"),
+        sourceDomain: v.string(),
+        title: v.string(),
+        description: v.string(),
+        url: v.string(),
+        publishedAt: v.number(),
+        language: v.string(),
+        country: v.string(),
+        county: v.optional(v.string()),
+        category: v.string(),
+        entities: v.array(v.string()),
+        imageUrl: v.optional(v.string()),
+        status: v.string(),             // "raw" | "clustered" | "enriched" | "archived"
+    }).index("by_status", ["status"])
+      .index("by_category_published", ["category", "publishedAt"])
+      .index("by_published", ["publishedAt"]),
+
+    // Clusters of articles about the same event
+    discoverClusters: defineTable({
+        topicTitle: v.string(),
+        itemIds: v.array(v.id("discoverItems")),
+        sourceDomains: v.array(v.string()),
+        category: v.string(),
+        country: v.string(),
+        newestPublishedAt: v.number(),
+        sourceCount: v.number(),
+        status: v.string(),             // "active" | "archived"
+        trendScore: v.number(),
+        summary: v.string(),
+        whyTrending: v.string(),
+        suggestedQuery: v.string(),
+        imageUrl: v.optional(v.string()),
+    }).index("by_status_trendScore", ["status", "trendScore"])
+      .index("by_category_status", ["category", "status"])
+      .index("by_newest", ["newestPublishedAt"]),
+
+    // User engagement with Discover topics
+    discoverEngagement: defineTable({
+        userId: v.id("users"),
+        clusterId: v.id("discoverClusters"),
+        action: v.string(),             // "click" | "read" | "explore" | "save" | "share" | "dismiss"
+        timestamp: v.number(),
+    }).index("by_user", ["userId"])
+      .index("by_cluster", ["clusterId"]),
+
+    // User interest scores per category
+    discoverUserInterests: defineTable({
+        userId: v.id("users"),
+        category: v.string(),
+        score: v.number(),
+        updatedAt: v.number(),
+    }).index("by_user", ["userId"]),
+
+    // Source reputation lookup
+    discoverSourceReputation: defineTable({
+        domain: v.string(),
+        tier: v.number(),
+        label: v.string(),
+        trustScore: v.number(),
+        isKenyan: v.boolean(),
+        isAfrican: v.boolean(),
+    }).index("by_domain", ["domain"]),
+
+    // In-app feedback on AI responses (thumbs up/down, reasons, corrections)
+    feedback: defineTable({
+        userId: v.id("users"),
+        messageId: v.optional(v.string()), // ID of the message being rated (client-generated or Convex _id)
+        conversationId: v.optional(v.string()), // Conversation context
+        type: v.union(v.literal("up"), v.literal("down")),
+        reason: v.optional(v.string()), // Why the user rated down
+        correction: v.optional(v.string()), // User's suggested fix
+        contextType: v.union(
+            v.literal("chat"),
+            v.literal("translate"),
+            v.literal("voice"),
+            v.literal("tts"),
+            v.literal("search"),
+        ),
+        language: v.optional(v.string()), // Target language at time of feedback
+        originalText: v.optional(v.string()), // The AI response that was rated
+        timestamp: v.number(),
+    })
+        .index("by_user", ["userId"])
+        .index("by_message", ["messageId"])
+        .index("by_type", ["type"])
+        .index("by_context", ["contextType"]),
+
+    // Monthly usage counters per user
+    usageTracking: defineTable({
+        userId: v.id("users"),
+        periodStart: v.number(),
+        periodEnd: v.number(),
+        chatMessages: v.number(),
+        translateRequests: v.number(),
+        voiceMessages: v.number(),
+        voiceMinutes: v.number(),
+    })
+        .index("by_user_period", ["userId", "periodStart"]),
 });

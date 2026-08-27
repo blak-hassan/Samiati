@@ -33,7 +33,11 @@ export default function DashboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const chatId = searchParams.get("chatId");
+  const discoverQuery = searchParams.get("q");
   const { user: clerkUser, isLoaded } = useUser();
+
+  // Load all conversations for sidebar
+  const [conversations, setConversations] = useState<Conversation[]>(() => localConversationService.getConversations());
 
   // Active conversation state — lives here so it survives remounts of the search screen
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(() => resolveConversation(chatId));
@@ -121,6 +125,8 @@ export default function DashboardPage() {
       activeConversation={activeConversation}
       onNewChat={handleNewChat}
       onSaveChat={handleSaveChat}
+      conversations={conversations}
+      initialQuery={discoverQuery || undefined}
     />
   );
 }

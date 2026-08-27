@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { NavigateFn, Screen, ChallengeType, InputType, ChallengeInputField } from '@/types';
-import { useUser } from '@/app/MockProviders';
+import { useAppUser } from '@/hooks/useAppUser';
 
 interface Props {
   navigate: NavigateFn;
@@ -11,7 +11,7 @@ interface Props {
 }
 
 const AddChallengeScreen: React.FC<Props> = ({ navigate, goBack, onLaunch, isSubmitting }) => {
-  const { addChallenge } = useUser();
+  const { addChallenge } = useAppUser();
   const [step, setStep] = useState(1);
   const [selectedType, setSelectedType] = useState<ChallengeType | null>(null);
   const [formData, setFormData] = useState({
