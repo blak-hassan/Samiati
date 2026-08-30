@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { Screen, User as UserType } from '@/types';
 import {
-    ArrowLeft,
     ChevronRight,
     Zap,
     Bell,
@@ -26,6 +25,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import SettingsPageHeader from "@/components/settings/SettingsPageHeader";
 
 interface Props {
     navigate: (screen: Screen) => void;
@@ -33,20 +33,16 @@ interface Props {
     onSignOut: () => void;
     isDarkMode: boolean;
     toggleTheme: () => void;
+    saving: boolean;
     user: UserType;
 }
 
-const SettingsScreen: React.FC<Props> = ({ navigate, goBack, onSignOut, isDarkMode, toggleTheme, user }) => {
+const SettingsScreen: React.FC<Props> = ({ navigate, goBack, onSignOut, isDarkMode, toggleTheme, saving, user }) => {
     const [showSignOutDialog, setShowSignOutDialog] = useState(false);
 
     return (
         <div className="flex flex-col min-h-screen bg-background transition-colors duration-300">
-            <header className="flex items-center px-4 h-14 sticky top-0 bg-background/95 backdrop-blur-md z-30 border-b border-border/50">
-                <Button variant="ghost" size="icon" onClick={goBack} className="rounded-full" aria-label="Go back">
-                    <ArrowLeft className="w-5 h-5" />
-                </Button>
-                <h1 className="text-lg font-bold text-foreground ml-2 tracking-tight">Settings</h1>
-            </header>
+            <SettingsPageHeader title="Settings" onBack={goBack} />
 
             <main className="flex-1 overflow-y-auto pb-12 px-4 sm:px-6 space-y-6 mt-4">
                 {/* Profile Card */}
@@ -130,7 +126,10 @@ const SettingsScreen: React.FC<Props> = ({ navigate, goBack, onSignOut, isDarkMo
                                 <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider opacity-60">High contrast interface</p>
                             </div>
                         </div>
-                        <Switch checked={isDarkMode} onCheckedChange={toggleTheme} className="data-[state=checked]:bg-primary" />
+                        <div className="flex items-center gap-2">
+                            {saving && <span className="text-[10px] text-muted-foreground">Saving...</span>}
+                            <Switch checked={isDarkMode} onCheckedChange={toggleTheme} className="data-[state=checked]:bg-primary" aria-label="Dark mode" />
+                        </div>
                     </div>
                     <button onClick={() => navigate(Screen.SETTINGS_HELP)} className="w-full flex items-center gap-4 p-4 hover:bg-muted/30 transition-all last:border-0 group">
                         <div className="w-10 h-10 rounded-xl bg-rasta-gold/10 text-rasta-gold flex items-center justify-center group-hover:scale-110 transition-transform">

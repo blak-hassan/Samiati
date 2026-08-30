@@ -129,7 +129,7 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
 
         // Settings sub-pages
         case Screen.SETTINGS_ACCOUNT: return <SettingsAccountScreen navigate={navigate} goBack={goBack} user={appUser} />;
-        case Screen.SETTINGS_NOTIFICATIONS: return <SettingsNotificationsScreen navigate={navigate} goBack={goBack} />;
+        case Screen.SETTINGS_NOTIFICATIONS: return <SettingsNotificationsScreen goBack={goBack} />;
         case Screen.SETTINGS_PRIVACY: return <SettingsPrivacyScreen navigate={navigate} goBack={goBack} />;
         case Screen.SETTINGS_BLOCKED: return <SettingsBlockedScreen goBack={goBack} />;
         case Screen.SETTINGS_MUTED: return <SettingsMutedScreen goBack={goBack} />;
@@ -187,7 +187,7 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
         case Screen.SUGGEST_LINK: return <SuggestLinkScreen navigate={navigate} goBack={goBack} />;
         case Screen.CHANGE_PASSWORD: return <ChangePasswordScreen navigate={navigate} goBack={goBack} />;
         case Screen.ALL_ACHIEVEMENTS: return <AllAchievementsScreen goBack={goBack} />;
-        case Screen.MANAGE_LANGUAGES: return <ManageLanguagesScreen navigate={navigate} goBack={goBack} languages={languages} onUpdateLanguages={setLanguages} />;
+        case Screen.MANAGE_LANGUAGES: return <ManageLanguagesScreen goBack={goBack} languages={languages} onUpdateLanguages={setLanguages} />;
 
         case Screen.POST_THREAD: return <PostThreadScreen navigate={navigate} goBack={goBack} post={resolvedSearchParams?.post ? JSON.parse(resolvedSearchParams.post as string) : undefined} onLike={handleLikePost} onRepost={handleRepost} autoFocusReply={resolvedSearchParams?.autoFocusReply === 'true'} />;
         case Screen.DIRECT_MESSAGE:

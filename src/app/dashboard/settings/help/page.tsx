@@ -7,7 +7,7 @@ import { useState, useSyncExternalStore } from "react";
 const emptySubscribe = () => () => {};
 
 export default function SettingsHelpPage() {
-    const { navigate, goBack } = useNavigation();
+    const { goBack } = useNavigation();
     const isHydrated = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
     if (!isHydrated) {

@@ -17,7 +17,8 @@ import {
     Link,
     VolumeX,
     Ban,
-    Globe
+    Globe,
+    Pencil
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PollComponent } from './PollComponent';
@@ -37,6 +38,7 @@ interface PostCardProps {
     onLike: (id: string) => void;
     onRepost: (id: string) => void;
     onMenuAction: (e: React.MouseEvent, action: string, post: Post) => void;
+    currentUserHandle?: string;
 }
 
 export const PostCard: React.FC<PostCardProps> = ({
@@ -46,7 +48,8 @@ export const PostCard: React.FC<PostCardProps> = ({
     onCommentClick,
     onLike,
     onRepost,
-    onMenuAction
+    onMenuAction,
+    currentUserHandle,
 }) => {
     const hasSamiatiLink = post.content.includes('samiati.app');
     const [isContentExpanded, setIsContentExpanded] = useState(!post.cw);
@@ -323,6 +326,12 @@ export const PostCard: React.FC<PostCardProps> = ({
                                         <Link className="w-4 h-4" />
                                         Copy link to post
                                     </DropdownMenuItem>
+                                    {currentUserHandle && post.author.handle === currentUserHandle && (
+                                        <DropdownMenuItem onClick={(e) => onMenuAction(e, 'edit', post)} className="gap-3 font-medium">
+                                            <Pencil className="w-4 h-4" />
+                                            Edit post
+                                        </DropdownMenuItem>
+                                    )}
                                     <DropdownMenuItem onClick={(e) => onMenuAction(e, 'mute', post)} className="gap-3 font-medium">
                                         <VolumeX className="w-4 h-4" />
                                         Mute @{post.author.handle}

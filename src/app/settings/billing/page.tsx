@@ -3,7 +3,9 @@
 import * as React from "react";
 import { SubscriptionManager } from "../../../components/SubscriptionManager";
 import { PricingCard } from "../../../components/PricingCard";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAppUser } from "@/hooks/useAppUser";
+import SettingsPageHeader from "@/components/settings/SettingsPageHeader";
 
 const upgradePlans = [
     {
@@ -38,52 +40,59 @@ const upgradePlans = [
 ];
 
 export default function BillingPage() {
-    const userId = "current" as any;
+    const { user } = useAppUser();
+    const router = useRouter();
+    const userId = user?.id || user?.username || "current";
+
+    const handleSelectPlan = (planTitle: string) => {
+        router.push(`/checkout?plan=${planTitle.toLowerCase()}`);
+    };
 
     return (
-        <div className="min-h-screen bg-background">
-            <div className="mx-auto max-w-4xl px-4 py-12">
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold">Billing & Subscription</h1>
-                    <p className="mt-2 text-muted-foreground">
-                        Manage your subscription plan and view usage
-                    </p>
-                </div>
+        <div className="flex flex-col min-h-screen bg-background transition-colors duration-300">
+            <SettingsPageHeader title="Billing & Subscription" onBack={() => router.back()} />
 
-                <section className="mb-12">
-                    <h2 className="mb-4 text-xl font-semibold">Current Plan</h2>
-                    <SubscriptionManager userId={userId} />
-                </section>
-
-                <section>
-                    <h2 className="mb-4 text-xl font-semibold">Upgrade Your Plan</h2>
-                    <div className="grid gap-6 sm:grid-cols-2">
-                        {upgradePlans.map((plan) => (
-                            <PricingCard
-                                key={plan.title}
-                                title={plan.title}
-                                price={plan.price}
-                                priceSuffix={plan.priceSuffix}
-                                description={plan.description}
-                                features={plan.features}
-                                cta={plan.cta}
-                                onSelect={() => {
-                                    window.location.href = `/checkout?plan=${plan.title.toLowerCase()}`;
-                                }}
-                            />
-                        ))}
+            <main className="flex-1 overflow-y-auto p-4 space-y-6">
+                <div className="max-w-4xl mx-auto">
+                    <div className="mb-8">
+                        <h2 className="text-2xl font-bold text-foreground">Current Plan</h2>
+                        <p className="mt-2 text-muted-foreground">
+                            Manage your subscription plan and view usage
+                        </p>
                     </div>
-                </section>
 
-                <div className="mt-8 text-center">
-                    <Link
-                        href="/pricing"
-                        className="text-sm text-muted-foreground hover:text-foreground"
-                    >
-                        View all pricing plans
-                    </Link>
+                    <section className="mb-12">
+                        <SubscriptionManager userId={userId} />
+                    </section>
+
+                    <section>
+                        <h2 className="mb-4 text-xl font-semibold text-foreground">Upgrade Your Plan</h2>
+                        <div className="grid gap-6 sm:grid-cols-2">
+                            {upgradePlans.map((plan) => (
+                                <PricingCard
+                                    key={plan.title}
+                                    title={plan.title}
+                                    price={plan.price}
+                                    priceSuffix={plan.priceSuffix}
+                                    description={plan.description}
+                                    features={plan.features}
+                                    cta={plan.cta}
+                                    onSelect={() => handleSelectPlan(plan.title)}
+                                />
+                            ))}
+                        </div>
+                    </section>
+
+                    <div className="mt-8 text-center">
+                        <button
+                            onClick={() => router.push("/pricing")}
+                            className="text-sm text-muted-foreground hover:text-foreground"
+                        >
+                            View all pricing plans
+                        </button>
+                    </div>
                 </div>
-            </div>
+            </main>
         </div>
     );
 }

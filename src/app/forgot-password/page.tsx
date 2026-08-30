@@ -10,10 +10,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import SamiatiLogo from "@/components/SamiatiLogo";
 import { forgotPasswordSchema, ForgotPasswordFormData } from "@/lib/schemas";
+import { isDemoMode } from "@/lib/appMode";
+import { useSignIn } from "@clerk/nextjs";
 
 export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const { signIn } = useSignIn();
 
   const {
     register,
@@ -29,10 +32,23 @@ export default function ForgotPasswordPage() {
   const onSubmit = async (data: ForgotPasswordFormData) => {
     setIsLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      if (!isDemoMode && signIn) {
+        // Production path: delegate to Clerk's hosted password reset flow.
+        // Clerk intentionally returns success even when the email is unknown
+        // to avoid account enumeration, so we always show the success state.
+        await signIn.create({
+          identifier: data.email,
+          strategy: "reset_password_email_code",
+        });
+      } else {
+        // Demo mode: no real backend, simulate the delay.
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
       setIsSubmitted(true);
     } catch {
-      // Clerk handles errors via their hosted flow
+      // Clerk handles errors via their hosted flow; surface success regardless
+      // to avoid leaking whether an account exists.
+      setIsSubmitted(true);
     } finally {
       setIsLoading(false);
     }

@@ -1,5 +1,6 @@
 import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
+import { internal } from "../_generated/api";
 import { getCurrentUser, isModerator } from "../users/utils";
 import { enqueueSubmissionProcessing, runSubmissionChecks } from "./processing";
 import { FALLBACK_CONSENT_POLICY_VERSION, insertConsentRecord } from "./consent";
@@ -213,6 +214,14 @@ export const createDraftSubmission = mutation({
         }
         if (task?.languageCode && task.languageCode !== args.languageCode) {
             throw new Error("Submission language does not match the task");
+        }
+        // CHANGA-11: enforce dialect/region consistency with the task contract
+        // so a task scoped to a dialect/region cannot receive mismatched data.
+        if (task?.dialectCode && args.dialectCode && task.dialectCode !== args.dialectCode) {
+            throw new Error("Submission dialect does not match the task");
+        }
+        if (task?.regionCode && args.regionCode && task.regionCode !== args.regionCode) {
+            throw new Error("Submission region does not match the task");
         }
 
         // Idempotent draft creation: a retried request with the same key
@@ -441,6 +450,11 @@ export const submitSubmission = mutation({
         // submitted for human attention) with stored evidence.
         await enqueueSubmissionProcessing(ctx.db, args.submissionId, task.taskType);
         await runSubmissionChecks(ctx, args.submissionId);
+
+        // CHANGA-09: best-effort fallback so submissions don't remain stuck in
+        // `submitted` if the cron worker is delayed or fails. The worker action
+        // is idempotent and the cron also re-runs it on its normal schedule.
+        await ctx.scheduler.runAfter(0, internal.changa.worker.processQueuedRuns, {});
 
         return args.submissionId;
     },

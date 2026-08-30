@@ -151,12 +151,14 @@ export const editPost = mutation({
             throw new Error("Unauthorized");
         }
 
+        // Validate content length before sanitization to reject oversized input
+        if (args.content.length > MAX_CONTENT_LENGTH) {
+            throw new Error(`Content exceeds maximum length of ${MAX_CONTENT_LENGTH} characters`);
+        }
+
         const sanitizedContent = sanitizeInput(args.content);
         if (!sanitizedContent) {
             throw new Error("Content cannot be empty");
-        }
-        if (sanitizedContent.length > MAX_CONTENT_LENGTH) {
-            throw new Error(`Content exceeds maximum length of ${MAX_CONTENT_LENGTH} characters`);
         }
 
         const allowedTypes = ['standard', 'proverb', 'question', 'fireplace'];

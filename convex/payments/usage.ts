@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { internalMutation, query } from "../_generated/server";
+import { internalMutation, query, MutationCtx, QueryCtx } from "../_generated/server";
+import type { Doc, Id } from "../_generated/dataModel";
 
 export type PlanTier = "free" | "learner" | "fluent" | "organization";
 
@@ -42,15 +43,31 @@ function getCurrentPeriod(): { periodStart: number; periodEnd: number } {
     return { periodStart: start, periodEnd: end };
 }
 
+// Read-only lookup of the current usage period (safe inside queries).
+async function getUsagePeriod(
+    db: QueryCtx["db"],
+    userId: Id<"users">,
+): Promise<Doc<"usageTracking"> | null> {
+    const { periodStart, periodEnd } = getCurrentPeriod();
+    return db
+        .query("usageTracking")
+        .withIndex("by_user_period", (q) =>
+            q.eq("userId", userId).eq("periodStart", periodStart)
+        )
+        .first();
+}
+
+// Read or create the current usage period. Only valid inside a mutation, since
+// it may insert a new tracking document.
 async function getOrCreateUsagePeriod(
-    db: any,
-    userId: string,
-): Promise<{ periodStart: number; periodEnd: number; doc: any }> {
+    db: MutationCtx["db"],
+    userId: Id<"users">,
+): Promise<{ periodStart: number; periodEnd: number; doc: Doc<"usageTracking"> }> {
     const { periodStart, periodEnd } = getCurrentPeriod();
 
     const existing = await db
         .query("usageTracking")
-        .withIndex("by_user_period", (q: any) =>
+        .withIndex("by_user_period", (q) =>
             q.eq("userId", userId).eq("periodStart", periodStart)
         )
         .first();
@@ -70,6 +87,7 @@ async function getOrCreateUsagePeriod(
     });
 
     const doc = await db.get(docId);
+    if (!doc) throw new Error("Failed to create usage period");
     return { periodStart, periodEnd, doc };
 }
 
@@ -87,7 +105,7 @@ export const recordUsage = internalMutation({
     handler: async (ctx, args) => {
         const { doc } = await getOrCreateUsagePeriod(ctx.db, args.userId);
 
-        const updates: any = {};
+        const updates: Partial<Doc<"usageTracking">> = {};
         if (args.service === "chat" || args.service === "search") {
             updates.chatMessages = doc.chatMessages + 1;
         } else if (args.service === "translate") {
@@ -120,19 +138,19 @@ export const checkUsageLimit = query({
     },
     handler: async (ctx, args) => {
         const limits = PLAN_LIMITS[args.tier];
-        const { doc } = await getOrCreateUsagePeriod(ctx.db, args.userId);
+        const doc = await getUsagePeriod(ctx.db, args.userId);
 
         let current = 0;
         let limit = 0;
 
         if (args.service === "chat" || args.service === "search") {
-            current = doc.chatMessages;
+            current = doc?.chatMessages ?? 0;
             limit = limits.monthlyMessages;
         } else if (args.service === "translate") {
-            current = doc.translateRequests;
+            current = doc?.translateRequests ?? 0;
             limit = limits.monthlyTranslations;
         } else if (args.service === "tts" || args.service === "asr") {
-            current = doc.voiceMessages;
+            current = doc?.voiceMessages ?? 0;
             limit = limits.monthlyVoiceMessages;
         }
 
@@ -158,28 +176,28 @@ export const getUsageStats = query({
     },
     handler: async (ctx, args) => {
         const limits = PLAN_LIMITS[args.tier];
-        const { doc } = await getOrCreateUsagePeriod(ctx.db, args.userId);
+        const doc = await getUsagePeriod(ctx.db, args.userId);
 
         return {
             chat: {
-                current: doc.chatMessages,
+                current: doc?.chatMessages ?? 0,
                 limit: limits.monthlyMessages,
-                percentUsed: Math.round((doc.chatMessages / limits.monthlyMessages) * 100),
+                percentUsed: Math.round(((doc?.chatMessages ?? 0) / limits.monthlyMessages) * 100),
             },
             translate: {
-                current: doc.translateRequests,
+                current: doc?.translateRequests ?? 0,
                 limit: limits.monthlyTranslations,
-                percentUsed: Math.round((doc.translateRequests / limits.monthlyTranslations) * 100),
+                percentUsed: Math.round(((doc?.translateRequests ?? 0) / limits.monthlyTranslations) * 100),
             },
             voice: {
-                current: doc.voiceMessages,
+                current: doc?.voiceMessages ?? 0,
                 limit: limits.monthlyVoiceMessages,
-                minutes: doc.voiceMinutes,
+                minutes: doc?.voiceMinutes ?? 0,
                 maxMinutes: limits.voiceMinutes,
-                percentUsed: Math.round((doc.voiceMessages / limits.monthlyVoiceMessages) * 100),
+                percentUsed: Math.round(((doc?.voiceMessages ?? 0) / limits.monthlyVoiceMessages) * 100),
             },
-            periodStart: doc.periodStart,
-            periodEnd: doc.periodEnd,
+            periodStart: doc?.periodStart ?? 0,
+            periodEnd: doc?.periodEnd ?? 0,
         };
     },
 });

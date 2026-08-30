@@ -1,10 +1,12 @@
 ﻿"use client";
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { NavigateFn, Screen, LanguageSkill } from '@/types';
+import { LanguageSkill } from '@/types';
+import { Button } from "@/components/ui/button";
+import SettingsPageHeader from "@/components/settings/SettingsPageHeader";
+import { useToast } from "@/hooks/useToast";
 
 interface Props {
-  navigate: NavigateFn;
   goBack: () => void;
   languages: LanguageSkill[];
   onUpdateLanguages: (languages: LanguageSkill[]) => void;
@@ -86,10 +88,12 @@ const CustomSelect: React.FC<CustomSelectProps> = ({ label, value, options, onCh
   );
 };
 
-const ManageLanguagesScreen: React.FC<Props> = ({ navigate, goBack, languages, onUpdateLanguages }) => {
+const ManageLanguagesScreen: React.FC<Props> = ({ goBack, languages, onUpdateLanguages }) => {
+  const { toast } = useToast();
   const [isAdding, setIsAdding] = useState(false);
   const [newLangName, setNewLangName] = useState('');
   const [newLangLevel, setNewLangLevel] = useState<'Learning' | 'Conversational' | 'Fluent' | 'Native'>('Learning');
+  const [validationMessage, setValidationMessage] = useState<string | null>(null);
 
   // Derive available languages dynamically
   const unselectedLanguages = useMemo(() => {
@@ -135,8 +139,10 @@ const ManageLanguagesScreen: React.FC<Props> = ({ navigate, goBack, languages, o
     if (unselectedLanguages.length > 0) {
       setNewLangName(unselectedLanguages[0]);
       setNewLangLevel('Learning');
+      setValidationMessage(null);
     } else {
-      alert("All available languages have been added!");
+      setValidationMessage("All available languages have been added!");
+      toast("All available languages have been added!", "info");
     }
     setIsAdding(true);
   };
@@ -145,7 +151,8 @@ const ManageLanguagesScreen: React.FC<Props> = ({ navigate, goBack, languages, o
     if (!newLangName) return;
 
     if (languages.some(l => l.name === newLangName)) {
-      alert("You already have this language listed.");
+      setValidationMessage("You already have this language listed.");
+      toast("You already have this language listed.", "error");
       return;
     }
 
@@ -161,15 +168,15 @@ const ManageLanguagesScreen: React.FC<Props> = ({ navigate, goBack, languages, o
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-stone-50 dark:bg-background-dark text-stone-900 dark:text-white transition-colors duration-300 relative">
-      <header className="flex items-center p-4 bg-white dark:bg-surface-dark sticky top-0 z-10 border-b border-stone-200 dark:border-white/5 transition-colors">
-        <button onClick={goBack} className="p-2 -ml-2 text-stone-900 dark:text-white">
-          <span className="material-symbols-outlined">arrow_back</span>
-        </button>
-        <h1 className="flex-1 text-center text-lg font-bold pr-8">Manage Languages</h1>
-      </header>
+    <div className="flex flex-col min-h-screen bg-background text-foreground transition-colors duration-300 relative">
+      <SettingsPageHeader title="Manage Languages" onBack={goBack} />
 
       <main className="flex-1 p-4 space-y-4 pb-24 overflow-y-auto">
+        {validationMessage && (
+          <div className="bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium px-4 py-2 rounded-xl">
+            {validationMessage}
+          </div>
+        )}
         <p className="text-stone-600 dark:text-text-muted text-sm mb-2">
           Showcase the languages you speak and your proficiency level to the community.
         </p>
@@ -229,13 +236,14 @@ const ManageLanguagesScreen: React.FC<Props> = ({ navigate, goBack, languages, o
 
       </main>
 
-      <div className="p-4 bg-white dark:bg-surface-dark border-t border-stone-200 dark:border-white/5 sticky bottom-0 z-10">
-        <button
+      <div className="p-4 bg-muted/20 border-t border-border/50 sticky bottom-0 z-10">
+        <Button
           onClick={goBack}
-          className="w-full bg-stone-200 dark:bg-white/10 text-stone-900 dark:text-white font-bold py-4 rounded-xl hover:bg-stone-300 dark:hover:bg-white/20 transition-colors"
+          variant="secondary"
+          className="w-full font-bold py-4 rounded-xl"
         >
           Go Back
-        </button>
+        </Button>
       </div>
 
       {/* Add Language Modal Overlay */}

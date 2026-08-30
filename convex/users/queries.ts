@@ -74,6 +74,11 @@ export const getFollowers = query({
         const currentUser = await getCurrentUser(ctx);
         const isSelf = currentUser?._id === args.userId;
 
+        // Load target user and check profile visibility
+        const targetUser = await ctx.db.get(args.userId);
+        if (!targetUser) return [];
+        if (!isSelf && !isProfileVisible(targetUser as Record<string, unknown>, currentUser?._id)) return [];
+
         const followers = await ctx.db
             .query("followers")
             .withIndex("by_following", (q) => q.eq("followingId", args.userId))
@@ -97,6 +102,11 @@ export const getFollowing = query({
     handler: async (ctx, args) => {
         const currentUser = await getCurrentUser(ctx);
         const isSelf = currentUser?._id === args.userId;
+
+        // Load target user and check profile visibility
+        const targetUser = await ctx.db.get(args.userId);
+        if (!targetUser) return [];
+        if (!isSelf && !isProfileVisible(targetUser as Record<string, unknown>, currentUser?._id)) return [];
 
         const following = await ctx.db
             .query("followers")

@@ -4,10 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useNavigation } from "@/hooks/useNavigation";
+import { useTranslation } from "@/i18n/TranslationProvider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Screen } from "@/types";
 import { logChangaEvent } from "@/lib/changaTelemetry";
+import { XPProgressBar } from "@/components/changa/XPProgressBar";
+import { ChangaEmptyState } from "@/components/changa/ChangaEmptyState";
 import {
     ArrowRight,
     CheckCircle2,
@@ -63,6 +67,7 @@ interface ChangaHomeProps {
 
 export default function ChangaHome({ onViewActivity }: ChangaHomeProps) {
     const { navigate } = useNavigation();
+    const { t, locale } = useTranslation();
     const [selectedLanguage, setSelectedLanguage] = useState("sheng");
     const [selectedDialect, setSelectedDialect] = useState<string | null>(null);
     const [showDialectPicker, setShowDialectPicker] = useState(false);
@@ -83,6 +88,23 @@ export default function ChangaHome({ onViewActivity }: ChangaHomeProps) {
     });
     const inviteCode = useQuery(api.changa.invites.getMyInviteCode);
     const generateInviteCode = useMutation(api.changa.invites.generateInviteCode);
+    const profile = useQuery(api.users.queries.getProfile, {});
+    const seedSheng = useMutation(api.changa.seedSheng.triggerSeedSheng);
+    const [seeding, setSeeding] = useState(false);
+
+    const isModerator = profile?.role === "moderator" || profile?.role === "admin";
+
+    const handleSeedSheng = async () => {
+        setSeeding(true);
+        try {
+            await seedSheng({});
+            setShowInvite(false);
+        } catch {
+            // Surface nothing destructive; moderator can retry.
+        } finally {
+            setSeeding(false);
+        }
+    };
 
     const openTasks = (tasks || []).filter(
         (task) => typeof task.taskType === "string" && TEXT_TASK_TYPES.has(task.taskType),
@@ -98,6 +120,10 @@ export default function ChangaHome({ onViewActivity }: ChangaHomeProps) {
     const inReviewCount = (userSubmissions || []).filter(
         (sub) => sub.status === "in_validation" || sub.status === "submitted",
     ).length;
+
+    const isNewContributor = acceptedCount === 0 && inReviewCount === 0;
+    const isPowerUser = (userStats?.trustScore ?? 0) > 200;
+    const visibleOtherTasks = isNewContributor ? [] : isPowerUser ? openTasks.slice(1, 11) : otherTasks;
 
     const startTask = (taskId: string) => {
         navigate(Screen.ADD_CONTRIBUTION, { taskId });
@@ -150,9 +176,9 @@ export default function ChangaHome({ onViewActivity }: ChangaHomeProps) {
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold tracking-tight">Changa</h1>
+                        <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
                         <p className="text-sm text-muted-foreground">
-                            Help your language in seconds.
+                            {t("subtitle")}
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -163,11 +189,22 @@ export default function ChangaHome({ onViewActivity }: ChangaHomeProps) {
                             className="gap-1.5"
                         >
                             <Share2 className="size-4" />
-                            Invite
+                            {t("invite")}
                         </Button>
                         <Button variant="ghost" size="sm" onClick={onViewActivity}>
-                            My activity
+                            {t("myActivity")}
                         </Button>
+                        {isModerator && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={seeding}
+                                onClick={handleSeedSheng}
+                                className="gap-1.5"
+                            >
+                                {seeding ? "Seeding…" : "Seed Sheng data"}
+                            </Button>
+                        )}
                     </div>
                 </div>
 
@@ -249,8 +286,15 @@ export default function ChangaHome({ onViewActivity }: ChangaHomeProps) {
                 )}
 
                 {/* Language health stats */}
-                {languageStats && (
+                {languageStats === undefined ? (
                     <Card className="grid grid-cols-4 divide-x divide-border p-3 text-center">
+                        <div className="space-y-2"><Skeleton className="h-6 w-8 mx-auto" /><Skeleton className="h-3 w-12 mx-auto" /></div>
+                        <div className="space-y-2"><Skeleton className="h-6 w-8 mx-auto" /><Skeleton className="h-3 w-12 mx-auto" /></div>
+                        <div className="space-y-2"><Skeleton className="h-6 w-8 mx-auto" /><Skeleton className="h-3 w-12 mx-auto" /></div>
+                        <div className="space-y-2"><Skeleton className="h-6 w-8 mx-auto" /><Skeleton className="h-3 w-12 mx-auto" /></div>
+                    </Card>
+                ) : languageStats ? (
+                    <Card aria-live="polite" aria-atomic="true" className="grid grid-cols-4 divide-x divide-border p-3 text-center">
                         <div>
                             <p className="text-lg font-bold text-amber-700 dark:text-amber-300">
                                 {languageStats.openTasks}
@@ -276,7 +320,7 @@ export default function ChangaHome({ onViewActivity }: ChangaHomeProps) {
                             <p className="text-[10px] text-muted-foreground">Campaigns</p>
                         </div>
                     </Card>
-                )}
+                ) : null}
 
                 {/* Personal impact */}
                 <Card className="flex items-center gap-4 p-4">
@@ -304,8 +348,19 @@ export default function ChangaHome({ onViewActivity }: ChangaHomeProps) {
                 </Card>
 
                 {/* Active campaigns */}
-                {campaigns && campaigns.length > 0 && (
-                    <section className="space-y-3">
+                {campaigns === undefined ? (
+                    <Card className="space-y-3 p-4">
+                        <div className="flex items-center justify-between">
+                            <Skeleton className="h-4 w-32" />
+                            <Skeleton className="h-3 w-12" />
+                        </div>
+                        <div className="space-y-2">
+                            <Skeleton className="h-16 w-full" />
+                            <Skeleton className="h-16 w-full" />
+                        </div>
+                    </Card>
+                ) : campaigns && campaigns.length > 0 ? (
+                    <section aria-live="polite" aria-atomic="true" className="space-y-3">
                         <div className="flex items-center justify-between">
                             <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-1.5">
                                 <Trophy className="size-3.5" />
@@ -352,95 +407,132 @@ export default function ChangaHome({ onViewActivity }: ChangaHomeProps) {
                             })}
                         </div>
                     </section>
-                )}
+                ) : null}
 
-                {/* Recommended task */}
-                {recommendedTask ? (
-                    <Card className="space-y-4 border-amber-300/60 p-5 shadow-sm dark:border-amber-800/60">
-                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
-                            <Sparkles className="size-3.5" />
-                            Recommended for you
-                        </div>
-                        <div className="space-y-2">
-                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1">
-                                    <Languages className="size-3" />
-                                    {recommendedTask.languageCode}
-                                    {recommendedTask.dialectCode
-                                        ? ` · ${recommendedTask.dialectCode}`
-                                        : ""}
-                                </span>
-                                <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1">
-                                    <Clock3 className="size-3" />
-                                    about 15 seconds
-                                </span>
+                {/* New contributor onboarding */}
+                {isNewContributor ? (
+                    tasks === undefined ? (
+                        <Card className="space-y-4 p-6 sm:p-8 text-center">
+                            <Skeleton className="h-8 w-8 mx-auto rounded-full" />
+                            <div className="space-y-2">
+                                <Skeleton className="h-6 w-48 mx-auto" />
+                                <Skeleton className="h-4 w-64 mx-auto" />
                             </div>
-                            <h2 className="text-xl font-bold leading-snug">
-                                {taskLabel(recommendedTask.taskType)}
-                            </h2>
-                            <p className="text-sm text-muted-foreground">
-                                {recommendedTask.promptSourceText ||
-                                    recommendedTask.promptTargetText ||
-                                    "A short task to help your language."}
-                            </p>
-                        </div>
-                        <Button
-                            className="w-full"
-                            size="lg"
-                            onClick={() => startTask(recommendedTask._id)}
-                        >
-                            Start task
-                            <ArrowRight className="ml-2 size-4" />
-                        </Button>
-                    </Card>
+                            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                                <Skeleton className="h-10 w-40 mx-auto sm:mx-0" />
+                                <Skeleton className="h-10 w-40 mx-auto sm:mx-0" />
+                            </div>
+                        </Card>
+                    ) : (
+                        <ChangaEmptyState
+                            onStartTask={startTask}
+                            recommendedTaskId={recommendedTask?._id}
+                        />
+                    )
                 ) : (
-                    <Card className="space-y-3 p-6 text-center">
-                        <Target className="mx-auto size-8 text-muted-foreground" />
-                        <h2 className="text-lg font-semibold">
-                            {tasks === undefined
-                                ? "Loading tasks..."
-                                : "No tasks are open right now"}
-                        </h2>
-                        <p className="text-sm text-muted-foreground">
-                            {tasks === undefined
-                                ? "Finding the best tasks for you."
-                                : `No ${selectedLanguage} tasks available. Check back soon or try another language.`}
-                        </p>
-                    </Card>
-                )}
-
-                {/* Task switcher */}
-                {otherTasks.length > 0 && (
-                    <section className="space-y-3">
-                        <h3 className="text-sm font-semibold text-muted-foreground">
-                            More tasks
-                        </h3>
-                        <div className="space-y-2">
-                            {otherTasks.map((task) => (
-                                <button
-                                    key={task._id}
-                                    onClick={() => startTask(task._id)}
-                                    className="flex w-full items-center justify-between gap-3 rounded-xl border bg-card p-4 text-left transition-colors hover:bg-accent"
-                                >
-                                    <div className="min-w-0">
-                                        <p className="truncate text-sm font-medium">
-                                            {taskLabel(task.taskType)}
-                                        </p>
-                                        <p className="truncate text-xs text-muted-foreground">
-                                            {task.languageCode}
-                                            {task.dialectCode
-                                                ? ` · ${task.dialectCode}`
-                                                : ""}
-                                            {task.promptSourceText
-                                                ? ` — ${task.promptSourceText}`
-                                                : ""}
-                                        </p>
+                    <>
+                        {/* Recommended task */}
+                        {tasks === undefined ? (
+                            <Card className="space-y-4 border-amber-300/60 p-5 shadow-sm dark:border-amber-800/60">
+                                <Skeleton className="h-4 w-32" />
+                                <div className="space-y-2">
+                                    <div className="flex gap-2">
+                                        <Skeleton className="h-5 w-16" />
+                                        <Skeleton className="h-5 w-20" />
                                     </div>
-                                    <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
-                                </button>
-                            ))}
-                        </div>
-                    </section>
+                                    <Skeleton className="h-7 w-full" />
+                                    <Skeleton className="h-4 w-full" />
+                                </div>
+                                <Skeleton className="h-12 w-full" />
+                            </Card>
+                        ) : recommendedTask ? (
+                            <Card aria-live="polite" aria-atomic="true" className="space-y-4 border-amber-300/60 p-5 shadow-sm dark:border-amber-800/60">
+                                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                                    <Sparkles className="size-3.5" />
+                                    Recommended for you
+                                </div>
+                                <div className="space-y-2">
+                                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1">
+                                            <Languages className="size-3" />
+                                            {recommendedTask.languageCode}
+                                            {recommendedTask.dialectCode
+                                                ? ` · ${recommendedTask.dialectCode}`
+                                                : ""}
+                                        </span>
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1">
+                                            <Clock3 className="size-3" />
+                                            about 15 seconds
+                                        </span>
+                                    </div>
+                                    <h2 className="text-xl font-bold leading-snug">
+                                        {taskLabel(recommendedTask.taskType)}
+                                    </h2>
+                                    <p className="text-sm text-muted-foreground">
+                                        {recommendedTask.promptSourceText ||
+                                            recommendedTask.promptTargetText ||
+                                            "A short task to help your language."}
+                                    </p>
+                                </div>
+                                <Button
+                                    className="w-full"
+                                    size="lg"
+                                    onClick={() => startTask(recommendedTask._id)}
+                                >
+                                    Start task
+                                    <ArrowRight className="ml-2 size-4" />
+                                </Button>
+                            </Card>
+                        ) : (
+                            <Card aria-live="polite" aria-atomic="true" className="space-y-3 p-6 text-center">
+                                <Target className="mx-auto size-8 text-muted-foreground" />
+                                <h2 className="text-lg font-semibold">
+                                    {tasks === undefined
+                                        ? "Loading tasks..."
+                                        : "No tasks are open right now"}
+                                </h2>
+                                <p className="text-sm text-muted-foreground">
+                                    {tasks === undefined
+                                        ? "Finding the best tasks for you."
+                                        : `No ${selectedLanguage} tasks available. Check back soon or try another language.`}
+                                </p>
+                            </Card>
+                        )}
+
+                        {/* Task switcher */}
+                        {visibleOtherTasks.length > 0 && (
+                            <section aria-live="polite" aria-atomic="true" className="space-y-3">
+                                <h3 className="text-sm font-semibold text-muted-foreground">
+                                    {isPowerUser ? "More tasks" : "Other tasks"}
+                                </h3>
+                                <div className="space-y-2">
+                                    {visibleOtherTasks.map((task) => (
+                                        <button
+                                            key={task._id}
+                                            onClick={() => startTask(task._id)}
+                                            className="flex w-full items-center justify-between gap-3 rounded-xl border bg-card p-4 text-left transition-colors hover:bg-accent"
+                                        >
+                                            <div className="min-w-0">
+                                                <p className="truncate text-sm font-medium">
+                                                    {taskLabel(task.taskType)}
+                                                </p>
+                                                <p className="truncate text-xs text-muted-foreground">
+                                                    {task.languageCode}
+                                                    {task.dialectCode
+                                                        ? ` · ${task.dialectCode}`
+                                                        : ""}
+                                                    {task.promptSourceText
+                                                        ? ` — ${task.promptSourceText}`
+                                                        : ""}
+                                                </p>
+                                            </div>
+                                            <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
+                                        </button>
+                                    ))}
+                                </div>
+                            </section>
+                        )}
+                    </>
                 )}
 
                 {/* Invite section */}

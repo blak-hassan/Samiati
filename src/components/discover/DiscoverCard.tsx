@@ -1,10 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Compass, Clock, Bookmark, Share2, ExternalLink, TrendingUp, Newspaper } from "lucide-react";
+import { Compass, Clock, Bookmark, BookmarkCheck, Share2, Newspaper, X, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { copyToClipboard } from "@/lib/utils";
 
 interface DiscoverCardProps {
   cluster: {
@@ -42,12 +43,12 @@ function getTimeAgo(timestamp: number): string {
 
 function getCategoryColor(category: string): string {
   const colors: Record<string, string> = {
-    kenya: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-    africa: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+    kenya: "bg-rasta-green/10 text-rasta-green",
+    africa: "bg-rasta-gold/10 text-rasta-gold",
     tech: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
     culture: "bg-purple-500/10 text-purple-600 dark:text-purple-400",
-    trending: "bg-red-500/10 text-red-600 dark:text-red-400",
-    world: "bg-slate-500/10 text-slate-600 dark:text-slate-400",
+    trending: "bg-rasta-red/10 text-rasta-red",
+    world: "bg-muted text-muted-foreground",
   };
   return colors[category] || colors.world;
 }
@@ -83,24 +84,49 @@ export const DiscoverCard: React.FC<DiscoverCardProps> = ({
   onSave,
   onDismiss,
 }) => {
+  const [isSaved, setIsSaved] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 2500);
+  };
+
   const handleExplore = () => {
     onExplore(cluster.suggestedQuery, cluster._id);
   };
 
-  const handleSave = (e: React.MouseEvent) => {
+  const handleSave = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    setIsSaved(!isSaved);
     onSave?.(cluster._id);
+    showToast(isSaved ? "Removed from saved" : "Topic saved");
   };
 
-  const handleShare = (e: React.MouseEvent) => {
+  const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (navigator.share) {
-      navigator.share({
-        title: cluster.topicTitle,
-        text: cluster.summary,
-        url: window.location.href,
-      });
+    const shareData = {
+      title: cluster.topicTitle,
+      text: cluster.summary,
+      url: window.location.href,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await copyToClipboard(shareData.url);
+        showToast("Link copied to clipboard");
+      }
+    } catch {
+      // User cancelled share
     }
+  };
+
+  const handleDismiss = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDismiss?.(cluster._id);
+    showToast("Topic dismissed");
   };
 
   const isTrending = cluster.trendScore > 60;
@@ -109,7 +135,7 @@ export const DiscoverCard: React.FC<DiscoverCardProps> = ({
   return (
     <div
       className={cn(
-        "group relative rounded-xl border bg-card/50 p-4 transition-all duration-200",
+        "group relative rounded-xl border bg-card/50 p-3 transition-all duration-200",
         "hover:bg-card hover:shadow-md hover:border-primary/20",
         "active:scale-[0.99]",
         isTrending && "border-primary/20"
@@ -117,18 +143,16 @@ export const DiscoverCard: React.FC<DiscoverCardProps> = ({
     >
       {/* Header: Category badge + Time */}
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <Badge
             variant="secondary"
             className={cn("text-[10px] font-bold px-1.5 py-0", getCategoryColor(cluster.category))}
           >
             {getCategoryLabel(cluster.category)}
           </Badge>
-          {cluster.country !== "KE" && (
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-              {getCountryLabel(cluster.country)}
-            </Badge>
-          )}
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+            {getCountryLabel(cluster.country)}
+          </Badge>
         </div>
         <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
           <Clock className="w-3 h-3" />
@@ -136,28 +160,44 @@ export const DiscoverCard: React.FC<DiscoverCardProps> = ({
         </div>
       </div>
 
+      {/* Image thumbnail */}
+      {cluster.imageUrl && (
+        <div className="mb-2 -mx-1">
+          <img
+            src={cluster.imageUrl}
+            alt=""
+            className="w-full h-32 object-cover rounded-lg"
+          />
+        </div>
+      )}
+
       {/* Title */}
-      <h3 className="text-sm font-bold text-foreground leading-snug mb-2 line-clamp-2">
+      <h3 className="text-sm font-bold text-foreground leading-snug mb-1.5 line-clamp-2">
         {cluster.topicTitle}
       </h3>
 
       {/* Summary */}
       {cluster.summary && (
-        <p className="text-xs text-muted-foreground leading-relaxed mb-3 line-clamp-3">
+        <p className="text-xs text-muted-foreground leading-relaxed mb-2 line-clamp-2">
           {cluster.summary}
+        </p>
+      )}
+
+      {/* Why trending */}
+      {cluster.whyTrending && (
+        <p className="text-xs text-muted-foreground mb-2 italic">
+          {cluster.whyTrending}
         </p>
       )}
 
       {/* Footer: Sources + Actions */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {/* Source count */}
           <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
             <Newspaper className="w-3 h-3" />
             <span>{cluster.sourceCount} source{cluster.sourceCount !== 1 ? "s" : ""}</span>
           </div>
 
-          {/* Top source domains */}
           {topSources.length > 0 && (
             <div className="hidden sm:flex items-center gap-1">
               {topSources.map((domain) => (
@@ -173,9 +213,9 @@ export const DiscoverCard: React.FC<DiscoverCardProps> = ({
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5">
           {isTrending && (
-            <Badge variant="destructive" className="text-[9px] px-1 py-0 mr-1 gap-0.5">
+            <Badge variant="destructive" className="text-[9px] px-1 py-0 mr-0.5 gap-0.5">
               <TrendingUp className="w-2.5 h-2.5" />
               Trending
             </Badge>
@@ -186,7 +226,11 @@ export const DiscoverCard: React.FC<DiscoverCardProps> = ({
             className="h-7 w-7"
             onClick={handleSave}
           >
-            <Bookmark className="w-3.5 h-3.5" />
+            {isSaved ? (
+              <BookmarkCheck className="w-3.5 h-3.5 text-primary" />
+            ) : (
+              <Bookmark className="w-3.5 h-3.5" />
+            )}
           </Button>
           <Button
             variant="ghost"
@@ -196,27 +240,25 @@ export const DiscoverCard: React.FC<DiscoverCardProps> = ({
           >
             <Share2 className="w-3.5 h-3.5" />
           </Button>
+          {onDismiss && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={handleDismiss}
+            >
+              <X className="w-3.5 h-3.5" />
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Why trending */}
-      {cluster.whyTrending && (
-        <div className="mt-2 pt-2 border-t border-border/50">
-          <p className="text-[10px] text-muted-foreground/70 italic">
-            {cluster.whyTrending}
-          </p>
+      {/* Toast */}
+      {toastMessage && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-foreground text-background px-4 py-2 rounded-full shadow-lg text-xs font-bold z-50 animate-in fade-in slide-in-from-bottom-4">
+          {toastMessage}
         </div>
       )}
-
-      {/* Explore button - full width, always visible */}
-      <Button
-        onClick={handleExplore}
-        className="w-full mt-3 h-9 text-xs font-bold gap-2"
-        variant="default"
-      >
-        <Compass className="w-3.5 h-3.5" />
-        Explore with Samiati
-      </Button>
     </div>
   );
 };

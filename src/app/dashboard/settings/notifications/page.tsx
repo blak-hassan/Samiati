@@ -4,11 +4,10 @@ import SettingsNotificationsScreen from "@/components/screens/SettingsNotificati
 import { useNavigation } from "@/hooks/useNavigation";
 
 export default function SettingsNotificationsPage() {
-    const { navigate, goBack } = useNavigation();
+    const { goBack } = useNavigation();
 
     return (
         <SettingsNotificationsScreen
-            navigate={navigate}
             goBack={goBack}
         />
     );

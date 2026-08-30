@@ -6,7 +6,7 @@ import { useAppUser } from "@/hooks/useAppUser";
 import { LanguageSkill } from "@/types";
 
 export default function ManageLanguagesPage() {
-    const { navigate, goBack } = useNavigation();
+    const { goBack } = useNavigation();
     const { languages, setLanguages } = useAppUser();
 
     const handleUpdateLanguages = (updatedLanguages: LanguageSkill[]) => {
@@ -15,7 +15,6 @@ export default function ManageLanguagesPage() {
 
     return (
         <ManageLanguagesScreen
-            navigate={navigate}
             goBack={goBack}
             languages={languages}
             onUpdateLanguages={handleUpdateLanguages}

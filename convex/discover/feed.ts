@@ -10,27 +10,27 @@ export const getFeed = query({
   args: {
     category: v.string(),
     limit: v.optional(v.number()),
-    cursor: v.optional(v.number()),
+    cursor: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
     const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000; // 30 days
 
-    // Fetch all active clusters and filter in memory
-    // (Convex indexes don't support arbitrary field filters)
     const allClusters = await ctx.db
       .query("discoverClusters")
       .withIndex("by_status_trendScore", (q) => q.eq("status", "active"))
       .collect();
 
-    // Filter by recency and category
     const filtered = allClusters
       .filter((c) => c.newestPublishedAt >= cutoff)
       .filter((c) => args.category === "for_you" || c.category === args.category)
-      .sort((a, b) => b.trendScore - a.trendScore)
-      .slice(0, limit);
+      .sort((a, b) => b.trendScore - a.trendScore);
 
-    return filtered;
+    const startIndex = args.cursor ? filtered.findIndex((c) => c._id === args.cursor) + 1 : 0;
+    const page = filtered.slice(startIndex, startIndex + limit);
+    const nextCursor = filtered.length > startIndex + limit ? filtered[startIndex + limit]._id : undefined;
+
+    return { clusters: page, nextCursor };
   },
 });
 
@@ -65,7 +65,7 @@ export const getTrending = query({
 export const getCategoryCounts = query({
   args: {},
   handler: async (ctx) => {
-    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000; // 30 days, matching getFeed
 
     const clusters = await ctx.db
       .query("discoverClusters")
@@ -73,7 +73,6 @@ export const getCategoryCounts = query({
       .collect();
 
     const counts: Record<string, number> = {
-      for_you: 0,
       kenya: 0,
       africa: 0,
       tech: 0,
@@ -83,11 +82,8 @@ export const getCategoryCounts = query({
     };
 
     for (const c of clusters) {
-      if (c.newestPublishedAt >= cutoff) {
-        counts.for_you++;
-        if (counts[c.category] !== undefined) {
-          counts[c.category]++;
-        }
+      if (c.newestPublishedAt >= cutoff && counts[c.category] !== undefined) {
+        counts[c.category]++;
       }
     }
 

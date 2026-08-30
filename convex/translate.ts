@@ -85,7 +85,7 @@ const LANGUAGE_MAP: Record<string, string> = {
     'kpo': 'Ikposo',
 };
 
-async function callSunflower(text: string, targetLang: string): Promise<string> {
+async function callSunflower(text: string, targetLang: string, context?: string): Promise<string> {
     const apiKey = process.env.HUGGINGFACE_API_KEY;
 
     // Resolve the language name
@@ -102,6 +102,10 @@ async function callSunflower(text: string, targetLang: string): Promise<string> 
         // Use router.huggingface.co for better reliability on free tier
         const url = "https://router.huggingface.co/BlakHasan/Sunflower-Gemma4-E2B";
 
+        const contextNote = context && context.trim().length > 0
+            ? `\n\nContext (prior exchange, for tone/register only — do not translate): ${context.trim().slice(0, 1000)}`
+            : "";
+
         const response = await fetch(url, {
             method: "POST",
             headers: {
@@ -117,7 +121,7 @@ async function callSunflower(text: string, targetLang: string): Promise<string> 
                     },
                     {
                         role: "user",
-                        content: `Translate from English to ${langName}: ${text}`
+                        content: `Translate from English to ${langName}: ${text}${contextNote}`
                     }
                 ],
                 max_tokens: 512,
@@ -170,6 +174,7 @@ export const translateText = action({
     args: {
         text: v.string(),
         targetLanguage: v.string(),
+        context: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
         await requireAuthenticatedAction(ctx);
@@ -181,6 +186,6 @@ export const translateText = action({
         if (args.targetLanguage.length > 50) {
             return "ERROR: Invalid language code.";
         }
-        return await callSunflower(args.text, args.targetLanguage);
+        return await callSunflower(args.text, args.targetLanguage, args.context);
     },
 });

@@ -14,7 +14,7 @@ const SUNFLOWER_URL = "https://router.huggingface.co/BlakHasan/Sunflower-Gemma4-
 const MAX_MESSAGE_LENGTH = 10000;
 const MAX_HISTORY_LENGTH = 20;
 
-async function callSunflower(
+export async function callSunflower(
     messages: { role: string; content: string }[],
     maxTokens = 1024,
     temperature = 0.7,

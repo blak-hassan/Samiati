@@ -61,9 +61,10 @@ export function calculateTextSimilarity(text1: string, text2: string): number {
     return union > 0 ? intersection / union : 0;
 }
 
-// Placeholder exact/near-duplicate scan over recent submissions. The index
-// strategy and per-task thresholds are repaired in Phase 2; this must not be
-// treated as a definitive duplicate determination.
+// Near-duplicate scan over recent submissions AND the curated example store.
+// CHANGA-12: the original placeholder only looked at recent submissions; we now
+// also compare against accepted curated examples so known-good text is not
+// re-collected. This is still a heuristic, not a definitive determination.
 export async function findDuplicateText(
     db: MutationCtx["db"],
     text: string,
@@ -79,6 +80,16 @@ export async function findDuplicateText(
         const similarity = calculateTextSimilarity(text, sub.sourceText || sub.targetText || "");
         if (similarity > maxSimilarity) maxSimilarity = similarity;
     }
+
+    // Compare against curated examples (accepted training data) as well.
+    const curated = await db.query("changaCuratedExamples")
+        .order("desc")
+        .take(200);
+    for (const example of curated) {
+        const similarity = calculateTextSimilarity(text, example.targetText || example.sourceText || "");
+        if (similarity > maxSimilarity) maxSimilarity = similarity;
+    }
+
     return maxSimilarity;
 }
 

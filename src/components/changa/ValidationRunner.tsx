@@ -137,6 +137,7 @@ export default function ValidationRunner({ languageCode, goBack }: ValidationRun
                     <button onClick={goBack} className="text-sm text-muted-foreground hover:text-foreground">Back</button>
                 </div>
 
+                <div aria-live="polite" aria-atomic="true">
                 {queue === undefined || (queue.length === 0 && !current) ? (
                     <Card className="space-y-3 p-8 text-center">
                         {queue === undefined ? <Loader2 className="mx-auto size-6 animate-spin" /> : <ShieldAlert className="mx-auto size-8 text-muted-foreground" />}
@@ -276,6 +277,7 @@ export default function ValidationRunner({ languageCode, goBack }: ValidationRun
                         {isVoting && <p className="text-center text-xs text-muted-foreground">Recording your review…</p>}
                     </div>
                 ) : null}
+                </div>
             </div>
         </main>
     );

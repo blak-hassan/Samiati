@@ -4,7 +4,7 @@ import SettingsBlockedScreen from "@/components/screens/SettingsBlockedScreen";
 import { useNavigation } from "@/hooks/useNavigation";
 
 export default function SettingsBlockedPage() {
-    const { navigate, goBack } = useNavigation();
+    const { goBack } = useNavigation();
 
     return (
         <SettingsBlockedScreen

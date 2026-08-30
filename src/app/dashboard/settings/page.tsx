@@ -7,6 +7,8 @@ import { useUser as useMockUser, useClerk as useMockClerk } from "@/app/MockProv
 import { isDemoMode } from "@/lib/appMode";
 import { useState, useSyncExternalStore, useEffect, useMemo } from "react";
 import { Screen, User } from "@/types";
+import { useSettings } from "@/hooks/useSettings";
+import { useToast } from "@/hooks/useToast";
 
 const useUser = isDemoMode ? useMockUser : useClerkUser;
 const useClerk = isDemoMode ? useMockClerk : useClerkAuth;
@@ -17,24 +19,37 @@ export default function SettingsPage() {
     const { navigate, goBack } = useNavigation();
     const { user: clerkUser, isLoaded } = useUser();
     const { signOut } = useClerk();
-    const [isDarkMode, setIsDarkMode] = useState(true);
+    const { toast } = useToast();
     const isHydrated = useSyncExternalStore(
         emptySubscribe,
         () => true,
         () => false
     );
 
-    const toggleTheme = () => setIsDarkMode(!isDarkMode);
+    const { settings: savedSettings, updateSetting, saving } = useSettings();
+    const [localDark, setLocalDark] = useState(savedSettings.darkMode ?? true);
 
     useEffect(() => {
-        if (isHydrated) {
-            if (isDarkMode) {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
+        if (!isHydrated) return;
+        const stored = savedSettings.darkMode ?? true;
+        if (stored) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
         }
-    }, [isDarkMode, isHydrated]);
+    }, [isHydrated, savedSettings.darkMode]);
+
+    const toggleTheme = async () => {
+        const next = !localDark;
+        setLocalDark(next);
+        await updateSetting("darkMode", next);
+        if (next) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+        toast(next ? "Dark mode enabled" : "Dark mode disabled", "success");
+    };
 
     const appUser: User = useMemo(() => clerkUser ? {
         name: clerkUser.fullName || "User",
@@ -62,8 +77,9 @@ export default function SettingsPage() {
                 await signOut();
                 navigate(Screen.WELCOME);
             }}
-            isDarkMode={isDarkMode}
+            isDarkMode={localDark}
             toggleTheme={toggleTheme}
+            saving={saving}
             user={appUser}
         />
     );

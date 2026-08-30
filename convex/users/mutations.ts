@@ -226,6 +226,16 @@ export const store = mutation({
             .unique();
 
         if (user !== null) {
+            // Validate handle uniqueness if handle is being changed
+            if (user.handle !== handle) {
+                const existingHandle = await ctx.db
+                    .query("users")
+                    .withIndex("by_handle", (q) => q.eq("handle", handle))
+                    .unique();
+                if (existingHandle) {
+                    throw new Error("Handle is already taken");
+                }
+            }
             if (user.name !== name || user.handle !== handle || user.avatar !== avatar || user.email !== email || user.emailVerified !== emailVerified) {
                 await ctx.db.patch(user._id, { name, handle, avatar, email, emailVerified });
             }
@@ -243,6 +253,15 @@ export const store = mutation({
             if (!existingHandle) break;
 
             finalHandle = `${handle.slice(0, 20)}_${Math.random().toString(36).slice(2, 8)}`;
+        }
+
+        // Validate final generated handle before insertion
+        const finalCheckHandle = await ctx.db
+            .query("users")
+            .withIndex("by_handle", (q) => q.eq("handle", finalHandle))
+            .unique();
+        if (finalCheckHandle) {
+            throw new Error("Unable to generate unique handle after retries");
         }
 
         // New user
@@ -491,6 +510,178 @@ export const exportUserData = query({
     },
 });
 
+// Helper mutation for batched account deletion
+export const deleteAccountBatch = mutation({
+    args: {
+        userId: v.id("users"),
+        phase: v.number(), // 0=posts, 1=comments, 2=likes, 3=followers, 4=following, 5=notifications, 6=bookmarks, 7=conversations, 8=changa, 9=delete_user
+    },
+    handler: async (ctx, args) => {
+        const BATCH_SIZE = 50;
+
+        switch (args.phase) {
+            case 0: { // Delete posts and their related data
+                const posts = await ctx.db.query("posts").withIndex("by_author", (q) => q.eq("authorId", args.userId)).take(BATCH_SIZE);
+                for (const post of posts) {
+                    // Cascade: delete comments, likes, bookmarks for this post
+                    const comments = await ctx.db.query("comments").withIndex("by_post", (q) => q.eq("postId", post._id)).collect();
+                    for (const comment of comments) {
+                        await ctx.db.delete(comment._id);
+                    }
+                    const likes = await ctx.db.query("likes").withIndex("by_post", (q) => q.eq("postId", post._id)).collect();
+                    for (const like of likes) {
+                        await ctx.db.delete(like._id);
+                    }
+                    const bookmarks = await ctx.db.query("bookmarks").withIndex("by_post", (q) => q.eq("postId", post._id)).collect();
+                    for (const bm of bookmarks) {
+                        await ctx.db.delete(bm._id);
+                    }
+                    await ctx.db.delete(post._id);
+                }
+                // Check if more posts exist
+                const remainingPosts = await ctx.db.query("posts").withIndex("by_author", (q) => q.eq("authorId", args.userId)).first();
+                if (remainingPosts) {
+                    await ctx.scheduler.runAfter(0, args.userId + ":batch:0");
+                } else {
+                    await ctx.scheduler.runAfter(0, args.userId + ":batch:1");
+                }
+                break;
+            }
+            case 1: { // Delete user's comments
+                const comments = await ctx.db.query("comments").withIndex("by_author", (q) => q.eq("authorId", args.userId)).take(BATCH_SIZE);
+                for (const comment of comments) {
+                    await ctx.db.delete(comment._id);
+                }
+                const remainingComments = await ctx.db.query("comments").withIndex("by_author", (q) => q.eq("authorId", args.userId)).first();
+                if (remainingComments) {
+                    await ctx.scheduler.runAfter(0, args.userId + ":batch:1");
+                } else {
+                    await ctx.scheduler.runAfter(0, args.userId + ":batch:2");
+                }
+                break;
+            }
+            case 2: { // Delete user's likes
+                const likes = await ctx.db.query("likes").withIndex("by_user", (q) => q.eq("userId", args.userId)).take(BATCH_SIZE);
+                for (const like of likes) {
+                    await ctx.db.delete(like._id);
+                }
+                const remainingLikes = await ctx.db.query("likes").withIndex("by_user", (q) => q.eq("userId", args.userId)).first();
+                if (remainingLikes) {
+                    await ctx.scheduler.runAfter(0, args.userId + ":batch:2");
+                } else {
+                    await ctx.scheduler.runAfter(0, args.userId + ":batch:3");
+                }
+                break;
+            }
+            case 3: { // Delete outgoing followers (where user is follower)
+                const followers = await ctx.db.query("followers").withIndex("by_follower", (q) => q.eq("followerId", args.userId)).take(BATCH_SIZE);
+                for (const f of followers) {
+                    await ctx.db.delete(f._id);
+                    // Decrement target user's followerCount
+                    const targetUser = await ctx.db.get(f.followingId);
+                    if (targetUser) {
+                        await ctx.db.patch(f.followingId, {
+                            followerCount: Math.max(0, (targetUser.followerCount || 0) - 1)
+                        });
+                    }
+                }
+                const remainingFollowers = await ctx.db.query("followers").withIndex("by_follower", (q) => q.eq("followerId", args.userId)).first();
+                if (remainingFollowers) {
+                    await ctx.scheduler.runAfter(0, args.userId + ":batch:3");
+                } else {
+                    await ctx.scheduler.runAfter(0, args.userId + ":batch:4");
+                }
+                break;
+            }
+            case 4: { // Delete incoming followers (where user is following)
+                const following = await ctx.db.query("followers").withIndex("by_following", (q) => q.eq("followingId", args.userId)).take(BATCH_SIZE);
+                for (const f of following) {
+                    await ctx.db.delete(f._id);
+                    // Decrement follower user's followingCount
+                    const followerUser = await ctx.db.get(f.followerId);
+                    if (followerUser) {
+                        await ctx.db.patch(f.followerId, {
+                            followingCount: Math.max(0, (followerUser.followingCount || 0) - 1)
+                        });
+                    }
+                }
+                const remainingFollowing = await ctx.db.query("followers").withIndex("by_following", (q) => q.eq("followingId", args.userId)).first();
+                if (remainingFollowing) {
+                    await ctx.scheduler.runAfter(0, args.userId + ":batch:4");
+                } else {
+                    await ctx.scheduler.runAfter(0, args.userId + ":batch:5");
+                }
+                break;
+            }
+            case 5: { // Delete notifications
+                const notifications = await ctx.db.query("notifications").withIndex("by_user", (q) => q.eq("userId", args.userId)).take(BATCH_SIZE);
+                for (const notif of notifications) {
+                    await ctx.db.delete(notif._id);
+                }
+                const remainingNotif = await ctx.db.query("notifications").withIndex("by_user", (q) => q.eq("userId", args.userId)).first();
+                if (remainingNotif) {
+                    await ctx.scheduler.runAfter(0, args.userId + ":batch:5");
+                } else {
+                    await ctx.scheduler.runAfter(0, args.userId + ":batch:6");
+                }
+                break;
+            }
+            case 6: { // Delete bookmarks
+                const bookmarks = await ctx.db.query("bookmarks").withIndex("by_user", (q) => q.eq("userId", args.userId)).take(BATCH_SIZE);
+                for (const bm of bookmarks) {
+                    await ctx.db.delete(bm._id);
+                }
+                const remainingBm = await ctx.db.query("bookmarks").withIndex("by_user", (q) => q.eq("userId", args.userId)).first();
+                if (remainingBm) {
+                    await ctx.scheduler.runAfter(0, args.userId + ":batch:6");
+                } else {
+                    await ctx.scheduler.runAfter(0, args.userId + ":batch:7");
+                }
+                break;
+            }
+            case 7: { // Delete conversations and messages
+                const conversations = await ctx.db.query("conversations").withIndex("by_user", (q) => q.eq("userId", String(args.userId))).take(BATCH_SIZE);
+                for (const conv of conversations) {
+                    const msgs = await ctx.db.query("messages").withIndex("by_conversation", (q) => q.eq("conversationId", conv._id)).collect();
+                    for (const msg of msgs) {
+                        await ctx.db.delete(msg._id);
+                    }
+                    await ctx.db.delete(conv._id);
+                }
+                const remainingConv = await ctx.db.query("conversations").withIndex("by_user", (q) => q.eq("userId", String(args.userId))).first();
+                if (remainingConv) {
+                    await ctx.scheduler.runAfter(0, args.userId + ":batch:7");
+                } else {
+                    await ctx.scheduler.runAfter(0, args.userId + ":batch:8");
+                }
+                break;
+            }
+            case 8: { // Delete changa submissions and task claims
+                const changaSubmissions = await ctx.db.query("changaSubmissions").withIndex("by_user_status", (q) => q.eq("userId", args.userId)).take(BATCH_SIZE);
+                for (const sub of changaSubmissions) {
+                    await ctx.db.delete(sub._id);
+                }
+                const changaClaims = await ctx.db.query("changaTaskClaims").withIndex("by_user_task", (q) => q.eq("userId", args.userId)).take(BATCH_SIZE);
+                for (const claim of changaClaims) {
+                    await ctx.db.delete(claim._id);
+                }
+                const remainingSubs = await ctx.db.query("changaSubmissions").withIndex("by_user_status", (q) => q.eq("userId", args.userId)).first();
+                const remainingClaims = await ctx.db.query("changaTaskClaims").withIndex("by_user_task", (q) => q.eq("userId", args.userId)).first();
+                if (remainingSubs || remainingClaims) {
+                    await ctx.scheduler.runAfter(0, args.userId + ":batch:8");
+                } else {
+                    await ctx.scheduler.runAfter(0, args.userId + ":batch:9");
+                }
+                break;
+            }
+            case 9: { // Delete user record
+                await ctx.db.delete(args.userId);
+                break;
+            }
+        }
+    },
+});
+
 // Delete user account and all associated data (GDPR right to erasure)
 export const deleteAccount = mutation({
     args: {},
@@ -500,62 +691,9 @@ export const deleteAccount = mutation({
 
         const userId = user._id;
 
-        const posts = await ctx.db.query("posts").withIndex("by_author", (q) => q.eq("authorId", userId)).collect();
-        for (const post of posts) {
-            await ctx.db.delete(post._id);
-        }
+        // Schedule batched deletion starting with phase 0 (posts)
+        await ctx.scheduler.runAfter(0, userId + ":batch:0");
 
-        const comments = await ctx.db.query("comments").withIndex("by_author", (q) => q.eq("authorId", userId)).collect();
-        for (const comment of comments) {
-            await ctx.db.delete(comment._id);
-        }
-
-        const likes = await ctx.db.query("likes").withIndex("by_user", (q) => q.eq("userId", userId)).collect();
-        for (const like of likes) {
-            await ctx.db.delete(like._id);
-        }
-
-        const followers = await ctx.db.query("followers").withIndex("by_follower", (q) => q.eq("followerId", userId)).collect();
-        for (const f of followers) {
-            await ctx.db.delete(f._id);
-        }
-
-        const following = await ctx.db.query("followers").withIndex("by_following", (q) => q.eq("followingId", userId)).collect();
-        for (const f of following) {
-            await ctx.db.delete(f._id);
-        }
-
-        const notifications = await ctx.db.query("notifications").withIndex("by_user", (q) => q.eq("userId", userId)).collect();
-        for (const notif of notifications) {
-            await ctx.db.delete(notif._id);
-        }
-
-        const bookmarks = await ctx.db.query("bookmarks").withIndex("by_user", (q) => q.eq("userId", userId)).collect();
-        for (const bm of bookmarks) {
-            await ctx.db.delete(bm._id);
-        }
-
-        const conversations = await ctx.db.query("conversations").withIndex("by_user", (q) => q.eq("userId", String(userId))).collect();
-        for (const conv of conversations) {
-            const msgs = await ctx.db.query("messages").withIndex("by_conversation", (q) => q.eq("conversationId", conv._id)).collect();
-            for (const msg of msgs) {
-                await ctx.db.delete(msg._id);
-            }
-            await ctx.db.delete(conv._id);
-        }
-
-        const changaSubmissions = await ctx.db.query("changaSubmissions").withIndex("by_user_status", (q) => q.eq("userId", userId)).collect();
-        for (const sub of changaSubmissions) {
-            await ctx.db.delete(sub._id);
-        }
-
-        const changaClaims = await ctx.db.query("changaTaskClaims").withIndex("by_user_task", (q) => q.eq("userId", userId)).collect();
-        for (const claim of changaClaims) {
-            await ctx.db.delete(claim._id);
-        }
-
-        await ctx.db.delete(userId);
-
-        return { success: true, deletedRecords: posts.length + comments.length + likes.length + followers.length + following.length + notifications.length + bookmarks.length + conversations.length + changaSubmissions.length + changaClaims.length };
+        return { success: true, message: "Account deletion scheduled. Processing will continue in the background." };
     },
 });

@@ -32,6 +32,7 @@ export default defineSchema({
         name: v.string(),
         handle: v.string(),
         email: v.optional(v.string()),
+        emailVerified: v.optional(v.boolean()), // From Clerk identity; false/absent = unverified
         avatar: v.string(),
         bio: v.optional(v.string()),
         culturalBackground: v.optional(v.string()),
@@ -63,6 +64,8 @@ export default defineSchema({
         badges: v.optional(v.array(v.string())),
         followerCount: v.optional(v.number()),
         followingCount: v.optional(v.number()),
+        // Onboarding
+        onboardingCompleted: v.optional(v.boolean()),
         // Profile identity
         joinedAt: v.optional(v.number()), // Backfilled on first login for older accounts
         // Privacy controls (spec §25–26) — null/absent = defaults (public, all on)
@@ -70,6 +73,14 @@ export default defineSchema({
         showChanga: v.optional(v.boolean()),      // default true
         voiceDataAllowed: v.optional(v.boolean()), // spec §26: voice contribution consent
         culturalDataAllowed: v.optional(v.boolean()), // spec §27: cultural data consent
+        // Notification preferences
+        notificationPreferences: v.optional(v.object({
+            pauseAll: v.optional(v.boolean()),
+            changa: v.optional(v.boolean()),
+            moderation: v.optional(v.boolean()),
+            sessions: v.optional(v.boolean()),
+            emailDigest: v.optional(v.boolean()),
+        })),
         // Presence tracking
         lastSeen: v.optional(v.number()), // Timestamp of last activity
         isOnline: v.optional(v.boolean()), // Current online status
@@ -85,12 +96,15 @@ export default defineSchema({
         messageCount: v.number(),
         isPinned: v.boolean(),
         lastActive: v.number(), // Timestamp
+        category: v.optional(v.string()), // Cultural category
+        clientId: v.string(), // Client-generated ID for stable sync
         // Participants could be added here for multi-user
         userId: v.string(), // Owner/Participant
-    }).index("by_user", ["userId"]),
+    }).index("by_user", ["userId"]).index("by_clientId", ["clientId"]),
 
     messages: defineTable({
         conversationId: v.id("conversations"),
+        clientId: v.string(), // Client-generated ID for stable sync
         sender: v.string(), // 'user' | 'ai' | other userId
         text: v.string(),
         translatedText: v.optional(v.string()),
@@ -99,7 +113,7 @@ export default defineSchema({
         feedback: v.optional(v.union(v.literal("up"), v.literal("down"))),
         comments: v.optional(v.array(v.string())),
         image: v.optional(v.string()), // URL handling
-    }).index("by_conversation", ["conversationId"]),
+    }).index("by_conversation", ["conversationId"]).index("by_clientId", ["clientId"]),
 
     posts: defineTable({
         type: v.string(), // 'fireplace' | 'proverb' | 'standard' | 'question'
@@ -120,6 +134,7 @@ export default defineSchema({
         // Handling arrays of strings for simple IDs
         fireplaceSpeakers: v.optional(v.array(v.string())),
         languageTag: v.optional(v.string()),
+        editedAt: v.optional(v.number()), // Set when a post is edited
         isBounty: v.optional(v.boolean()),
         poll: v.optional(v.object({
             options: v.array(v.object({
@@ -134,7 +149,8 @@ export default defineSchema({
     })
         .index("by_timestamp", ["timestamp"])
         .index("by_community_timestamp", ["communityId", "timestamp"])
-        .index("by_fireplace_timestamp", ["isFireplace", "timestamp"]),
+        .index("by_fireplace_timestamp", ["isFireplace", "timestamp"])
+        .index("by_author", ["authorId"]),
 
     likes: defineTable({
         userId: v.id("users"),
@@ -907,4 +923,21 @@ curatedExampleId: v.optional(v.id("changaCuratedExamples")),
         voiceMinutes: v.number(),
     })
         .index("by_user_period", ["userId", "periodStart"]),
+
+    // Settings: blocked users and muted words
+    blockedUsers: defineTable({
+        userId: v.id("users"),
+        blockedUserId: v.id("users"),
+        createdAt: v.number(),
+    })
+        .index("by_user", ["userId"])
+        .index("by_user_blocked", ["userId", "blockedUserId"]),
+
+    mutedWords: defineTable({
+        userId: v.id("users"),
+        word: v.string(),
+        createdAt: v.number(),
+    })
+        .index("by_user", ["userId"])
+        .index("by_user_word", ["userId", "word"]),
 });

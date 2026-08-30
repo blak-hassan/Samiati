@@ -3,8 +3,15 @@ import "./globals.css";
 import { Analytics } from "@vercel/analytics/react";
 
 export const metadata: Metadata = {
-  title: "Samiati",
-  description: "Preserving African languages and digital storytelling",
+  title: "Samiati — Preserving African Languages & Digital Storytelling",
+  description: "Explore, learn, and contribute to African language preservation with AI-powered chat, voice messages, and community challenges.",
+  openGraph: {
+    title: "Samiati",
+    description: "Preserving African languages and digital storytelling",
+    url: "https://samiati.com",
+    siteName: "Samiati",
+    type: "website",
+  },
 };
 
 // Resize the layout viewport when the on-screen keyboard opens so the
@@ -14,6 +21,8 @@ export const viewport: Viewport = {
 };
 
 import ConvexClientProvider from "./ConvexClientProvider";
+import { ToastProvider } from "@/hooks/useToast";
+import { TranslationProvider } from "@/i18n/TranslationProvider";
 
 export default function RootLayout({
   children,
@@ -42,7 +51,19 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased font-body bg-background-light dark:bg-background-dark text-stone-900 dark:text-text-main transition-colors duration-300">
-        <ConvexClientProvider>{children}</ConvexClientProvider>
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:text-primary-foreground focus:shadow-lg"
+        >
+          Skip to content
+        </a>
+        <ConvexClientProvider>
+          <TranslationProvider>
+            <ToastProvider>
+              {children}
+            </ToastProvider>
+          </TranslationProvider>
+        </ConvexClientProvider>
         <Analytics />
       </body>
     </html>

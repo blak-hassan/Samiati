@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { action } from "./_generated/server";
 import { requireAuthenticatedAction, enforceAiQuotaAction } from "./lib/aiSecurity";
+import { callSunflower } from "./sunflower";
 
 // =============================================================================
 // CHAT SERVICE — Sunflower-Gemma4-E2B via HuggingFace Inference API
@@ -10,7 +11,6 @@ import { requireAuthenticatedAction, enforceAiQuotaAction } from "./lib/aiSecuri
 // Model: BlakHasan/Sunflower-Gemma4-E2B
 // =============================================================================
 
-const SUNFLOWER_URL = "https://router.huggingface.co/BlakHasan/Sunflower-Gemma4-E2B";
 const MAX_CHAT_MESSAGE_LENGTH = 5000;
 const MAX_MESSAGES_HISTORY = 20;
 
@@ -27,11 +27,6 @@ export const sendMessage = action({
     handler: async (ctx, args) => {
         await requireAuthenticatedAction(ctx);
         await enforceAiQuotaAction(ctx, "chat");
-
-        const apiKey = process.env.HUGGINGFACE_API_KEY;
-        if (!apiKey) {
-            return "ERROR: HUGGINGFACE_API_KEY not configured. Set it in Convex Dashboard.";
-        }
 
         const limitedMessages = args.messages.slice(-MAX_MESSAGES_HISTORY);
         const oversizedMessage = limitedMessages.find((msg) => msg.content.length > MAX_CHAT_MESSAGE_LENGTH);
@@ -51,35 +46,12 @@ export const sendMessage = action({
             })),
         ];
 
+        // Delegate to the shared Sunflower client (single model/HTTP impl).
         try {
-            const response = await fetch(SUNFLOWER_URL, {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${apiKey}`,
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    model: "BlakHasan/Sunflower-Gemma4-E2B",
-                    messages,
-                    max_tokens: 350,
-                    temperature: 0.7,
-                }),
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error(`[Sunflower Chat] API Error (${response.status}):`, errorText);
-                if (response.status === 503) return "Model is loading, please try again in a moment.";
-                if (response.status === 429) return "Rate limit exceeded. Please wait and try again.";
-                return `API error: ${response.status}. Please try again.`;
-            }
-
-            const result = await response.json();
-            return result.choices?.[0]?.message?.content || "N/A";
-
+            return await callSunflower(messages, 350, 0.7);
         } catch (error) {
             console.error("[Sunflower Chat] Failed:", error);
-            return "ERROR: Network error. Please check your connection and try again.";
+            return `ERROR: ${error instanceof Error ? error.message : "Failed to get response."}`;
         }
     },
 });

@@ -2,7 +2,7 @@
 
 import React, { useCallback, useMemo, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { usePaginatedQuery } from "convex/react";
+import { usePaginatedQuery, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { PostCard } from "@/components/social/PostCard";
 import { Post } from "@/types";
@@ -11,9 +11,13 @@ import { Screen } from "@/types";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Feather } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EditPostDialog } from "@/components/social/EditPostDialog";
+import { useState } from "react";
 
 export function PostFeedScreen() {
     const { navigate, goBack } = useNavigation();
+    const me = useQuery(api.users.queries.getProfile, {});
+    const [editingPost, setEditingPost] = useState<Post | null>(null);
     const { results, status, loadMore } = usePaginatedQuery(
         api.posts.queries.feed,
         { filter: "all" },
@@ -85,8 +89,11 @@ export function PostFeedScreen() {
         // Repost mutation will be called by PostCard
     }, []);
 
-    const handleMenuAction = useCallback((_e: React.MouseEvent, _action: string, _post: Post) => {
-        // Menu actions (copy link, mute, block)
+    const handleMenuAction = useCallback((_e: React.MouseEvent, action: string, post: Post) => {
+        if (action === "edit") {
+            setEditingPost(post);
+        }
+        // Other menu actions (copy link, mute, block) are no-ops here.
     }, []);
 
     return (
@@ -160,6 +167,7 @@ export function PostFeedScreen() {
                                         onLike={handleLike}
                                         onRepost={handleRepost}
                                         onMenuAction={handleMenuAction}
+                                        currentUserHandle={me?.handle}
                                     />
                                 </div>
                             ))}
@@ -178,6 +186,9 @@ export function PostFeedScreen() {
                     </>
                 )}
             </main>
+            {editingPost && (
+                <EditPostDialog post={editingPost} onClose={() => setEditingPost(null)} />
+            )}
         </div>
     );
 }

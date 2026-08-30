@@ -2,7 +2,7 @@
 
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "../../convex/_generated/api";
 
@@ -16,6 +16,7 @@ export function UserSync() {
     const router = useRouter();
     const hasSynced = useRef(false);
     const syncRetries = useRef(0);
+    const [retryTick, setRetryTick] = useState(0);
 
     useEffect(() => {
         if (!isLoaded || !userId || !clerkUser || hasSynced.current) return;
@@ -41,15 +42,16 @@ export function UserSync() {
             syncRetries.current += 1;
             if (syncRetries.current < MAX_SYNC_RETRIES) {
                 hasSynced.current = false;
+                setRetryTick(prev => prev + 1);
             } else {
                 console.error("UserSync: failed to sync Clerk user to Convex after retries", err);
             }
         });
-    }, [isLoaded, userId, clerkUser, storeUser]);
+    }, [isLoaded, userId, clerkUser, storeUser, retryTick];
 
     useEffect(() => {
         if (!user || !isLoaded) return;
-        if (user.onboardingCompleted !== false) return;
+        if (user.onboardingCompleted === true) return;
 
         const currentPath = window.location.pathname;
         if (!currentPath.includes('/onboarding')) {

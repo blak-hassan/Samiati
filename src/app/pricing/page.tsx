@@ -74,11 +74,11 @@ export default function PricingPage() {
     const handleSelect = (title: string) => {
         const slug = title.toLowerCase();
         if (slug === "organization") {
-            window.location.href = "mailto:support@samiati.com";
+            window.location.assign("mailto:support@samiati.com");
         } else if (slug === "explorer") {
-            window.location.href = "/checkout?plan=free";
+            router.push("/checkout?plan=free");
         } else {
-            window.location.href = `/checkout?plan=${slug}`;
+            router.push(`/checkout?plan=${slug}`);
         }
     };
 

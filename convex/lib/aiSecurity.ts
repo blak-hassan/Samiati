@@ -43,16 +43,34 @@ export async function enforceAiQuotaAction(
     const identity = await ctx.auth.getUserIdentity();
     const subject = subjectOverride ?? identity?.subject ?? "anon";
 
-    const tier: PlanTier = "free";
+    // AUTH-04: require a verified email address before using AI features.
+    // `emailVerified` is a trusted Clerk identity claim; unverified accounts
+    // cannot call chat/translate/search. Demo mode never reaches here because
+    // it has no Clerk identity.
+    if (identity && identity.emailVerified === false) {
+        throw new Error("Please verify your email address to use AI features.");
+    }
 
-    const result = await ctx.runMutation(internal.lib.aiSecurity.enforceAiQuota, {
+    let tier: PlanTier = "free";
+    if (identity) {
+        try {
+            const planTier = await ctx.runQuery(internal.payments.billing.getUserPlanTier, {
+                clerkId: identity.subject,
+            });
+            tier = planTier as PlanTier;
+        } catch {
+            // Fallback to free tier if lookup fails
+        }
+    }
+
+    const quotaResult = await ctx.runMutation(internal.lib.aiSecurity.enforceAiQuota, {
         service,
         subject,
         tier,
     });
 
-    if (!result.allowed) {
-        throw new Error(result.message ?? "AI quota exceeded. Please try again later.");
+    if (!quotaResult.allowed) {
+        throw new Error(quotaResult.message ?? "AI quota exceeded. Please try again later.");
     }
 }
 

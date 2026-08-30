@@ -4,7 +4,7 @@ import SettingsDataScreen from "@/components/screens/SettingsDataScreen";
 import { useNavigation } from "@/hooks/useNavigation";
 
 export default function SettingsDataPage() {
-    const { navigate, goBack } = useNavigation();
+    const { goBack } = useNavigation();
 
     return (
         <SettingsDataScreen

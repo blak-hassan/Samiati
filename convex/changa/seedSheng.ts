@@ -1,5 +1,8 @@
-import { internalMutation, internalQuery } from "../_generated/server";
+import { internalMutation, internalQuery, mutation } from "../_generated/server";
 import { v } from "convex/values";
+import { getCurrentUser, isModerator } from "../users/utils";
+import { internal } from "../_generated/api";
+import type { Id } from "../_generated/dataModel";
 
 // Seed Sheng task templates and English source sentences.
 // Run via: npx convex run changa.seedSheng:seedShengData
@@ -115,7 +118,7 @@ export const seedShengData = internalMutation({
     args: {},
     handler: async (ctx) => {
         // Create a system user if none exists (for dev/CLI seeding)
-        let createdBy: any;
+        let createdBy: Id<"users">;
         const existingUser = await ctx.db.query("users").first();
         if (existingUser) {
             createdBy = existingUser._id;
@@ -389,5 +392,20 @@ export const countShengTasks = internalQuery({
                 validation: tasks.filter((t) => t.taskType === "validation").length,
             },
         };
+    },
+});
+
+// CHANGA-05: the Sheng seed used to be CLI-only (internalMutation). This public,
+// moderator-gated action lets a moderator trigger it from the app UI instead of
+// running `npx convex` by hand.
+export const triggerSeedSheng = mutation({
+    args: {},
+    handler: async (ctx) => {
+        const user = await getCurrentUser(ctx);
+        if (!user || !isModerator(user)) {
+            throw new Error("Unauthorized: Only moderators can seed Sheng data");
+        }
+        await ctx.runMutation(internal.changa.seedSheng.seedShengData, {});
+        return { success: true as const };
     },
 });

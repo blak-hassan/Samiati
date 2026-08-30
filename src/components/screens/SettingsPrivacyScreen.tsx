@@ -1,29 +1,33 @@
 ﻿"use client";
 
-import React, { useState } from 'react';
-import { Screen } from '@/types';
-import { Button } from "@/components/ui/button";
+import React from 'react';
+import { Screen, NavigateFn } from '@/types';
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, ChevronRight, Eye, EyeOff, Ban, VolumeX, Database } from "lucide-react";
+import { ChevronRight, Eye, EyeOff, Ban, VolumeX, Database } from "lucide-react";
+import SettingsPageHeader from "@/components/settings/SettingsPageHeader";
+import { useSettings } from "@/hooks/useSettings";
+import { useToast } from "@/hooks/useToast";
 
 interface Props {
-  navigate: (screen: Screen) => void;
+  navigate: NavigateFn;
   goBack: () => void;
 }
 
 const SettingsPrivacyScreen: React.FC<Props> = ({ navigate, goBack }) => {
-  const [privateAccount, setPrivateAccount] = useState(false);
-  const [onlineStatus, setOnlineStatus] = useState(true);
-  const [readReceipts, setReadReceipts] = useState(true);
+  const { toast } = useToast();
+  const { settings, saving, updateSetting } = useSettings({
+    privateAccount: false,
+    onlineStatus: true,
+    readReceipts: true,
+  });
+
+  const setPrivateAccount = async (val: boolean) => { await updateSetting("privateAccount", val); toast(val ? "Private account enabled" : "Private account disabled", "success"); };
+  const setOnlineStatus = async (val: boolean) => { await updateSetting("onlineStatus", val); toast("Online status updated", "success"); };
+  const setReadReceipts = async (val: boolean) => { await updateSetting("readReceipts", val); toast("Read receipts updated", "success"); };
 
   return (
     <div className="flex flex-col min-h-screen bg-background transition-colors duration-300">
-      <header className="flex items-center px-4 h-14 sticky top-0 bg-background/95 backdrop-blur-md z-30 border-b border-border/50">
-        <Button variant="ghost" size="icon" onClick={goBack} className="rounded-full" aria-label="Go back">
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <h1 className="text-lg font-bold text-foreground ml-2 tracking-tight">Privacy</h1>
-      </header>
+      <SettingsPageHeader title="Privacy" onBack={goBack} />
 
       <main className="flex-1 overflow-y-auto p-4 space-y-6">
         {/* Account Privacy */}
@@ -38,7 +42,7 @@ const SettingsPrivacyScreen: React.FC<Props> = ({ navigate, goBack }) => {
                   <p className="text-xs text-muted-foreground">Only approved followers can see your posts</p>
                 </div>
               </div>
-              <Switch checked={privateAccount} onCheckedChange={setPrivateAccount} className="data-[state=checked]:bg-primary" />
+              <Switch checked={settings.privateAccount ?? false} onCheckedChange={setPrivateAccount} className="data-[state=checked]:bg-primary" aria-label="Private account" />
             </div>
           </div>
         </div>
@@ -55,7 +59,10 @@ const SettingsPrivacyScreen: React.FC<Props> = ({ navigate, goBack }) => {
                   <p className="text-xs text-muted-foreground">Let others see when you&apos;re active</p>
                 </div>
               </div>
-              <Switch checked={onlineStatus} onCheckedChange={setOnlineStatus} className="data-[state=checked]:bg-primary" />
+              <div className="flex items-center gap-2">
+                {saving && <span className="text-[10px] text-muted-foreground">Saving...</span>}
+                <Switch checked={settings.onlineStatus ?? true} onCheckedChange={setOnlineStatus} className="data-[state=checked]:bg-primary" aria-label="Show online status" />
+              </div>
             </div>
             <div className="flex items-center justify-between p-4">
               <div className="flex items-center gap-3">
@@ -65,7 +72,10 @@ const SettingsPrivacyScreen: React.FC<Props> = ({ navigate, goBack }) => {
                   <p className="text-xs text-muted-foreground">Show when you&apos;ve read messages</p>
                 </div>
               </div>
-              <Switch checked={readReceipts} onCheckedChange={setReadReceipts} className="data-[state=checked]:bg-primary" />
+              <div className="flex items-center gap-2">
+                {saving && <span className="text-[10px] text-muted-foreground">Saving...</span>}
+                <Switch checked={settings.readReceipts ?? true} onCheckedChange={setReadReceipts} className="data-[state=checked]:bg-primary" aria-label="Read receipts" />
+              </div>
             </div>
           </div>
         </div>

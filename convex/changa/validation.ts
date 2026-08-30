@@ -46,12 +46,16 @@ export const listValidationQueue = query({
             return [];
         }
 
+        // CHANGA-06: default the queue to the reviewer's primary language so we
+        // don't scan every `in_validation` submission across all languages.
+        const effectiveLang = args.languageCode ?? user.languages?.[0]?.id;
+
         // Peer lane: submissions in review, excluding the user's own work and
         // items they already voted on.
         const allSubmissions = await ctx.db.query("changaSubmissions")
-            .withIndex(args.languageCode ? "by_language_status" : "by_status", (q) =>
-                args.languageCode
-                    ? q.eq("languageCode", args.languageCode).eq("status", "in_validation")
+            .withIndex(effectiveLang ? "by_language_status" : "by_status", (q) =>
+                effectiveLang
+                    ? q.eq("languageCode", effectiveLang).eq("status", "in_validation")
                     : q.eq("status", "in_validation"),
             )
             .collect();
@@ -288,6 +292,30 @@ export const submitValidationVote = mutation({
             status: nextStatus,
             updatedAt: now,
         });
+
+        // CHANGA-07: keep the owning campaign's progress counter in sync when a
+        // submission is validated (it was initialised to 0 and never updated).
+        // CHANGA-08: award the contributor social XP for the validated work.
+        if (nextStatus === "validated" && submission.userId) {
+            const task = await ctx.db.get(submission.taskId);
+            if (task?.campaignId) {
+                const campaign = await ctx.db.get(task.campaignId);
+                if (campaign) {
+                    await ctx.db.patch(task.campaignId, {
+                        currentCount: (campaign.currentCount ?? 0) + 1,
+                    });
+                }
+            }
+
+            const contributor = await ctx.db.get(submission.userId);
+            if (contributor) {
+                const newXp = (contributor.xp ?? 0) + 10;
+                await ctx.db.patch(submission.userId, {
+                    xp: newXp,
+                    level: Math.floor(newXp / 100) + 1,
+                });
+            }
+        }
 
         // Close any open moderator assignment for this submission when a
         // moderator has reviewed it.

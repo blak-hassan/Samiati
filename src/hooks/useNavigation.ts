@@ -94,10 +94,18 @@ export const useNavigation = () => {
             case Screen.REVIEW_ENTRY: go("/dashboard/review-entry" + queryString); break;
             case Screen.SUGGEST_LINK: go("/dashboard/suggest-link" + queryString); break;
 
-            // Fallback for screens not fully mapped yet - we'll implement dynamic routes later
+            case Screen.TERMS_OF_SERVICE: go("/terms-of-service" + queryString); break;
+            case Screen.PRIVACY_POLICY: go("/privacy-policy" + queryString); break;
+            case Screen.CHANGA: go("/dashboard/changa" + queryString); break;
+            case Screen.CHANGA_CAMPAIGNS: go("/dashboard/changa-campaigns" + queryString); break;
+            case Screen.REPORT_MODAL: go("/dashboard/report-modal" + queryString); break;
+            case Screen.SOCIAL_AUTH_REDIRECT: go("/auth/social-auth-redirect" + queryString); break;
+
             default:
-                if (Object.values(Screen).includes(screen)) {
-                    go(`/dashboard/${screen.toLowerCase().replace(/_/g, '-')}${queryString}`);
+                const known = Object.values(Screen);
+                const screenStr = String(screen);
+                if (known.includes(screenStr as Screen)) {
+                    console.warn(`Route for ${screen} is missing an explicit case in useNavigation.`);
                 } else {
                     console.warn(`Route for ${screen} not implemented yet.`);
                 }

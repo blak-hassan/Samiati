@@ -7,6 +7,9 @@ import { ArrowLeft, MoreHorizontal, Bell, Search, Users, Info } from "lucide-rea
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PostCard } from '@/components/social/PostCard';
+import { EditPostDialog } from '@/components/social/EditPostDialog';
+import { useQuery } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 
 interface Props {
     navigate: NavigateFn;
@@ -17,6 +20,13 @@ interface Props {
 const GroupScreen: React.FC<Props> = ({ navigate, goBack, community }) => {
     // In a real app, fetch posts for this group
     const [posts, setPosts] = useState<Post[]>([]);
+    const me = useQuery(api.users.queries.getProfile, {});
+    const [editingPost, setEditingPost] = useState<Post | null>(null);
+
+    const handleMenuAction = (e: React.MouseEvent, action: string, post: Post) => {
+        e.stopPropagation();
+        if (action === "edit") setEditingPost(post);
+    };
 
     return (
         <div className="flex flex-col min-h-screen bg-background pb-12">
@@ -104,7 +114,8 @@ const GroupScreen: React.FC<Props> = ({ navigate, goBack, community }) => {
                             onCommentClick={() => { }}
                             onLike={() => { }}
                             onRepost={() => { }}
-                            onMenuAction={() => { }}
+                            onMenuAction={handleMenuAction}
+                            currentUserHandle={me?.handle}
                         />
                     ))}
                     <div className="p-8 text-center text-muted-foreground">
@@ -144,6 +155,9 @@ const GroupScreen: React.FC<Props> = ({ navigate, goBack, community }) => {
                     <p className="text-muted-foreground">No media shared yet.</p>
                 </TabsContent>
             </Tabs>
+            {editingPost && (
+                <EditPostDialog post={editingPost} onClose={() => setEditingPost(null)} />
+            )}
         </div>
     );
 };

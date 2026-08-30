@@ -15,6 +15,7 @@ export type ChangaEventName =
     | "upload_resumed"
     | "submitted"
     | "needs_retry"
+    | "offline_flush_success"
     | "completed";
 
 export interface ChangaEvent {

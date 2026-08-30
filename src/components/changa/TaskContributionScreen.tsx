@@ -9,10 +9,12 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AudioRecorder } from "@/components/media/AudioRecorder";
 import { useUploadFile } from "@/hooks/useUploadFile";
 import { logChangaEvent } from "@/lib/changaTelemetry";
-import { CheckCircle2, Clock3, Languages, Loader2, MessageSquare, Sparkles, XCircle } from "lucide-react";
+import { enqueueChangaSubmission, takeChangaQueue } from "@/lib/changaOfflineQueue";
+import { CheckCircle2, Clock3, Languages, Loader2, MessageSquare, Sparkles, XCircle, HelpCircle } from "lucide-react";
 
 const CODE_SWITCHING_OPTIONS = [
     { id: "pure_sheng", label: "Pure Sheng" },
@@ -120,6 +122,20 @@ const PROCESSOR_LABELS: Record<string, string> = {
     asr: "Speech recognition",
 };
 
+function classifyError(message: string): { code: string; retryable: boolean } {
+    const lower = message.toLowerCase();
+    if (lower.includes("expired") || lower.includes("claim")) {
+        return { code: "CLAIM_WINDOW_CLOSED", retryable: false };
+    }
+    if (lower.includes("network") || lower.includes("fetch") || lower.includes("timeout")) {
+        return { code: "NETWORK_ERROR", retryable: true };
+    }
+    if (lower.includes("upload") || lower.includes("storage")) {
+        return { code: "UPLOAD_ERROR", retryable: true };
+    }
+    return { code: "UNKNOWN", retryable: true };
+}
+
 export default function TaskContributionScreen({ task, onComplete }: TaskContributionScreenProps) {
     const [answer, setAnswer] = useState("");
     const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
@@ -129,6 +145,7 @@ export default function TaskContributionScreen({ task, onComplete }: TaskContrib
     const [isSavingDraft, setIsSavingDraft] = useState(false);
     const [draftSavedAt, setDraftSavedAt] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [errorCode, setErrorCode] = useState<string | null>(null);
     const [phase, setPhase] = useState<"form" | "result">("form");
     const [resultSubmissionId, setResultSubmissionId] = useState<Id<"changaSubmissions"> | null>(null);
 
@@ -159,6 +176,44 @@ export default function TaskContributionScreen({ task, onComplete }: TaskContrib
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [task._id]);
 
+    // CHANGA-10: flush any queued text submissions when connectivity returns.
+    useEffect(() => {
+        const flush = async () => {
+            if (typeof navigator !== "undefined" && !navigator.onLine) return;
+            const queue = takeChangaQueue();
+            for (const item of queue) {
+                try {
+                    const claim = await claimTask({ taskId: item.taskId as Id<"changaTasks"> });
+                    const submissionId = await startClaimedSubmission({
+                        claimId: claim.claimId as Id<"changaTaskClaims">,
+                        consent: {
+                            isGranted: item.hasTrainingConsent,
+                            allowTraining: item.hasTrainingConsent,
+                            allowResearch: false,
+                            allowPublicAttribution: false,
+                            grantedAt: Date.now(),
+                        },
+                        consentPolicyVersion: ACTIVE_CONSENT_POLICY_VERSION,
+                    });
+                    await submitSubmission({
+                        submissionId: submissionId as Id<"changaSubmissions">,
+                        targetText: item.taskType === "transcription" ? undefined : item.answer,
+                        transcriptText: item.taskType === "transcription" ? item.answer : undefined,
+                    });
+                    logChangaEvent({ name: "offline_flush_success", taskId: item.taskId, taskType: item.taskType });
+                } catch {
+                    // Drop the item; the contributor can resubmit manually.
+                }
+            }
+        };
+        window.addEventListener("online", flush);
+        if (typeof navigator !== "undefined" && navigator.onLine) {
+            void flush();
+        }
+        return () => window.removeEventListener("online", flush);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [claimTask, startClaimedSubmission, submitSubmission]);
+
     const copy = TASK_COPY[task.taskType];
     const prompt = task.promptSourceText || task.promptTargetText || "This task has no prompt yet.";
     const taskLabel = task.dialectCode ? `${task.languageCode} · ${task.dialectCode}` : task.languageCode;
@@ -181,6 +236,7 @@ export default function TaskContributionScreen({ task, onComplete }: TaskContrib
         if (isSavingDraft || isSubmitting || isUploading) return;
         setIsSavingDraft(true);
         setError(null);
+        setErrorCode(null);
         try {
             let submissionId = draftRef.current?.submissionId;
             if (!submissionId) {
@@ -197,7 +253,9 @@ export default function TaskContributionScreen({ task, onComplete }: TaskContrib
             setDraftSavedAt(Date.now());
             logChangaEvent({ name: "draft_saved", ...telemetryContext });
         } catch (draftError) {
-            setError(draftError instanceof Error ? draftError.message : "We could not save your draft. Please try again.");
+            const message = draftError instanceof Error ? draftError.message : "We could not save your draft. Please try again.";
+            setError(message);
+            setErrorCode(classifyError(message).code);
         } finally {
             setIsSavingDraft(false);
         }
@@ -224,6 +282,7 @@ export default function TaskContributionScreen({ task, onComplete }: TaskContrib
 
         setIsSubmitting(true);
         setError(null);
+        setErrorCode(null);
         logChangaEvent({ name: "task_started", ...telemetryContext });
         try {
             let submissionId = draftRef.current?.submissionId ?? null;
@@ -263,8 +322,20 @@ export default function TaskContributionScreen({ task, onComplete }: TaskContrib
             setResultSubmissionId(submissionId as Id<"changaSubmissions">);
             setPhase("result");
         } catch (submissionError) {
-            logChangaEvent({ name: "needs_retry", ...telemetryContext });
-            setError(submissionError instanceof Error ? submissionError.message : "We could not submit this task. Please try again.");
+            const message = submissionError instanceof Error ? submissionError.message : "We could not submit this task. Please try again.";
+            setError(message);
+            const cls = classifyError(message);
+            setErrorCode(cls.code);
+            // CHANGA-10: queue text submissions locally when the failure is a
+            // network error so they can be flushed automatically once back online.
+            if (cls.retryable && task.taskType !== "audio_reading" && answer.trim().length > 0) {
+                enqueueChangaSubmission({
+                    taskId: task._id,
+                    answer: answer.trim(),
+                    hasTrainingConsent,
+                    taskType: task.taskType,
+                });
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -287,6 +358,7 @@ export default function TaskContributionScreen({ task, onComplete }: TaskContrib
                     <Sparkles className="size-4" />
                     A quick Changa task
                 </div>
+                <TooltipProvider>
                 <Card className="space-y-6 p-5 sm:p-7">
                     <div className="space-y-2">
                         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -303,10 +375,29 @@ export default function TaskContributionScreen({ task, onComplete }: TaskContrib
                     </section>
 
                     {task.taskType === "audio_reading" ? (
-                        <AudioRecorder onRecorded={setAudioBlob} onCancel={() => setAudioBlob(null)} />
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <span>
+                                    <AudioRecorder onRecorded={setAudioBlob} onCancel={() => setAudioBlob(null)} />
+                                </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p className="max-w-xs text-xs">Record in a quiet space for best results. You can re-record as many times as you need.</p>
+                            </TooltipContent>
+                        </Tooltip>
                     ) : (
                         <div className="space-y-2">
-                            <Label htmlFor="changa-answer">Your answer</Label>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Label htmlFor="changa-answer" className="cursor-help">
+                                        Your answer
+                                        <HelpCircle className="inline-block ml-1 size-3 text-muted-foreground" />
+                                    </Label>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p className="max-w-xs text-xs">Type the natural word or phrase as you would actually say it. Don&apos;t overthink it — authenticity matters most.</p>
+                                </TooltipContent>
+                            </Tooltip>
                             <Textarea
                                 id="changa-answer"
                                 value={answer}
@@ -346,16 +437,27 @@ export default function TaskContributionScreen({ task, onComplete }: TaskContrib
                         </div>
                     )}
 
-                    <label className="flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm leading-relaxed">
-                        <Checkbox
-                            checked={hasTrainingConsent}
-                            onCheckedChange={(value) => setHasTrainingConsent(value === true)}
-                            aria-label="Allow this contribution to be used to improve Samiati"
-                        />
-                        <span>
-                            I allow Samiati to use this contribution to improve its language models and research. My name will not be publicly attached to it.
-                        </span>
-                    </label>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <label className="flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm leading-relaxed">
+                                <Checkbox
+                                    checked={hasTrainingConsent}
+                                    onCheckedChange={(value) => setHasTrainingConsent(value === true)}
+                                    aria-label="Allow this contribution to be used to improve Samiati"
+                                />
+                                <span>
+                                    I allow Samiati to use this contribution to train its language models. <strong>Training</strong> means your words may be used to improve AI; <strong>research</strong> means it may be studied in anonymised datasets. Your name is never attached.
+                                </span>
+                            </label>
+                        </TooltipTrigger>
+                            <TooltipContent>
+                                <p className="max-w-xs text-xs">
+                                    <strong>Training:</strong> your words help improve Samiati&apos;s AI models.{" "}
+                                    <strong>Research:</strong> anonymised contributions may be studied to understand African languages better.
+                                    You can decline — your task still counts, it just won&apos;t be reused for model training.
+                                </p>
+                            </TooltipContent>
+                    </Tooltip>
 
                     {draftSavedAt && (
                         <p role="status" className="rounded-lg bg-emerald-100 p-3 text-sm text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">
@@ -363,14 +465,32 @@ export default function TaskContributionScreen({ task, onComplete }: TaskContrib
                         </p>
                     )}
 
-                    {(error || uploadError) && <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error || uploadError}</p>}
+                    {(error || uploadError) ? (
+                        <div role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                            <div className="flex items-center justify-between">
+                                <span>{error || uploadError}</span>
+                                {errorCode && errorCode !== "CLAIM_WINDOW_CLOSED" && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => { setError(null); setErrorCode(null); }}
+                                        className="text-xs"
+                                    >
+                                        Dismiss
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error || uploadError}</p>
+                    )}
 
                     <div className="space-y-3">
                         <Button className="w-full" size="lg" disabled={(task.taskType === "audio_reading" ? !audioBlob : !answer.trim()) || !hasTrainingConsent || isSubmitting || isUploading} onClick={handleSubmit}>
                             {isSubmitting || isUploading ? "Uploading contribution…" : "Submit contribution"}
                         </Button>
                         <div className="grid grid-cols-2 gap-3">
-                            <Button variant="outline" disabled={task.taskType === "audio_reading" || isSubmitting || isUploading} onClick={handleSaveDraft}>
+                            <Button variant="outline" disabled={task.taskType === "audio_reading" || isSubmitting || isUploading || isSavingDraft} onClick={handleSaveDraft}>
                                 {isSavingDraft ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
                                 Save draft
                             </Button>
@@ -380,6 +500,7 @@ export default function TaskContributionScreen({ task, onComplete }: TaskContrib
                         </div>
                     </div>
                 </Card>
+                </TooltipProvider>
             </div>
         </main>
     );

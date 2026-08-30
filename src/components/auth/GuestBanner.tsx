@@ -24,6 +24,14 @@ export default function GuestBanner({ navigate }: GuestBannerProps) {
         <div className="flex items-center gap-2 shrink-0">
           <Button
             size="sm"
+            variant="ghost"
+            onClick={() => navigate(Screen.GUEST_PROFILE)}
+            className="h-8 px-3 text-xs font-medium"
+          >
+            My Guest Profile
+          </Button>
+          <Button
+            size="sm"
             onClick={() => navigate(Screen.SIGN_IN)}
             className="h-8 px-4 text-xs font-bold"
           >

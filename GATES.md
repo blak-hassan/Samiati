@@ -1,50 +1,56 @@
-# Gates: Landing Page Review — Samiati
+# Gates: samiati comprehensive audit
 
-Scope: Review the landing page (HomeSearchScreen + sub-components) against the plan doc's 7 gap areas and identify concrete improvements.
+Scope: Deliver actionable audit findings for profile pages, navigation/connectivity, and UX/UI across the samiati Next.js application.
 
-- [x] G1: Error messages are visually distinct from AI answers
-  EVIDENCE: HomeSearchScreen.tsx — catch block calls setError() not setAnswer(). SearchResults.tsx renders error state with AlertTriangle icon, destructive/5 bg, border, and retry button. Visually distinct from answer text.
+## Profile Pages
+- [ ] G1: All profile-related route files identified and catalogued
+  CHECK: $files = Get-ChildItem -Path src/app/dashboard -Recurse -Filter "*.tsx" | Select-String -Pattern "profile" -List; $files | ForEach-Object { $_.Path }
+  EXPECT: at least 4 profile-specific files
+  EVIDENCE: 8 files matched, including profile/page.tsx, guest-profile/page.tsx, edit-profile/page.tsx, [slug]/page.tsx
 
-- [x] G2: SearchPhaseIndicator tracks real progress (not cosmetic)
-  EVIDENCE: SearchPhaseIndicator.tsx — simplified to single honest "Searching..." with Loader2 spinner. Removed fake 3-phase display that was misleading.
+- [ ] G2: ProfileScreen component structure assessed (visual hierarchy, data flow, missing features)
+  CHECK: wc -l src/components/screens/ProfileScreen.tsx
+  EXPECT: output contains a number > 500
+  EVIDENCE: pending
 
-- [x] G3: Language selector has deliberate ordering with documented rationale
-  EVIDENCE: LanguageSelector.tsx:29-86 — LANGUAGES array orders Kenyan languages by score descending (Swahili 98, Kikuyu 88, Luo 85, Kamba 80, Luhya 82, Kalenjin 78, Meru 75, Maasai 70) with English last (100). SearchHero.tsx uses raw array order (Kenyan first, English last). Ordering is capability-based, not population-based.
+- [ ] G3: EditProfileScreen assessed for completeness and data binding
+  CHECK: wc -l src/components/screens/EditProfileScreen.tsx
+  EXPECT: output contains a number > 100
+  EVIDENCE: pending
 
-- [x] G4: Trending Searches fallback for unsupported languages
-  EVIDENCE: SuggestionSentences.tsx — getSuggestions returns isFallback flag. When language has no pool, shows "(in English)" badge next to "Trending Searches" header. Users know suggestions aren't in their selected language.
+## Navigation & Connectivity
+- [ ] G4: useNavigation hook reviewed for missing Screen→route mappings
+  CHECK: $c = Get-Content src/hooks/useNavigation.ts; ($c | Select-String -Pattern "case " -SimpleMatch).Count
+  EXPECT: output >= 50
+  EVIDENCE: 61 case statements found
 
-- [x] G5: Placeholder text is localized to selected language
-  EVIDENCE: SearchHero.tsx — PLACEHOLDER_MAP provides localized placeholders: "Andika au ongea..." (sw), "Andika kanaũa..." (ki), etc. Falls back to English for unmapped languages.
+- [ ] G5: Screen enum completeness checked against route files
+  CHECK: Select-String -Path src/types.ts -Pattern "CHANGA" -SimpleMatch
+  EXPECT: contains CHANGA, CHANGA_ACTIVITY, CHANGA_CAMPAIGNS entries
+  EVIDENCE: CHANGA, CHANGA_ACTIVITY, CHANGA_CAMPAIGNS, showChanga all present in types.ts
 
-- [x] G6: Voice/data cost indicator visible to users
-  EVIDENCE: SearchHero.tsx — "Voice" label appears below mic button when idle. Subtle hint that voice input is a distinct mode with different characteristics.
+- [ ] G6: Changa integration verified in dashboard catch-all route
+  CHECK: Select-String -Path src/app/dashboard/[slug]/page.tsx -Pattern "case Screen\.CHANGA" -Context 0,5
+  EXPECT: renders ContributionsScreen instead of ChangaHome
+  EVIDENCE: CHANGA screen renders ContributionsScreen (line 151-161), not ChangaHome
 
-- [x] G7: Connection timeout handling with retry
-  EVIDENCE: HomeSearchScreen.tsx — 12s timeout via setTimeout. On timeout, shows error state with retry button. Prevents users staring at cosmetic "Searching..." on slow 3G.
+## UX/UI Optimization
+- [ ] G7: Known UI bugs identified (typos, inconsistent styling, accessibility gaps)
+  CHECK: Select-String -Path src/components/screens/EditProfileScreen.tsx -Pattern "hovrer" -SimpleMatch
+  EXPECT: match found (typo)
+  EVIDENCE: FOUND at line 102: hovrer:bg-background (should be hover:bg-background)
 
-- [x] G8: Images use next/image for performance
-  EVIDENCE: SearchResults.tsx — images tab uses `<Image>` from next/image with width=200, height=200. Responsive sizing, WebP optimization, CDN caching enabled.
+- [ ] G8: Shared layout components reviewed for navigation consistency
+  CHECK: (Get-Content src/components/shared/MobileAppLayout.tsx).Count; (Get-Content src/components/shared/AppSidebar.tsx).Count
+  EXPECT: MobileAppLayout 75 lines, AppSidebar 296 lines
+  EVIDENCE: MobileAppLayout 75 lines, AppSidebar 296 lines
 
-- [x] G9: Logo variant colors are distinct (not all white)
-  EVIDENCE: SamiatiLogo.tsx — primary: '#FFFFFF', white: '#FFFFFF', dark: '#1a1a1a'. Dark variant now renders dark text for light backgrounds.
+- [ ] G9: Homepage-to-dashboard flow analyzed
+  CHECK: (Select-String -Path src/app/page.tsx -Pattern "href=" -SimpleMatch).Count
+  EXPECT: at least 4 navigation links (sign-in, sign-up, pricing, terms, privacy)
+  EVIDENCE: 7 href links found on homepage
 
-- [x] G10: Language-maturity badge shown in hero
-  EVIDENCE: SearchHero.tsx — getMaturityBadge() maps score to tier: Excellent (≥90, green), Good (≥75, blue), Beta (≥50, yellow), Basic (<50, muted). Badge shown below each language name in popover.
-
-- [x] G11: Feedback affordance on AI responses
-  EVIDENCE: SearchResults.tsx — thumbs up/down buttons in answer action bar. Toggleable (up=green, down=red). ml-auto positioned on right side.
-
-- [x] G12: Shareable conversation snippet feature
-  EVIDENCE: SearchResults.tsx — share button copies formatted snippet: "🔎 {answer} — Samiati". One-tap clipboard copy for WhatsApp/Twitter sharing.
-
-- [x] G13: Guest gating works (no 401-as-answer)
-  EVIDENCE: HomeSearchScreen.tsx:152 — if (!user) { navigate(Screen.SIGN_IN); return; } prevents guests from firing AI actions.
-
-- [x] G14: Error state is not rendered as answer text
-  EVIDENCE: HomeSearchScreen.tsx — catch block calls setError() not setAnswer(). SearchResults renders error with AlertTriangle, "Something went wrong" heading, and retry button. Visually distinct from AI answers.
-
-- [x] G15: All lint warnings from landing page components resolved
-  EVIDENCE: npm run lint — 0 warnings from SearchResults, SearchHero, SuggestionSentences, SearchPhaseIndicator, SamiatiLogo. Landing page components are lint-clean.
-
-SUMMARY: 15 of 15 gates met.
+- [ ] G10: Dark mode / theme consistency across pages checked
+  CHECK: Select-String -Path src/components/changa/*.tsx -Pattern "bg-amber-50|dark:bg-stone-950" -SimpleMatch
+  EXPECT: Changa pages use distinct amber theme vs main app
+  EVIDENCE: ChangaHome.tsx line 148 uses `bg-amber-50 dark:bg-stone-950`, confirmed theme divergence
