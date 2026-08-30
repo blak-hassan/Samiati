@@ -41,7 +41,6 @@ export function CheckoutForm({ plan, onSuccess, onCancel }: CheckoutFormProps) {
             const result = await initializePayment({
                 subscriptionId,
                 email: "user@example.com",
-                amountCents: prices[plan].cents,
                 currency: "USD",
             });
 

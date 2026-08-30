@@ -20,6 +20,34 @@ export const getActiveSubscription = query({
     },
 });
 
+export const getUserPlanTier = internalQuery({
+    args: { clerkId: v.string() },
+    handler: async (ctx, args) => {
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_clerkId", (q) => q.eq("clerkId", args.clerkId))
+            .unique();
+
+        if (!user) return "free";
+
+        const subscription = await ctx.db
+            .query("subscriptions")
+            .withIndex("by_user", (q) => q.eq("userId", user._id))
+            .order("desc")
+            .first();
+
+        if (!subscription || subscription.status === "canceled" || subscription.status === "expired") {
+            return "free";
+        }
+
+        if (subscription.currentPeriodEnd < Date.now()) {
+            return "free";
+        }
+
+        return subscription.plan;
+    },
+});
+
 export const getExpiredSubscriptions = internalQuery({
     args: { now: v.number() },
     handler: async (ctx, args) => {

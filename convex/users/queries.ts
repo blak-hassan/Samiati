@@ -13,6 +13,13 @@ function sanitizeUser(user: Record<string, unknown>) {
     return sanitized;
 }
 
+function isProfileVisible(user: Record<string, unknown>, viewerId?: string): boolean {
+    // Only the owner can view their own private profile
+    if (viewerId !== undefined && String(user._id as unknown as string) === String(viewerId)) return true;
+    // If the profile is set to hidden, only the owner (handled above) can see it
+    return user.profileVisible !== false;
+}
+
 export const getProfile = query({
     args: {
         userId: v.optional(v.id("users")),
@@ -35,7 +42,12 @@ export const getProfile = query({
 
         let isFollowing = false;
         const currentUser = await getCurrentUser(ctx);
-        // Use the composite index for a point lookup
+        const viewerId = currentUser?._id;
+        
+        if (!isProfileVisible(user as Record<string, unknown>, viewerId)) {
+            return null;
+        }
+
         if (currentUser && currentUser._id !== user._id) {
             const follow = await ctx.db
                 .query("followers")
@@ -45,7 +57,6 @@ export const getProfile = query({
         }
 
         const isMe = currentUser?._id === user._id;
-        // Return sensitive fields only for self; strip for others
         const profile = (isMe ? user : sanitizeUser(user as Record<string, unknown>)) as typeof user;
         return {
             ...profile,
@@ -60,7 +71,9 @@ export const getFollowers = query({
         userId: v.id("users"),
     },
     handler: async (ctx, args) => {
-        // Bounded — a follower list of 1000 is far beyond realistic UI use
+        const currentUser = await getCurrentUser(ctx);
+        const isSelf = currentUser?._id === args.userId;
+
         const followers = await ctx.db
             .query("followers")
             .withIndex("by_following", (q) => q.eq("followingId", args.userId))
@@ -68,10 +81,12 @@ export const getFollowers = query({
 
         const users = await Promise.all(followers.map(async (f) => {
             const user = await ctx.db.get(f.followerId);
-            return user ? sanitizeUser(user as Record<string, unknown>) : null;
+            if (!user) return null;
+            if (!isSelf && !isProfileVisible(user as Record<string, unknown>, currentUser?._id)) return null;
+            return sanitizeUser(user as Record<string, unknown>);
         }));
 
-        return users.filter(u => u !== null);
+        return users.filter((u): u is NonNullable<typeof u> => u !== null);
     },
 });
 
@@ -80,6 +95,9 @@ export const getFollowing = query({
         userId: v.id("users"),
     },
     handler: async (ctx, args) => {
+        const currentUser = await getCurrentUser(ctx);
+        const isSelf = currentUser?._id === args.userId;
+
         const following = await ctx.db
             .query("followers")
             .withIndex("by_follower", (q) => q.eq("followerId", args.userId))
@@ -87,9 +105,11 @@ export const getFollowing = query({
 
         const users = await Promise.all(following.map(async (f) => {
             const user = await ctx.db.get(f.followingId);
-            return user ? sanitizeUser(user as Record<string, unknown>) : null;
+            if (!user) return null;
+            if (!isSelf && !isProfileVisible(user as Record<string, unknown>, currentUser?._id)) return null;
+            return sanitizeUser(user as Record<string, unknown>);
         }));
 
-        return users.filter(u => u !== null);
+        return users.filter((u): u is NonNullable<typeof u> => u !== null);
     },
 });

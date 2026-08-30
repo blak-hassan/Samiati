@@ -1,4 +1,4 @@
-import { mutation } from "../_generated/server";
+import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser, isGuestUser } from "./utils";
 import { checkRateLimit } from "../lib/rateLimit";
@@ -27,6 +27,7 @@ export const updateProfile = mutation({
         bio: v.optional(v.string()),
         avatar: v.optional(v.string()),
         location: v.optional(v.string()),
+        culturalBackground: v.optional(v.string()),
         // languages argument must match schema which is array of objects
         // or we simplify schema. For now, matching schema structure.
         languages: v.optional(v.array(v.object({
@@ -74,6 +75,10 @@ export const updateProfile = mutation({
                 throw new Error(`Location exceeds maximum length of ${MAX_LOCATION_LENGTH} characters`);
             }
             updates.location = sanitizeInput(args.location, MAX_LOCATION_LENGTH);
+        }
+        
+        if (args.culturalBackground !== undefined) {
+            updates.culturalBackground = sanitizeInput(args.culturalBackground, 500);
         }
         
         if (args.languages !== undefined) {
@@ -210,6 +215,10 @@ export const store = mutation({
         // The email is a trusted claim from the Clerk identity, never from
         // the client request body.
         const email = identity.email ?? args.email?.trim().slice(0, 254) ?? undefined;
+        // SECURITY: Only trust the Clerk identity's emailVerified claim.
+        // Never fall back to client-provided values — this prevents users from
+        // bypassing email verification by sending emailVerified: true.
+        const emailVerified = identity.emailVerified === true;
 
         const user = await ctx.db
             .query("users")
@@ -217,20 +226,23 @@ export const store = mutation({
             .unique();
 
         if (user !== null) {
-            if (user.name !== name || user.handle !== handle || user.avatar !== avatar || user.email !== email) {
-                await ctx.db.patch(user._id, { name, handle, avatar, email });
+            if (user.name !== name || user.handle !== handle || user.avatar !== avatar || user.email !== email || user.emailVerified !== emailVerified) {
+                await ctx.db.patch(user._id, { name, handle, avatar, email, emailVerified });
             }
             return user._id;
         }
 
-        // New user — ensure the handle is not already taken.
+        // New user — ensure the handle is unique with retry on collision.
         let finalHandle = handle;
-        const existingHandle = await ctx.db
-            .query("users")
-            .withIndex("by_handle", (q) => q.eq("handle", handle))
-            .unique();
-        if (existingHandle) {
-            finalHandle = `${handle.slice(0, 24)}_${Math.random().toString(36).slice(2, 6)}`;
+        for (let attempt = 0; attempt < 5; attempt++) {
+            const existingHandle = await ctx.db
+                .query("users")
+                .withIndex("by_handle", (q) => q.eq("handle", finalHandle))
+                .unique();
+
+            if (!existingHandle) break;
+
+            finalHandle = `${handle.slice(0, 20)}_${Math.random().toString(36).slice(2, 8)}`;
         }
 
         // New user
@@ -239,6 +251,7 @@ export const store = mutation({
             handle: finalHandle,
             avatar,
             email,
+            emailVerified,
             clerkId: identity.subject,
             role: 'member', // Default role
             isGuest: false,
@@ -353,6 +366,79 @@ export const updatePrivacy = mutation({
     },
 });
 
+// Update notification preferences
+export const updateNotificationPreferences = mutation({
+    args: {
+        pauseAll: v.optional(v.boolean()),
+        changa: v.optional(v.boolean()),
+        moderation: v.optional(v.boolean()),
+        sessions: v.optional(v.boolean()),
+        emailDigest: v.optional(v.boolean()),
+    },
+    handler: async (ctx, args) => {
+        const user = await getCurrentUser(ctx);
+        if (!user) throw new Error("Unauthorized");
+        if (isGuestUser(user)) throw new Error("Guests cannot update notification settings");
+
+        const currentPrefs = user.notificationPreferences ?? {};
+        const newPrefs = {
+            pauseAll: args.pauseAll ?? currentPrefs.pauseAll ?? false,
+            changa: args.changa ?? currentPrefs.changa ?? true,
+            moderation: args.moderation ?? currentPrefs.moderation ?? true,
+            sessions: args.sessions ?? currentPrefs.sessions ?? true,
+            emailDigest: args.emailDigest ?? currentPrefs.emailDigest ?? false,
+        };
+
+        await ctx.db.patch(user._id, { notificationPreferences: newPrefs });
+        return newPrefs;
+    },
+});
+
+// Complete onboarding — marks the user as having gone through the onboarding flow
+export const completeOnboarding = mutation({
+    args: {
+        languages: v.optional(v.array(v.object({
+            id: v.string(),
+            name: v.string(),
+            level: v.string(),
+            percent: v.number(),
+        }))),
+        culturalBackground: v.optional(v.string()),
+        showChanga: v.optional(v.boolean()),
+        voiceDataAllowed: v.optional(v.boolean()),
+        culturalDataAllowed: v.optional(v.boolean()),
+    },
+    handler: async (ctx, args) => {
+        const user = await getCurrentUser(ctx);
+        if (!user) throw new Error("Unauthorized");
+        if (isGuestUser(user)) throw new Error("Guests cannot complete onboarding");
+
+        const updates: Record<string, unknown> = { onboardingCompleted: true };
+
+        if (args.languages !== undefined) {
+            if (args.languages.length > 20) {
+                throw new Error("Too many languages specified");
+            }
+            updates.languages = args.languages.map((lang) => ({
+                id: lang.id.slice(0, 50),
+                name: lang.name.slice(0, 100),
+                level: lang.level.slice(0, 50),
+                percent: Math.min(100, Math.max(0, Math.round(lang.percent))),
+            }));
+        }
+
+        if (args.culturalBackground !== undefined) {
+            updates.culturalBackground = sanitizeInput(args.culturalBackground, 500);
+        }
+
+        if (args.showChanga !== undefined) updates.showChanga = args.showChanga;
+        if (args.voiceDataAllowed !== undefined) updates.voiceDataAllowed = args.voiceDataAllowed;
+        if (args.culturalDataAllowed !== undefined) updates.culturalDataAllowed = args.culturalDataAllowed;
+
+        await ctx.db.patch(user._id, updates);
+    },
+});
+
 // One-time backfill: set joinedAt to _creationTime for users created before
 // the field existed. Safe to re-run — skips users that already have it.
 export const backfillJoinedAt = mutation({
@@ -371,5 +457,105 @@ export const backfillJoinedAt = mutation({
             }
         }
         return { total: all.length, patched };
+    },
+});
+
+// Export all user data (GDPR data portability)
+export const exportUserData = query({
+    args: {},
+    handler: async (ctx) => {
+        const user = await getCurrentUser(ctx);
+        if (!user) throw new Error("Unauthorized");
+
+        const [posts, comments, likes, followers, following, notifications, bookmarks] = await Promise.all([
+            ctx.db.query("posts").withIndex("by_author", (q) => q.eq("authorId", user._id)).collect(),
+            ctx.db.query("comments").withIndex("by_author", (q) => q.eq("authorId", user._id)).collect(),
+            ctx.db.query("likes").withIndex("by_user", (q) => q.eq("userId", user._id)).collect(),
+            ctx.db.query("followers").withIndex("by_follower", (q) => q.eq("followerId", user._id)).collect(),
+            ctx.db.query("followers").withIndex("by_following", (q) => q.eq("followingId", user._id)).collect(),
+            ctx.db.query("notifications").withIndex("by_user", (q) => q.eq("userId", user._id)).collect(),
+            ctx.db.query("bookmarks").withIndex("by_user", (q) => q.eq("userId", user._id)).collect(),
+        ]);
+
+        return {
+            exportedAt: new Date().toISOString(),
+            user: { ...user, clerkId: undefined, email: user.email ?? undefined },
+            posts,
+            comments,
+            likes,
+            followers,
+            following,
+            notifications,
+            bookmarks,
+        };
+    },
+});
+
+// Delete user account and all associated data (GDPR right to erasure)
+export const deleteAccount = mutation({
+    args: {},
+    handler: async (ctx) => {
+        const user = await getCurrentUser(ctx);
+        if (!user) throw new Error("Unauthorized");
+
+        const userId = user._id;
+
+        const posts = await ctx.db.query("posts").withIndex("by_author", (q) => q.eq("authorId", userId)).collect();
+        for (const post of posts) {
+            await ctx.db.delete(post._id);
+        }
+
+        const comments = await ctx.db.query("comments").withIndex("by_author", (q) => q.eq("authorId", userId)).collect();
+        for (const comment of comments) {
+            await ctx.db.delete(comment._id);
+        }
+
+        const likes = await ctx.db.query("likes").withIndex("by_user", (q) => q.eq("userId", userId)).collect();
+        for (const like of likes) {
+            await ctx.db.delete(like._id);
+        }
+
+        const followers = await ctx.db.query("followers").withIndex("by_follower", (q) => q.eq("followerId", userId)).collect();
+        for (const f of followers) {
+            await ctx.db.delete(f._id);
+        }
+
+        const following = await ctx.db.query("followers").withIndex("by_following", (q) => q.eq("followingId", userId)).collect();
+        for (const f of following) {
+            await ctx.db.delete(f._id);
+        }
+
+        const notifications = await ctx.db.query("notifications").withIndex("by_user", (q) => q.eq("userId", userId)).collect();
+        for (const notif of notifications) {
+            await ctx.db.delete(notif._id);
+        }
+
+        const bookmarks = await ctx.db.query("bookmarks").withIndex("by_user", (q) => q.eq("userId", userId)).collect();
+        for (const bm of bookmarks) {
+            await ctx.db.delete(bm._id);
+        }
+
+        const conversations = await ctx.db.query("conversations").withIndex("by_user", (q) => q.eq("userId", String(userId))).collect();
+        for (const conv of conversations) {
+            const msgs = await ctx.db.query("messages").withIndex("by_conversation", (q) => q.eq("conversationId", conv._id)).collect();
+            for (const msg of msgs) {
+                await ctx.db.delete(msg._id);
+            }
+            await ctx.db.delete(conv._id);
+        }
+
+        const changaSubmissions = await ctx.db.query("changaSubmissions").withIndex("by_user_status", (q) => q.eq("userId", userId)).collect();
+        for (const sub of changaSubmissions) {
+            await ctx.db.delete(sub._id);
+        }
+
+        const changaClaims = await ctx.db.query("changaTaskClaims").withIndex("by_user_task", (q) => q.eq("userId", userId)).collect();
+        for (const claim of changaClaims) {
+            await ctx.db.delete(claim._id);
+        }
+
+        await ctx.db.delete(userId);
+
+        return { success: true, deletedRecords: posts.length + comments.length + likes.length + followers.length + following.length + notifications.length + bookmarks.length + conversations.length + changaSubmissions.length + changaClaims.length };
     },
 });

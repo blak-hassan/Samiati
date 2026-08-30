@@ -1,9 +1,36 @@
 import { v } from "convex/values";
-import { action, internalAction, internalMutation, query } from "../_generated/server";
+import { action, internalAction, internalMutation, internalQuery, query } from "../_generated/server";
 import { internal } from "../_generated/api";
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY!;
 const PAYSTACK_BASE_URL = "https://api.paystack.co";
+
+// ── Internal Queries ────────────────────────────────────────────────────────
+
+/**
+ * Internal query to look up a user by Clerk ID and verify subscription ownership.
+ * Returns the user's Convex ID if the subscription belongs to them, null otherwise.
+ */
+export const verifySubscriptionOwnership = internalQuery({
+    args: {
+        clerkId: v.string(),
+        subscriptionId: v.id("subscriptions"),
+    },
+    handler: async (ctx, args) => {
+        const user = await ctx.db
+            .query("users")
+            .withIndex("by_clerkId", (q) => q.eq("clerkId", args.clerkId))
+            .unique();
+
+        if (!user) return null;
+
+        const subscription = await ctx.db.get(args.subscriptionId);
+        if (!subscription) return null;
+        if (subscription.userId !== user._id) return null;
+
+        return { userId: user._id, plan: subscription.plan };
+    },
+});
 
 async function paystackHeaders() {
     return {
@@ -282,23 +309,44 @@ export const createPlan = internalAction({
 
 /**
  * Initialize a Paystack transaction (public action for frontend).
+ * SECURITY: amountCents is NOT taken from the client. The price is derived
+ * server-side from the subscription's plan to prevent payment amount manipulation.
  */
 export const initializePayment = action({
     args: {
         subscriptionId: v.id("subscriptions"),
         email: v.string(),
-        amountCents: v.number(),
         currency: v.string(),
     },
     handler: async (ctx, args): Promise<{ authorizationUrl: string; reference: string; accessCode: string }> => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) throw new Error("Unauthorized");
 
+        // Verify subscription ownership and get plan (IDOR protection)
+        const ownership = await ctx.runQuery(internal.payments.paystack.verifySubscriptionOwnership, {
+            clerkId: identity.subject,
+            subscriptionId: args.subscriptionId,
+        });
+
+        if (!ownership) {
+            throw new Error("Unauthorized: subscription not found or does not belong to user");
+        }
+
+        // Derive price server-side from the plan (prevents amount tampering)
+        const planPrices: Record<string, number> = {
+            learner: 500,
+            fluent: 1500,
+        };
+        const amountCents = planPrices[ownership.plan] ?? 0;
+        if (amountCents <= 0) {
+            throw new Error("Invalid plan: cannot initialize payment");
+        }
+
         return await ctx.runAction(internal.payments.paystack.initializeTransaction, {
-            userId: identity.subject as any,
+            userId: ownership.userId,
             subscriptionId: args.subscriptionId,
             email: args.email,
-            amountCents: args.amountCents,
+            amountCents,
             currency: args.currency,
         });
     },
