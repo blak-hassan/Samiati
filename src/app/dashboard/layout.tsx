@@ -13,7 +13,7 @@ export default function DashboardLayout({
       >
         Skip to content
       </a>
-      <main id="main" className="min-h-screen">
+      <main id="main" tabIndex={-1} className="min-h-screen">
         {children}
       </main>
     </AuthGuard>

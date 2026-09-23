@@ -58,15 +58,17 @@ const SourceCard: React.FC<SourceCardProps> = ({ source, index, variant = "chip"
         {/* Domain + favicon */}
         <div className="flex items-center gap-1.5 mb-1">
           {favicon && (
-            // Using img for external favicons (next/image doesn't support arbitrary external URLs)
+            // Decorative favicon — the adjacent domain text conveys the
+            // information, so the image is aria-hidden and alt-less.
             <img
               src={favicon}
               alt=""
+              aria-hidden="true"
               className="w-3.5 h-3.5 rounded-sm"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = "none";
               }}
-             loading="lazy" decoding="async" />
+              loading="lazy" decoding="async" />
           )}
           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate">
             {domain}

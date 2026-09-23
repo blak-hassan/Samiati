@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, use } from "react";
-import { useQuery } from "convex/react";
+import { useChangaQuery as useQuery } from "@/hooks/useChangaData";
 import { api } from "../../../../convex/_generated/api";
 import { useNavigation } from "@/hooks/useNavigation";
 import { Button } from "@/components/ui/button";

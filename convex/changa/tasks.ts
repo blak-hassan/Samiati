@@ -1,6 +1,8 @@
 import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser, isModerator } from "../users/utils";
+import { internal } from "../_generated/api";
+import { chokepoint } from "../lib/chokepoint";
 import {
     changaConsentScopeValidator,
     changaInputFieldValidator,
@@ -69,7 +71,7 @@ export const createTaskTemplate = mutation({
             throw new Error("Unauthorized");
         }
 
-        return ctx.db.insert("changaTaskTemplates", {
+        return chokepoint.insertTaskTemplate(ctx, {
             ...args,
             templateVersion: args.templateVersion ?? 1,
             isActive: args.isActive ?? true,
@@ -84,6 +86,7 @@ export const listAvailableTasks = query({
         languageCode: v.optional(v.string()),
         campaignId: v.optional(v.id("changaCampaigns")),
         taskType: v.optional(changaTaskTypeValidator),
+        dialectCode: v.optional(v.string()),
         limit: v.optional(v.number()),
     },
     handler: async (ctx, args) => {
@@ -102,6 +105,7 @@ export const listAvailableTasks = query({
         return tasks
             .filter((task) => !args.campaignId || task.campaignId === args.campaignId)
             .filter((task) => !args.taskType || task.taskType === args.taskType)
+            .filter((task) => !args.dialectCode || task.dialectCode === args.dialectCode)
             .filter((task) => !task.expiresAt || task.expiresAt > now)
             .sort((left, right) => {
                 const priorityDelta =
@@ -191,11 +195,13 @@ export const claimTask = mutation({
             throw new Error("You have too many active task claims. Finish or release one first.");
         }
 
-        await Promise.all(existingClaims
-            .filter((claim) => claim.status === "active")
-            .map((claim) => ctx.db.patch(claim._id, { status: "expired" })));
+        await chokepoint.expireTaskClaims(ctx,
+            existingClaims
+                .filter((claim) => claim.status === "active")
+                .map((claim) => claim._id),
+        );
 
-        const claimId = await ctx.db.insert("changaTaskClaims", {
+        const claimId = await chokepoint.insertTaskClaim(ctx, {
             taskId: args.taskId,
             userId: user._id,
             status: "active",
@@ -222,7 +228,9 @@ export const releaseTaskClaim = mutation({
         }
         if (claim.status !== "active") return args.claimId;
 
-        await ctx.db.patch(args.claimId, { status: args.status ?? "released" });
+        await chokepoint.patchTaskClaim(ctx, args.claimId, {
+            status: args.status ?? "released",
+        });
         return args.claimId;
     },
 });
@@ -244,7 +252,7 @@ export const skipTask = mutation({
         }
         if (claim.status !== "active") return args.claimId;
 
-        await ctx.db.patch(args.claimId, {
+        await chokepoint.patchTaskClaim(ctx, args.claimId, {
             status: "released",
             skipReason: args.reason?.slice(0, 300) ?? "user_skipped",
         });
@@ -292,7 +300,7 @@ export const createTask = mutation({
             templateVersion = template?.templateVersion;
         }
 
-        return ctx.db.insert("changaTasks", {
+        return chokepoint.insertTask(ctx, {
             ...args,
             templateVersion,
             priority: args.priority ?? "normal",

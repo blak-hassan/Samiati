@@ -4,7 +4,6 @@ import { useFuzzySearch } from './useFuzzySearch';
 export interface Person {
     id: string;
     name: string;
-    handle: string;
     avatar: string;
     languages: string[];
     region: string;
@@ -71,9 +70,8 @@ export function useWatuFilters(people: Person[]) {
     }, [effectiveSelectedLanguage, people, selectedRegion, selectedRole, selectedActivity]);
 
     // 2. Apply Fuzzy Search
-    // Import need to be added at top, but for now I'm changing the hook body
-    // I will use keys: name, handle, about
-    const searchKeys = useMemo(() => ['name', 'handle', 'about', 'role', 'languages', 'region'], []);
+    // Searchable keys: name, about, role, languages, region.
+    const searchKeys = useMemo(() => ['name', 'about', 'role', 'languages', 'region'], []);
     const searchFiltered = useFuzzySearch(categoryFiltered, searchQuery, searchKeys);
 
     // 3. Sort

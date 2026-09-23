@@ -1,14 +1,14 @@
 import { v } from "convex/values";
 import { action } from "./_generated/server";
 import { requireAuthenticatedAction, enforceAiQuotaAction } from "./lib/aiSecurity";
-import { callSunflower } from "./sunflower";
+import { captureMessage } from "./lib/observability";
+import { internal } from "./_generated/api";
+import "./lib/providers";
 
 // =============================================================================
-// CHAT SERVICE — Sunflower-Gemma4-E2B via HuggingFace Inference API
+// CHAT SERVICE — via the AI router
 // =============================================================================
-// Replaces Ollama tunnel. Same model used for all AI services.
-// API key: HUGGINGFACE_API_KEY (Set in Convex Dashboard)
-// Model: BlakHasan/Sunflower-Gemma4-E2B
+// Primary: Sunflower-Gemma4-E2B on HuggingFace. See convex/lib/aiRouter.ts.
 // =============================================================================
 
 const MAX_CHAT_MESSAGE_LENGTH = 5000;
@@ -25,7 +25,7 @@ export const sendMessage = action({
         targetLanguage: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
-        await requireAuthenticatedAction(ctx);
+        const identity = await requireAuthenticatedAction(ctx);
         await enforceAiQuotaAction(ctx, "chat");
 
         const limitedMessages = args.messages.slice(-MAX_MESSAGES_HISTORY);
@@ -35,23 +35,56 @@ export const sendMessage = action({
         }
 
         const targetLang = args.targetLanguage || "English";
-        const messages = [
-            {
-                role: "system",
-                content: `You are Samiati, a friendly chat assistant. Your goal is to chat naturally with the user. Reply in ${targetLang} language only. Keep responses short, casual, and friendly. Never explain or define words unless the user explicitly asks.`,
-            },
-            ...limitedMessages.map(msg => ({
+        const clientMessages = limitedMessages
+            .filter((msg) => msg.role === "user" || msg.role === "assistant")
+            .map((msg) => ({
                 role: msg.role as "user" | "assistant",
                 content: msg.content,
-            })),
+            }));
+        const messages = [
+            {
+                role: "system" as const,
+                content: `You are Samiati, a friendly chat assistant. Your goal is to chat naturally with the user. Reply in ${targetLang} language only. Keep responses short, casual, and friendly. Never explain or define words unless the user explicitly asks.`,
+            },
+            ...clientMessages,
         ];
 
-        // Delegate to the shared Sunflower client (single model/HTTP impl).
-        try {
-            return await callSunflower(messages, 350, 0.7);
-        } catch (error) {
-            console.error("[Sunflower Chat] Failed:", error);
-            return `ERROR: ${error instanceof Error ? error.message : "Failed to get response."}`;
+        const { routeChat } = await import("./lib/aiRouter");
+        const result = await routeChat({
+            messages,
+            maxTokens: 350,
+            temperature: 0.7,
+        });
+
+        // Persist usage. Best-effort: failure to record must not block
+        // the user-facing response, so we wrap in try/catch and log.
+        if (result.usage) {
+            const { usageToRecordArgs } = await import("./lib/aiUsage");
+            try {
+                await ctx.runMutation(
+                    internal.lib.aiUsage.recordUsage,
+                    usageToRecordArgs(result.usage, result.provider, {
+                        ok: result.ok,
+                        errorCode: result.ok ? undefined : result.error.code,
+                        subject: identity?.subject,
+                    }),
+                );
+            } catch (e) {
+                console.error("[chat] failed to record usage:", e);
+            }
         }
+
+        if (result.ok) return result.value;
+
+        const e = result.error;
+        captureMessage("Chat provider call failed", {
+            level: "warning",
+            tags: { service: "chat", provider: result.provider, code: e.code },
+            extra: { status: e.status },
+        });
+        if (e.code === "not_implemented") {
+            return "ERROR: Chat is temporarily unavailable. Please try again later.";
+        }
+        return `ERROR: ${e.message}`;
     },
 });

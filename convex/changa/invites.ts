@@ -1,6 +1,7 @@
 import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser } from "../users/utils";
+import { internal } from "../_generated/api";
 
 // Generate a unique invite code for a user.
 export const generateInviteCode = mutation({
@@ -14,11 +15,13 @@ export const generateInviteCode = mutation({
         // Generate a short code from user ID + timestamp
         const code = `changa_${user._id.slice(-6)}_${Date.now().toString(36)}`;
 
-        await ctx.db.insert("changaInvites", {
-            inviterUserId: user._id,
-            inviteCode: code,
-            channel: args.channel,
-            createdAt: Date.now(),
+        await ctx.runMutation(internal.changa.datasetWrites.insertInvite, {
+            doc: {
+                inviterUserId: user._id,
+                inviteCode: code,
+                channel: args.channel,
+                createdAt: Date.now(),
+            },
         });
 
         return code;
@@ -40,9 +43,12 @@ export const recordInviteClick = mutation({
 
         if (!invite) return null;
 
-        await ctx.db.patch(invite._id, {
-            clickedAt: Date.now(),
-            clickedByUserId: user?._id,
+        await ctx.runMutation(internal.changa.datasetWrites.patchInvite, {
+            id: invite._id,
+            patch: {
+                clickedAt: Date.now(),
+                clickedByUserId: user?._id,
+            },
         });
 
         return invite.inviterUserId;
@@ -65,8 +71,11 @@ export const recordInviteConversion = mutation({
 
         if (!invite || invite.firstContributionAt) return;
 
-        await ctx.db.patch(invite._id, {
-            firstContributionAt: Date.now(),
+        await ctx.runMutation(internal.changa.datasetWrites.patchInvite, {
+            id: invite._id,
+            patch: {
+                firstContributionAt: Date.now(),
+            },
         });
     },
 });

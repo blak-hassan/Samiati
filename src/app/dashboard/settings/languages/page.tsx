@@ -1,12 +1,11 @@
 "use client";
 
 import ManageLanguagesScreen from "@/components/screens/ManageLanguagesScreen";
-import { useNavigation } from "@/hooks/useNavigation";
+import SettingsLayoutClient from "@/components/settings/SettingsLayoutClient";
 import { useAppUser } from "@/hooks/useAppUser";
-import { LanguageSkill } from "@/types";
+import { LanguageSkill, Screen } from "@/types";
 
 export default function ManageLanguagesPage() {
-    const { goBack } = useNavigation();
     const { languages, setLanguages } = useAppUser();
 
     const handleUpdateLanguages = (updatedLanguages: LanguageSkill[]) => {
@@ -14,10 +13,11 @@ export default function ManageLanguagesPage() {
     };
 
     return (
-        <ManageLanguagesScreen
-            goBack={goBack}
-            languages={languages}
-            onUpdateLanguages={handleUpdateLanguages}
-        />
+        <SettingsLayoutClient activeScreen={Screen.MANAGE_LANGUAGES}>
+            <ManageLanguagesScreen
+                languages={languages}
+                onUpdateLanguages={handleUpdateLanguages}
+            />
+        </SettingsLayoutClient>
     );
 }

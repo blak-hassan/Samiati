@@ -2,88 +2,22 @@
 
 import { PricingCard } from "../../components/PricingCard";
 import { useRouter } from "next/navigation";
-
-const plans = [
-    {
-        title: "Explorer",
-        price: "Free",
-        priceSuffix: undefined,
-        description: "Perfect for getting started with African languages",
-        features: [
-            "10 AI messages per day",
-            "5 translations per day",
-            "2 voice messages per day",
-            "7-day conversation history",
-            "1 language profile",
-        ],
-        cta: "Get Started Free",
-        popular: false,
-    },
-    {
-        title: "Learner",
-        price: "$5",
-        priceSuffix: "month",
-        description: "For dedicated learners ready to level up",
-        features: [
-            "400 AI messages per month",
-            "200 translations per month",
-            "20 voice minutes per month",
-            "90-day conversation history",
-            "5 language profiles",
-        ],
-        cta: "Start Learning",
-        popular: true,
-    },
-    {
-        title: "Fluent",
-        price: "$15",
-        priceSuffix: "month",
-        description: "For serious learners and language enthusiasts",
-        features: [
-            "1,500 AI messages per month",
-            "750 translations per month",
-            "80 voice minutes per month",
-            "Unlimited conversation history",
-            "Unlimited language profiles",
-            "Conversation export",
-            "Priority support",
-        ],
-        cta: "Go Fluent",
-        popular: false,
-    },
-    {
-        title: "Organization",
-        price: "Custom",
-        priceSuffix: undefined,
-        description: "For schools, NGOs, and language organizations",
-        features: [
-            "Custom usage limits",
-            "API access",
-            "Admin dashboard",
-            "Dedicated support",
-            "Custom integrations",
-        ],
-        cta: "Contact Sales",
-        popular: false,
-    },
-];
+import { PLANS } from "@/lib/plans";
+import type { Plan } from "@/lib/plans";
 
 export default function PricingPage() {
     const router = useRouter();
 
-    const handleSelect = (title: string) => {
-        const slug = title.toLowerCase();
-        if (slug === "organization") {
-            window.location.assign("mailto:support@samiati.com");
-        } else if (slug === "explorer") {
-            router.push("/checkout?plan=free");
+    const handleSelect = (plan: Plan) => {
+        if (plan.href.startsWith("mailto:")) {
+            window.location.assign(plan.href);
         } else {
-            router.push(`/checkout?plan=${slug}`);
+            router.push(plan.href);
         }
     };
 
     return (
-        <div className="min-h-screen bg-background">
+        <main id="main" tabIndex={-1} className="min-h-screen bg-background">
             <div className="px-4 py-16 text-center">
                 <h1 className="text-4xl font-bold tracking-tight">
                     Simple, transparent pricing
@@ -94,7 +28,7 @@ export default function PricingPage() {
             </div>
 
             <div className="mx-auto grid max-w-5xl gap-6 px-4 pb-16 sm:grid-cols-2 lg:grid-cols-4">
-                {plans.map((plan) => (
+                {PLANS.map((plan) => (
                     <PricingCard
                         key={plan.title}
                         title={plan.title}
@@ -104,7 +38,7 @@ export default function PricingPage() {
                         features={plan.features}
                         cta={plan.cta}
                         popular={plan.popular}
-                        onSelect={() => handleSelect(plan.title)}
+                        onSelect={() => handleSelect(plan)}
                     />
                 ))}
             </div>
@@ -141,6 +75,6 @@ export default function PricingPage() {
                     </div>
                 </div>
             </div>
-        </div>
+        </main>
     );
 }

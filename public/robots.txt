@@ -1,0 +1,11 @@
+# robots.txt — static fallback (the canonical rules live in /robots route.ts)
+User-agent: *
+Allow: /
+
+# Auth-gated app shell — let crawlers hit it and get a 401 rather than
+# burning crawl budget on pages they can't see.
+Disallow: /api/
+Disallow: /_next/
+Disallow: /__clerk/
+
+Sitemap: https://samiati.com/sitemap.xml

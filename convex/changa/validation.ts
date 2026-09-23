@@ -3,6 +3,8 @@ import { v } from "convex/values";
 import { getCurrentUser, isModerator } from "../users/utils";
 import { recordValidationStats } from "./reputation";
 import { checkRateLimit } from "../lib/rateLimit";
+import { internal } from "../_generated/api";
+import { chokepoint } from "../lib/chokepoint";
 import {
     changaAssignmentStatusValidator,
     changaValidatorRoleValidator,
@@ -202,12 +204,6 @@ export const submitValidationVote = mutation({
             throw new Error("This submission is not open for validation");
         }
 
-        // One vote per reviewer per submission, indexed by the reviewer.
-        const existingVote = await ctx.db.query("changaValidationVotes")
-            .withIndex("by_validator", (q) => q.eq("validatorId", user._id))
-            .filter((q) => q.eq(q.field("submissionId"), args.submissionId))
-            .first();
-
         // Determine the validator's role from language-scoped role grants,
         // falling back to the legacy moderator flag. A user-provided role
         // string is never trusted directly.
@@ -222,29 +218,16 @@ export const submitValidationVote = mutation({
             .sort((a, b) => roleRank(b.role) - roleRank(a.role))[0]?.role;
 
         const validatorRole = isModerator(user) ? "moderator" : activeRole === "verified_expert" ? "expert" : "peer";
-        if (existingVote) {
-            await ctx.db.patch(existingVote._id, {
-                validatorRole,
-                vote: args.vote,
-                confidence: clampConfidence(args.confidence),
-                issueCodes: boundIssueCodes(args.issueCodes),
-                comment: args.comment?.slice(0, 1000),
-                trustSnapshot: user.level ?? 0,
-                createdAt: now,
-            });
-        } else {
-            await ctx.db.insert("changaValidationVotes", {
-                submissionId: args.submissionId,
-                validatorId: user._id,
-                validatorRole,
-                vote: args.vote,
-                confidence: clampConfidence(args.confidence),
-                issueCodes: boundIssueCodes(args.issueCodes),
-                comment: args.comment?.slice(0, 1000),
-                trustSnapshot: user.level ?? 0,
-                createdAt: now,
-            });
-        }
+        await ctx.runMutation(internal.changa.datasetWrites.upsertValidationVote, {
+            submissionId: args.submissionId,
+            validatorId: user._id,
+            validatorRole,
+            vote: args.vote,
+            confidence: clampConfidence(args.confidence),
+            issueCodes: boundIssueCodes(args.issueCodes),
+            comment: args.comment?.slice(0, 1000),
+            trustSnapshot: user.level ?? 0,
+        });
 
         // Re-fetch votes for this submission.
         const updatedVotes = await ctx.db.query("changaValidationVotes")
@@ -272,11 +255,13 @@ export const submitValidationVote = mutation({
                 )
                 .first();
             if (!existingAssignment) {
-                await ctx.db.insert("changaValidationAssignments", {
-                    submissionId: args.submissionId,
-                    roleRequired: "moderator",
-                    status: "open",
-                    assignedAt: now,
+                await ctx.runMutation(internal.changa.datasetWrites.insertValidationAssignment, {
+                    doc: {
+                        submissionId: args.submissionId,
+                        roleRequired: "moderator",
+                        status: "open",
+                        assignedAt: now,
+                    },
                 });
             }
             nextStatus = "in_validation";
@@ -288,9 +273,12 @@ export const submitValidationVote = mutation({
             nextStatus = "needs_fix";
         }
 
-        await ctx.db.patch(args.submissionId, {
-            status: nextStatus,
-            updatedAt: now,
+        await ctx.runMutation(internal.changa.datasetWrites.patchSubmission, {
+            id: args.submissionId,
+            patch: {
+                status: nextStatus,
+                updatedAt: now,
+            },
         });
 
         // CHANGA-07: keep the owning campaign's progress counter in sync when a
@@ -301,8 +289,11 @@ export const submitValidationVote = mutation({
             if (task?.campaignId) {
                 const campaign = await ctx.db.get(task.campaignId);
                 if (campaign) {
-                    await ctx.db.patch(task.campaignId, {
-                        currentCount: (campaign.currentCount ?? 0) + 1,
+                    await ctx.runMutation(internal.changa.datasetWrites.patchCampaign, {
+                        id: task.campaignId,
+                        patch: {
+                            currentCount: (campaign.currentCount ?? 0) + 1,
+                        },
                     });
                 }
             }
@@ -326,10 +317,13 @@ export const submitValidationVote = mutation({
                 )
                 .first();
             if (assignment) {
-                await ctx.db.patch(assignment._id, {
-                    status: "completed",
-                    assignedTo: user._id,
-                    completedAt: now,
+                await ctx.runMutation(internal.changa.datasetWrites.patchValidationAssignment, {
+                    id: assignment._id,
+                    patch: {
+                        status: "completed",
+                        assignedTo: user._id,
+                        completedAt: now,
+                    },
                 });
             }
         }
@@ -350,13 +344,15 @@ export const submitValidationVote = mutation({
                 .first();
             const decision = mapped?.decision ?? "escalated";
             if (!existingDecision || existingDecision.decision !== decision) {
-                await ctx.db.insert("changaDecisions", {
-                    submissionId: args.submissionId,
-                    decision,
-                    reason: args.comment?.slice(0, 2000),
-                    resolverId: user._id,
-                    evidenceVersion: DECISION_EVIDENCE_VERSION,
-                    createdAt: now,
+                await ctx.runMutation(internal.changa.datasetWrites.insertDecision, {
+                    doc: {
+                        submissionId: args.submissionId,
+                        decision,
+                        reason: args.comment?.slice(0, 2000),
+                        resolverId: user._id,
+                        evidenceVersion: DECISION_EVIDENCE_VERSION,
+                        createdAt: now,
+                    },
                 });
             }
         }
@@ -422,23 +418,27 @@ export const escalateSubmission = mutation({
                 || submission.status === "curated") {
                 return args.submissionId;
             }
-            await ctx.db.insert("changaValidationAssignments", {
-                submissionId: args.submissionId,
-                roleRequired: "moderator",
-                status: "open",
-                assignedAt: Date.now(),
+            await ctx.runMutation(internal.changa.datasetWrites.insertValidationAssignment, {
+                doc: {
+                    submissionId: args.submissionId,
+                    roleRequired: "moderator",
+                    status: "open",
+                    assignedAt: Date.now(),
+                },
             });
         } else {
             return args.submissionId;
         }
 
-        await ctx.db.insert("changaDecisions", {
-            submissionId: args.submissionId,
-            decision: "escalated",
-            reason: args.reason?.slice(0, 2000),
-            resolverId: user._id,
-            evidenceVersion: DECISION_EVIDENCE_VERSION,
-            createdAt: Date.now(),
+        await ctx.runMutation(internal.changa.datasetWrites.insertDecision, {
+            doc: {
+                submissionId: args.submissionId,
+                decision: "escalated",
+                reason: args.reason?.slice(0, 2000),
+                resolverId: user._id,
+                evidenceVersion: DECISION_EVIDENCE_VERSION,
+                createdAt: Date.now(),
+            },
         });
 
         return args.submissionId;
@@ -462,7 +462,7 @@ export const seedGoldTask = mutation({
         }
 
         const now = Date.now();
-        const taskId = await ctx.db.insert("changaTasks", {
+        const taskId = await chokepoint.insertTask(ctx, {
             taskType: "validation",
             languageCode: args.languageCode,
             priority: "high",
@@ -473,7 +473,7 @@ export const seedGoldTask = mutation({
             createdAt: now,
         });
 
-        const submissionId = await ctx.db.insert("changaSubmissions", {
+        const submissionId = await chokepoint.insertSubmission(ctx, {
             taskId,
             userId: user._id,
             submissionType: "validation",
@@ -493,7 +493,7 @@ export const seedGoldTask = mutation({
             updatedAt: now,
         });
 
-        await ctx.db.insert("changaCuratedExamples", {
+        await chokepoint.insertCuratedExample(ctx, {
             sourceSubmissionId: submissionId,
             exampleType: "validation_gold",
             languageCode: args.languageCode,
@@ -523,7 +523,7 @@ export const assignModeratorReview = mutation({
             throw new Error("Unauthorized");
         }
 
-        return ctx.db.insert("changaValidationAssignments", {
+        return chokepoint.insertValidationAssignment(ctx, {
             submissionId: args.submissionId,
             assignedTo: args.assignedTo,
             roleRequired: args.roleRequired ?? "moderator",

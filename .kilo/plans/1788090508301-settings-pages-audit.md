@@ -21,7 +21,7 @@ All settings pages excluding the profile page:
 **Pages:** All pages  
 **Analysis:**  
 - Most pages (Settings, Notifications, Privacy, Data, Help, Languages) use a `Button` component from shadcn/ui with an `ArrowLeft` lucide icon for the back button.  
-- Three pages (Blocked, Muted, Languages) use a raw `<button>` with `material-symbols-outlined` ("arrow_back") instead of the shadcn Button + lucide icon pattern.  
+- Two pages (Blocked, Muted) use a raw `<button>` with `material-symbols-outlined` ("arrow_back") instead of the shadcn Button + lucide icon pattern. (Languages was previously listed here, but it actually renders the shared `SettingsPageHeader` back button, so it belongs in the Button group above.)
 - Some headers use `px-4 h-14`, others use `p-4`. Some have `border-b border-border/50`, others use `border-stone-200 dark:border-white/5`. This creates visual inconsistency when navigating between settings pages.  
 **Impact:** Users perceive jarring style changes when navigating between settings pages, reducing perceived polish.  
 **Action Plan:**  
@@ -33,19 +33,16 @@ All settings pages excluding the profile page:
 ---
 
 ### 2. Missing Save/Confirmation Feedback for Settings Changes
-**Severity:** Medium  
+**Severity:** Low (resolved at PR head)  
 **Pages:** Notifications, Privacy, Data  
 **Analysis:**  
-- Toggle switches (Dark Mode, Pause All, Private Account, Data Saver, etc.) all use `useState` locally.  
-- None of the settings have a "Save" button or any confirmation that changes were persisted.  
-- Toggling a switch immediately updates local state, but there is no API call, toast notification, or visual confirmation.  
-- If the user navigates away, all changes are lost silently.  
-**Impact:** Users may believe their preferences are saved when they are not, leading to frustration when settings revert after app restart.  
+- The `useSettings` hook now persists preferences (including `darkMode`, `dataSaver`, `highQuality`, `autoDownload`, `privateAccount`, etc.) and surfaces a "Settings saved" / success toast on change.  
+- Server-backed settings use the Convex `updatePrivacy` mutation (e.g. `privateAccount` → `profileVisible`) and the dedicated settings mutations for blocked/muted words, with error toasts on failure.  
+- Toggling a switch persists the value and shows confirmation; navigating away no longer silently loses changes.  
+**Impact:** Resolved — preferences persist and users receive confirmation.  
 **Action Plan:**  
-1. Add a `useSettings` hook (or extend existing state management) that persists settings to the backend.  
-2. Add a toast/snackbar confirmation (e.g., "Settings saved") on each toggle change.  
-3. Show a subtle "Saving..." indicator while the API call is in flight.  
-4. If the API call fails, show an error toast and revert the local state.
+1. (Done) `useSettings` persists to `localStorage` and `updateSetting` shows a success toast.  
+2. (Done) Server-backed toggles call `updatePrivacy`/settings mutations with error handling.
 
 ---
 
@@ -68,10 +65,11 @@ All settings pages excluding the profile page:
 **Severity:** Medium  
 **Page:** Main Settings (`/dashboard/settings`)  
 **Analysis:**  
-- The `isDarkMode` state is initialized to `true` on every render (`useState(true)`).  
-- It is never persisted to `localStorage`, cookies, or a user preferences API.  
+- The `isDarkMode` value is derived from persisted settings (`savedSettings.darkMode ?? true`), which initializes only on the component's first mount — not on every render, since React preserves `useState`/derived state across re-renders.  
+- Theme changes are persisted via the `useSettings` flow (backed by `localStorage`) and applied immediately to the document.  
 - It does not check `window.matchMedia('(prefers-color-scheme: dark)')` for system preference.  
-- If a user refreshes the page, dark mode always resets to `true`.  
+- Because the theme is now persisted, a full page reload restores the saved preference rather than resetting it; only a hard reset of stored settings would revert to the `true` default.  
+- **Status:** Resolved at PR head (persisted theme handling implemented).
 **Impact:** Users lose their theme preference on every reload.  
 **Action Plan:**  
 1. Read initial theme from `localStorage` or system preference in a `useEffect` with empty dependency array (client-side only).  
@@ -81,17 +79,16 @@ All settings pages excluding the profile page:
 ---
 
 ### 5. `BillingPage` Uses a Placeholder User ID and Client-Side Redirect
-**Severity:** High  
+**Severity:** Low (resolved at PR head)  
 **Page:** `/settings/billing`  
 **Analysis:**  
-- `const userId = "current" as any;` hardcodes a placeholder user ID. This will fail at runtime if `SubscriptionManager` tries to fetch data.  
-- `window.location.href = /checkout?...` performs a full page reload instead of using Next.js `router.push`. This breaks SPA behavior and loses client-side state.  
-- The `upgradePlans` array is defined inside the component file, making it harder to maintain or fetch from an API.  
-**Impact:** Subscription data will not load. Checkout flow breaks SPA experience.  
+- The user ID is now derived from the authenticated user context (`user?.id || user?.username || "current"`) rather than a hardcoded `"current" as any`.  
+- Checkout navigation uses Next.js `useRouter().push(\`/checkout?plan=...\`)` instead of a full `window.location.href` reload, preserving SPA behavior.  
+- The remaining `"current"` fallback is a defensive default; the server-derived billing identity is used when available.  
+**Impact:** Resolved — subscription data loads from the real user identity and checkout stays within the SPA.  
 **Action Plan:**  
-1. Replace `"current" as any` with a real `userId` from Clerk or the app user context.  
-2. Replace `window.location.href` with Next.js `useRouter().push()`.  
-3. Move plan definitions to a separate constants file or fetch from an API.
+1. (Done) Derive `userId` from the app user context.  
+2. (Done) Use `router.push` for checkout navigation.
 
 ---
 
@@ -257,13 +254,13 @@ All settings pages excluding the profile page:
 
 ---
 
-### 18. `SettingsHelpScreen` Loading State Does Not Disable Input
+### 18. `SettingsHelpScreen` Loading State Lacks an Explicit "Thinking..." Affordance
 **Severity:** Low  
 **Page:** Help & Support  
 **Analysis:**  
-- The input `disabled={isLoading}` is set, which greys it out.  
-- However, the send button inside the input is only hidden via `disabled:opacity-0 disabled:pointer-events-none`, which may not be obvious to all users.  
-- There is no explicit "Thinking..." text or loading indicator near the input field itself (only in the chat area).  
+- The input field correctly uses `disabled={isLoading}`, which greys it out while a response is pending.  
+- However, there is no explicit "Thinking..." text or a nearby loading indicator at the input bar itself (the only indicator lives in the chat area).  
+- The send button is hidden via `disabled:opacity-0 disabled:pointer-events-none`, which may not be obvious to all users.  
 **Impact:** Minor UX ambiguity.  
 **Action Plan:**  
 1. Add a subtle loading indicator or "Samiati is typing..." text near the input bar while `isLoading` is true.
@@ -273,13 +270,12 @@ All settings pages excluding the profile page:
 ## Prioritized Action Plan
 
 ### P0 — Must Fix Before Release
-1. **#5 BillingPage placeholder userId & client-side redirect** — Broken functionality.  
-2. **#6 HelpScreen auto-scroll** — Core chat UX is broken.
+1. **#6 HelpScreen auto-scroll** — Core chat UX is broken.  
+   (Note: #5 BillingPage userId & routing is resolved at PR head — removed from P0.)
 
 ### P1 — High Priority (Fix in Next Sprint)
-3. **#1 Inconsistent headers** — Visual polish.  
-4. **#2 Missing save/confirmation feedback** — Data integrity.  
-5. **#4 Dark mode persistence** — User expectation.
+2. **#1 Inconsistent headers** — Visual polish.  
+   (Note: #2 Save/confirmation feedback and #4 Dark mode persistence are resolved at PR head — removed from active priorities.)
 
 ### P2 — Medium Priority
 6. **#3 Unused navigate props** — Code hygiene.  
@@ -303,11 +299,11 @@ All settings pages excluding the profile page:
 
 1. Extract `SettingsPageHeader` component.  
 2. Refactor all settings pages to use the shared header.  
-3. Implement a `useSettings` hook for persistent preferences.  
-4. Wire up toasts for all toggle changes.  
-5. Fix BillingPage userId and routing.  
+3. (Done) Implement a `useSettings` hook for persistent preferences.  
+4. (Done) Wire up toasts for all toggle changes.  
+5. (Done) Fix BillingPage userId and routing.  
 6. Add `useEffect` scroll-to-bottom in HelpScreen.  
 7. Replace deprecated `onKeyPress` and `alert()` calls.  
 8. Add confirmation dialogs for destructive actions (unblock, delete muted word).  
-9. Persist dark mode preference.  
+9. (Done) Persist dark mode preference.  
 10. Keep FAQ visible alongside chat in HelpScreen.

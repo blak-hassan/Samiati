@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useChangaMutation as useMutation, useChangaQuery as useQuery } from "@/hooks/useChangaData";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { AudioRecorder } from "@/components/media/AudioRecorder";
 import { useUploadFile } from "@/hooks/useUploadFile";
 import { logChangaEvent } from "@/lib/changaTelemetry";
 import { enqueueChangaSubmission, takeChangaQueue } from "@/lib/changaOfflineQueue";
+import { trackEvent } from "@/lib/analytics";
 import { CheckCircle2, Clock3, Languages, Loader2, MessageSquare, Sparkles, XCircle, HelpCircle } from "lucide-react";
 
 const CODE_SWITCHING_OPTIONS = [
@@ -319,6 +320,12 @@ export default function TaskContributionScreen({ task, onComplete }: TaskContrib
             clearDraft(task._id);
             draftRef.current = null;
             logChangaEvent({ name: "submitted", ...telemetryContext });
+
+            // Track changa submission for analytics (no PII)
+            trackEvent("changa_submitted", {
+                location: "task_contribution",
+            });
+
             setResultSubmissionId(submissionId as Id<"changaSubmissions">);
             setPhase("result");
         } catch (submissionError) {

@@ -1,15 +1,16 @@
 "use client";
 
 import SettingsPrivacyScreen from "@/components/screens/SettingsPrivacyScreen";
+import SettingsLayoutClient from "@/components/settings/SettingsLayoutClient";
 import { useNavigation } from "@/hooks/useNavigation";
+import { Screen } from "@/types";
 
 export default function SettingsPrivacyPage() {
-    const { navigate, goBack } = useNavigation();
+    const { navigate } = useNavigation();
 
     return (
-        <SettingsPrivacyScreen
-            navigate={navigate}
-            goBack={goBack}
-        />
+        <SettingsLayoutClient activeScreen={Screen.SETTINGS_PRIVACY}>
+            <SettingsPrivacyScreen navigate={navigate} />
+        </SettingsLayoutClient>
     );
 }

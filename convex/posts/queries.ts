@@ -70,7 +70,6 @@ export const feed = query({
                 ...post,
                 author: {
                     name: author?.name ?? "Unknown",
-                    handle: author?.handle ?? "unknown",
                     avatar: author?.avatar ?? "",
                     isVerified: author?.role === 'admin' || author?.role === 'moderator',
                 },
@@ -102,7 +101,6 @@ export const get = query({
             ...post,
             author: {
                 name: author?.name ?? "Unknown",
-                handle: author?.handle,
                 avatar: author?.avatar,
             },
         };

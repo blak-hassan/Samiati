@@ -11,6 +11,47 @@ export const changaTaskTypeValues = [
     "validation",
 ] as const;
 
+export const changaDocumentKindValues = [
+    "dictionary",
+    "novel",
+    "song_collection",
+    "website_link",
+    "transcript",
+    "other",
+] as const;
+
+export const changaDocumentStatusValues = [
+    "uploading",
+    "parsing",
+    "ready",
+    "in_review",
+    "completed",
+] as const;
+
+export const changaDocumentEntryStatusValues = [
+    "pending",
+    "approved",
+    "rejected",
+    "needs_fix",
+] as const;
+
+export const changaAutoCategoryValues = [
+    "food",
+    "kinship",
+    "ritual",
+    "weather",
+    "agriculture",
+    "music",
+    "story",
+    "greeting",
+    "numbers",
+    "body",
+    "time",
+    "place",
+    "emotion",
+    "other",
+] as const;
+
 export const changaTaskTypeValidator = v.union(
     v.literal("lexicon_entry"),
     v.literal("phrase_translation"),
@@ -124,6 +165,7 @@ export const changaProcessingTypeValidator = v.union(
     v.literal("language_id"),
     v.literal("duplicate_detection"),
     v.literal("moderation"),
+    v.literal("bulk_categorize"),
 );
 
 export const changaProcessingStatusValidator = v.union(
@@ -221,4 +263,45 @@ export const changaRoleGrantStatusValidator = v.union(
     v.literal("active"),
     v.literal("revoked"),
     v.literal("expired"),
+);
+
+export const changaDocumentKindValidator = v.union(
+    v.literal("dictionary"),
+    v.literal("novel"),
+    v.literal("song_collection"),
+    v.literal("website_link"),
+    v.literal("transcript"),
+    v.literal("other"),
+);
+
+export const changaDocumentStatusValidator = v.union(
+    v.literal("uploading"),
+    v.literal("parsing"),
+    v.literal("ready"),
+    v.literal("in_review"),
+    v.literal("completed"),
+);
+
+export const changaDocumentEntryStatusValidator = v.union(
+    v.literal("pending"),
+    v.literal("approved"),
+    v.literal("rejected"),
+    v.literal("needs_fix"),
+);
+
+export const changaAutoCategoryValidator = v.union(
+    v.literal("food"),
+    v.literal("kinship"),
+    v.literal("ritual"),
+    v.literal("weather"),
+    v.literal("agriculture"),
+    v.literal("music"),
+    v.literal("story"),
+    v.literal("greeting"),
+    v.literal("numbers"),
+    v.literal("body"),
+    v.literal("time"),
+    v.literal("place"),
+    v.literal("emotion"),
+    v.literal("other"),
 );

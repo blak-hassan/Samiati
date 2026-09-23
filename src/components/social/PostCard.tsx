@@ -38,7 +38,7 @@ interface PostCardProps {
     onLike: (id: string) => void;
     onRepost: (id: string) => void;
     onMenuAction: (e: React.MouseEvent, action: string, post: Post) => void;
-    currentUserHandle?: string;
+    isOwnPost?: boolean;
 }
 
 export const PostCard: React.FC<PostCardProps> = ({
@@ -49,7 +49,7 @@ export const PostCard: React.FC<PostCardProps> = ({
     onLike,
     onRepost,
     onMenuAction,
-    currentUserHandle,
+    isOwnPost,
 }) => {
     const hasSamiatiLink = post.content.includes('samiati.app');
     const [isContentExpanded, setIsContentExpanded] = useState(!post.cw);
@@ -67,8 +67,6 @@ export const PostCard: React.FC<PostCardProps> = ({
     const { ref: cardRef, isInView } = useInView({ threshold: 0.1 });
 
     if (post.isFireplace) return null;
-
-    const fullHandle = `@${post.author.handle}`;
 
     const renderContentWithHashtags = (text: string) => {
         const parts = text.split(/(#\w+)/g);
@@ -117,7 +115,6 @@ export const PostCard: React.FC<PostCardProps> = ({
                     <div className="flex items-baseline justify-between mb-1">
                         <div className="flex items-center gap-2 overflow-hidden flex-wrap">
                             <span className="font-bold text-foreground truncate hover:underline">{post.author.name}</span>
-                            <span className="text-muted-foreground text-sm truncate max-w-[200px]">{fullHandle}</span>
                         </div>
                         <div className="flex items-center gap-2">
                             {post.languageTag && (
@@ -177,9 +174,9 @@ export const PostCard: React.FC<PostCardProps> = ({
                             {post.image && (
                                 <div className="mb-3 rounded-lg overflow-hidden border border-stone-200 dark:border-white/10 relative group">
                                     {post.image.startsWith('data:') || post.image.startsWith('http') ? (
-                                        <img src={post.image} alt="Attachment" className="w-full h-auto object-cover max-h-80 transition-transform duration-700 group-hover:scale-105"  loading="lazy" decoding="async" />
+                                        <img src={post.image} alt={post.altText || 'Post attachment'} className="w-full h-auto object-cover max-h-80 transition-transform duration-700 group-hover:scale-105"  loading="lazy" decoding="async" />
                                     ) : (
-                                        <StorageImage storageId={post.image} alt="Attachment" className="w-full h-auto object-cover max-h-80 transition-transform duration-700 group-hover:scale-105" />
+                                        <StorageImage storageId={post.image} alt={post.altText || 'Post attachment'} className="w-full h-auto object-cover max-h-80 transition-transform duration-700 group-hover:scale-105" />
                                     )}
                                     {post.altText && (
                                         <>
@@ -326,7 +323,7 @@ export const PostCard: React.FC<PostCardProps> = ({
                                         <Link className="w-4 h-4" />
                                         Copy link to post
                                     </DropdownMenuItem>
-                                    {currentUserHandle && post.author.handle === currentUserHandle && (
+                                    {isOwnPost && (
                                         <DropdownMenuItem onClick={(e) => onMenuAction(e, 'edit', post)} className="gap-3 font-medium">
                                             <Pencil className="w-4 h-4" />
                                             Edit post
@@ -334,11 +331,11 @@ export const PostCard: React.FC<PostCardProps> = ({
                                     )}
                                     <DropdownMenuItem onClick={(e) => onMenuAction(e, 'mute', post)} className="gap-3 font-medium">
                                         <VolumeX className="w-4 h-4" />
-                                        Mute @{post.author.handle}
+                                        Mute user
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onClick={(e) => onMenuAction(e, 'block', post)} className="gap-3 text-error font-medium focus:text-error">
                                         <Ban className="w-4 h-4" />
-                                        Block @{post.author.handle}
+                                        Block user
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>

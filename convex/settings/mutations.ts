@@ -21,7 +21,6 @@ export const listBlockedUsers = query({
                 return {
                     _id: blockedUser._id,
                     name: blockedUser.name,
-                    handle: blockedUser.handle,
                     avatar: blockedUser.avatar,
                     blockedAt: block.createdAt,
                 };
@@ -129,9 +128,10 @@ export const removeMutedWord = mutation({
         const user = await getCurrentUser(ctx);
         if (!user) throw new Error("Unauthorized");
 
+        const normalized = args.word.trim().toLowerCase();
         const existing = await ctx.db
             .query("mutedWords")
-            .withIndex("by_user_word", (q) => q.eq("userId", user._id).eq("word", args.word))
+            .withIndex("by_user_word", (q) => q.eq("userId", user._id).eq("word", normalized))
             .first();
 
         if (!existing) return { notFound: true };

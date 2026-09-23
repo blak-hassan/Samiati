@@ -42,7 +42,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const user: User | null = clerkUser
     ? {
         name: clerkUser.fullName || "User",
-        handle: "@" + (clerkUser.username || "user"),
         avatar: clerkUser.imageUrl,
         isGuest: false,
       }

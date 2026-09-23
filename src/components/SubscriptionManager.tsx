@@ -74,7 +74,7 @@ export function SubscriptionManager({ userId }: SubscriptionManagerProps) {
                         <p className="text-sm text-muted-foreground">
                             {plan.price}{plan.period}
                             {subscription.status === "active" && (
-                                <span className="ml-2 inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                                <span className="ml-2 inline-flex items-center rounded-full bg-[var(--color-success)/10] px-2 py-0.5 text-xs font-medium text-[var(--color-success)] dark:bg-[var(--color-success)/20] dark:text-[var(--color-success)]">
                                     Active
                                 </span>
                             )}
@@ -83,7 +83,7 @@ export function SubscriptionManager({ userId }: SubscriptionManagerProps) {
                     {subscription.plan !== "free" && (
                         <button
                             onClick={() => cancelSubscription({ subscriptionId: subscription._id })}
-                            className="text-sm text-red-500 hover:text-red-700"
+                            className="text-sm text-[var(--color-error)] hover:text-[var(--color-error)]/80"
                         >
                             Cancel
                         </button>

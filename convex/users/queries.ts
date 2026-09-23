@@ -23,17 +23,11 @@ function isProfileVisible(user: Record<string, unknown>, viewerId?: string): boo
 export const getProfile = query({
     args: {
         userId: v.optional(v.id("users")),
-        handle: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
         let user;
         if (args.userId) {
             user = await ctx.db.get(args.userId);
-        } else if (args.handle) {
-            user = await ctx.db
-                .query("users")
-                .withIndex("by_handle", (q) => q.eq("handle", args.handle!))
-                .unique();
         } else {
             user = await getCurrentUser(ctx);
         }

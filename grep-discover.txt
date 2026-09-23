@@ -1,0 +1,42 @@
+﻿cluster.ts:73: const items = await ctx.runQuery(internal.discover.cluster.getUnembeddedItems, {
+cluster.ts:105: await ctx.runMutation(internal.discover.cluster.setItemEmbedding, {
+cluster.ts:226: const items = await ctx.runQuery(internal.discover.cluster.getUnclusteredEmbeddedItems, {
+cluster.ts:264: internal.discover.cluster.findClusterContainingItem,
+cluster.ts:276: await ctx.runMutation(internal.discover.cluster.appendToCluster, {
+cluster.ts:285: internal.discover.cluster.createCluster,
+cluster.ts:297: await ctx.runMutation(internal.discover.cluster.markItemClustered, {
+cron.ts:16: internal.discover.process.fetchAndStore,
+cron.ts:23: internal.discover.process.processRawItems,
+cron.ts:52: internal.discover.cluster.embedRawItems,
+cron.ts:59: internal.discover.cluster.clusterByEmbedding,
+cron.ts:66: internal.discover.enrich.enrichClusters,
+cron.ts:86: internal.discover.enrich.computeTrendScores,
+cron.ts:102: internal.discover.process.archiveOldItems,
+enrich.ts:49: internal.discover.enrich.getUnenrichedClusters,
+enrich.ts:58: internal.discover.enrich.getClusterItems,
+enrich.ts:91: await ctx.runMutation(internal.discover.enrich.updateClusterEnrichment, {
+enrich.ts:114: internal.discover.enrich.getActiveClusters
+enrich.ts:120: await ctx.runMutation(internal.discover.enrich.updateTrendScore, {
+process.ts:26: internal.discover.process.findRawBySourceId,
+process.ts:31: await ctx.runMutation(internal.discover.process.storeRawItem, {
+process.ts:92: internal.discover.process.getUnprocessedRawItems,
+process.ts:100: internal.discover.process.findItemByRawId,
+process.ts:110: await ctx.runMutation(internal.discover.process.storeNormalizedItem, {
+process.ts:199: internal.discover.process.getUnclusteredItems,
+process.ts:230: internal.discover.process.findClusterByTitle,
+process.ts:241: await ctx.runMutation(internal.discover.process.updateCluster, {
+process.ts:250: await ctx.runMutation(internal.discover.process.createCluster, {
+process.ts:263: await ctx.runMutation(internal.discover.process.markItemClustered, {
+process.ts:381: internal.discover.process.getOldRawItems,
+process.ts:385: await ctx.runMutation(internal.discover.process.deleteItem, { itemId: item._id });
+process.ts:390: internal.discover.process.getOldClusters,
+process.ts:394: await ctx.runMutation(internal.discover.process.archiveCluster, {
+crons.ts:51: internal.discover.cron.fetchAndProcess,
+crons.ts:59: internal.discover.cron.clusterAndEnrich,
+crons.ts:67: internal.discover.cron.computeTrendScores,
+crons.ts:75: internal.discover.cron.cleanup,
+DiscoverScreen.tsx:43: const feedResult = useQuery(api.discover.feed.getFeed, {
+DiscoverScreen.tsx:49: const categoryCounts = useQuery(api.discover.feed.getCategoryCounts);
+DiscoverScreen.tsx:90: const trackEngagement = useMutation(api.discover.feed.trackEngagement);
+DiscoverScreen.tsx:91: const saveTopic = useMutation(api.discover.feed.saveTopic);
+DiscoverScreen.tsx:92: const dismissTopic = useMutation(api.discover.feed.dismissTopic);

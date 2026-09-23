@@ -1,6 +1,8 @@
 import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser, isModerator } from "../users/utils";
+import { internal } from "../_generated/api";
+import { chokepoint } from "../lib/chokepoint";
 import { changaCampaignStatusValidator, changaRewardProfileValidator, changaTaskTypeValidator } from "./validators";
 import type { Id } from "../_generated/dataModel";
 
@@ -17,6 +19,27 @@ export const listActiveCampaigns = query({
         return campaigns
             .filter((campaign) => !args.languageCode || campaign.languageCode === args.languageCode)
             .slice(0, args.limit ?? 20);
+    },
+});
+
+export const listEndedCampaigns = query({
+    args: {
+        languageCode: v.optional(v.string()),
+        limit: v.optional(v.number()),
+    },
+    handler: async (ctx, args) => {
+        const completed = await ctx.db.query("changaCampaigns")
+            .withIndex("by_status", (q) => q.eq("status", "completed"))
+            .collect();
+        const archived = await ctx.db.query("changaCampaigns")
+            .withIndex("by_status", (q) => q.eq("status", "archived"))
+            .collect();
+
+        const all = [...completed, ...archived]
+            .filter((campaign) => !args.languageCode || campaign.languageCode === args.languageCode)
+            .sort((a, b) => (b.endAt ?? b.createdAt) - (a.endAt ?? a.createdAt));
+
+        return all.slice(0, args.limit ?? 20);
     },
 });
 
@@ -40,7 +63,7 @@ export const createCampaign = mutation({
             throw new Error("Unauthorized: Only moderators and admins can create campaigns");
         }
 
-        return ctx.db.insert("changaCampaigns", {
+        return chokepoint.insertCampaign(ctx, {
             title: args.title.slice(0, 200),
             description: args.description.slice(0, 2000),
             languageCode: args.languageCode,
@@ -57,6 +80,13 @@ export const createCampaign = mutation({
     },
 });
 
+// Phase 2F: every changa* write goes through the dataset-write
+// chokepoint (`convex/changa/datasetWrites.ts`). The chokepoint's
+// internal mutations are referenced via `internal.changa.datasetWrites.*`,
+// which TypeScript can't resolve until `npx convex dev` regenerates
+// `_generated/api.d.ts` with the chokepoint module. Until then, this
+// file's mutations will report TS7022/TS7023 (implicit any) — a known
+// acceptable cost until the generated bindings are refreshed.
 // Phase 5: Trusted contributors can submit campaign proposals — not create
 // live collection work. A moderator/data steward approves, adapts or rejects.
 export const submitCampaignProposal = mutation({
@@ -72,7 +102,7 @@ export const submitCampaignProposal = mutation({
         const user = await getCurrentUser(ctx);
         if (!user) throw new Error("Unauthorized");
 
-        return ctx.db.insert("changaCampaignProposals", {
+        return chokepoint.insertCampaignProposal(ctx, {
             title: args.title.slice(0, 200),
             description: args.description.slice(0, 2000),
             languageCode: args.languageCode,
@@ -137,26 +167,31 @@ export const reviewCampaignProposal = mutation({
             throw new Error("This proposal has already been reviewed");
         }
 
-        await ctx.db.patch(args.proposalId, {
-            status: args.decision,
-            reviewedBy: user._id,
-            reviewedAt: Date.now(),
-            reviewNote: args.reviewNote?.slice(0, 2000),
+        await ctx.runMutation(internal.changa.datasetWrites.patchCampaignProposal, {
+            id: args.proposalId,
+            patch: {
+                status: args.decision,
+                reviewedBy: user._id,
+                reviewedAt: Date.now(),
+                reviewNote: args.reviewNote?.slice(0, 2000),
+            },
         });
 
         // If approved, create a live campaign from the proposal.
         if (args.decision === "approved") {
-            await ctx.db.insert("changaCampaigns", {
-                title: proposal.title,
-                description: proposal.description,
-                languageCode: proposal.languageCode,
-                taskTypes: proposal.taskTypes,
-                goalCount: proposal.goalCount,
-                currentCount: 0,
-                startAt: Date.now(),
-                status: "active",
-                createdBy: user._id,
-                createdAt: Date.now(),
+            await ctx.runMutation(internal.changa.datasetWrites.insertCampaign, {
+                doc: {
+                    title: proposal.title,
+                    description: proposal.description,
+                    languageCode: proposal.languageCode,
+                    taskTypes: proposal.taskTypes,
+                    goalCount: proposal.goalCount,
+                    currentCount: 0,
+                    startAt: Date.now(),
+                    status: "active",
+                    createdBy: user._id,
+                    createdAt: Date.now(),
+                },
             });
         }
 
@@ -183,7 +218,13 @@ export const getCampaignLeaderboard = query({
         );
         const submissions = submissionsArrays.flat();
 
-        const userCounts = submissions.reduce<Record<string, number>>((accumulator, submission) => {
+        // Only count validated or curated submissions toward the leaderboard.
+        // Drafts, rejected, and needs_fix entries should not earn recognition.
+        const counted = submissions.filter(
+            (s) => s.status === "validated" || s.status === "curated"
+        );
+
+        const userCounts = counted.reduce<Record<string, number>>((accumulator, submission) => {
             if (submission.userId) {
                 const userId = String(submission.userId);
                 accumulator[userId] = (accumulator[userId] || 0) + 1;
@@ -195,6 +236,76 @@ export const getCampaignLeaderboard = query({
             .map(([userId, submissionCount]) => ({ userId, submissionCount }))
             .sort((left, right) => right.submissionCount - left.submissionCount)
             .slice(0, args.limit ?? 10);
+    },
+});
+
+export const getCampaignWithLeaderboard = query({
+    args: {
+        campaignId: v.id("changaCampaigns"),
+    },
+    handler: async (ctx, args) => {
+        const campaign = await ctx.db.get(args.campaignId);
+        if (!campaign) return null;
+
+        const tasks = await ctx.db.query("changaTasks")
+            .withIndex("by_campaign_status", (q) => q.eq("campaignId", args.campaignId))
+            .collect();
+
+        const submissionsArrays = await Promise.all(
+            tasks.map((task) =>
+                ctx.db.query("changaSubmissions")
+                    .withIndex("by_task_status", (q) => q.eq("taskId", task._id))
+                    .collect()
+            ),
+        );
+        const submissions = submissionsArrays.flat();
+
+        const counted = submissions.filter(
+            (s) => s.status === "validated" || s.status === "curated"
+        );
+
+        const userCounts: Record<string, number> = {};
+        for (const submission of counted) {
+            if (!submission.userId) continue;
+            const userId = String(submission.userId);
+            userCounts[userId] = (userCounts[userId] || 0) + 1;
+        }
+
+        const userIds = Object.keys(userCounts);
+        const userDocs = await Promise.all(userIds.map((id) => ctx.db.get(id as Id<"users">)));
+        const usersById = new Map(
+            userDocs.filter(Boolean).map((u) => [String(u!._id), u!])
+        );
+
+        const leaderboard = Object.entries(userCounts)
+            .map(([userId, submissionCount], index) => {
+                const user = usersById.get(userId);
+                return {
+                    rank: index + 1,
+                    userId,
+                    name: user?.name ?? "Unknown",
+                    avatar: user?.avatar ?? "",
+                    submissionCount,
+                };
+            })
+            .sort((a, b) => b.submissionCount - a.submissionCount)
+            .map((entry, index) => ({ ...entry, rank: index + 1 }));
+
+        return {
+            campaign: {
+                _id: campaign._id,
+                title: campaign.title,
+                description: campaign.description,
+                languageCode: campaign.languageCode,
+                goalCount: campaign.goalCount,
+                currentCount: campaign.currentCount,
+                status: campaign.status,
+                startAt: campaign.startAt,
+                endAt: campaign.endAt,
+                taskTypes: campaign.taskTypes,
+            },
+            leaderboard,
+        };
     },
 });
 

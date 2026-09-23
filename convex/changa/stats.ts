@@ -1,6 +1,8 @@
 import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser, isModerator } from "../users/utils";
+import { internal } from "../_generated/api";
+import { chokepoint } from "../lib/chokepoint";
 import type { Doc } from "../_generated/dataModel";
 
 type StatsDoc = Doc<"changaUserStats">;
@@ -119,6 +121,59 @@ export const getLanguageProgressStats = query({
     },
 });
 
+// Public platform-level stats for the landing page trust strip.
+// Cheap where an index exists (active campaigns); otherwise capped full-scans
+// that gracefully degrade to "N+" style numbers when the cap is hit.
+export const getPlatformStats = query({
+    args: {},
+    handler: async (ctx) => {
+        // Active campaigns — index-backed (by_status).
+        const activeCampaigns = (await ctx.db.query("changaCampaigns")
+            .withIndex("by_status", (q) => q.eq("status", "active"))
+            .take(1000)).length;
+
+        // Total contributions (changaSubmissions). No language-agnostic index;
+        // take a large cap and report "N+" when we hit it.
+        const submissions = await ctx.db.query("changaSubmissions")
+            .withIndex("by_status", (q) => q.eq("status", "submitted"))
+            .take(10000)
+            .collect();
+        const totalContributions = submissions.length;
+
+        // Curated examples (words preserved). Full scan with a large cap.
+        const curatedExamples = await ctx.db.query("changaCuratedExamples")
+            .withIndex("by_releaseStatus_createdAt", (q) => q.eq("releaseStatus", "published"))
+            .take(10000)
+            .collect();
+        const wordsPreserved = curatedExamples.length;
+
+        // Distinct languages represented in submissions. Collect all languageCodes
+        // up to a cap and dedupe. This is a best-effort count for the landing page.
+        const submissionDocs = await ctx.db.query("changaSubmissions")
+            .withIndex("by_status", (q) => q.eq("status", "submitted"))
+            .take(20000)
+            .collect();
+        const distinctLanguages = new Set<string>();
+        for (const doc of submissionDocs) {
+            if (doc.languageCode) {
+                distinctLanguages.add(doc.languageCode);
+            }
+        }
+        // If we hit the cap, treat the count as a floor — label it "N+" in the UI.
+        const languagesCount = distinctLanguages.size;
+        const languagesCountIsApprox = submissionDocs.length >= 20000;
+
+        return {
+            totalContributions,
+            wordsPreserved,
+            activeCampaigns,
+            distinctLanguages: languagesCount,
+            languagesCountIsApprox,
+            updatedAt: Date.now(),
+        };
+    },
+});
+
 export const recomputeTrustScore = mutation({
     args: {
         userId: v.id("users"),
@@ -160,28 +215,34 @@ export const recomputeTrustScore = mutation({
         });
 
         if (existingStats) {
-            await ctx.db.patch(existingStats._id, {
+            await chokepoint.upsertUserStats(ctx, {
+                userId: args.userId,
+                patch: {
+                    contributionCount: submissions.length,
+                    validationCount,
+                    acceptRate,
+                    reviewAgreementRate,
+                    trustScore,
+                    lastActiveDate: new Date().toISOString(),
+                },
+            });
+            return existingStats._id;
+        }
+
+        return chokepoint.upsertUserStats(ctx, {
+            userId: args.userId,
+            doc: {
+                userId: args.userId,
                 contributionCount: submissions.length,
                 validationCount,
                 acceptRate,
                 reviewAgreementRate,
                 trustScore,
+                streakDays: 0,
                 lastActiveDate: new Date().toISOString(),
-            });
-            return existingStats._id;
-        }
-
-        return ctx.db.insert("changaUserStats", {
-            userId: args.userId,
-            contributionCount: submissions.length,
-            validationCount,
-            acceptRate,
-            reviewAgreementRate,
-            trustScore,
-            streakDays: 0,
-            lastActiveDate: new Date().toISOString(),
-            topLanguages: [],
-            badges: [],
+                topLanguages: [],
+                badges: [],
+            },
         });
     },
 });

@@ -10,7 +10,6 @@ interface MobileAppLayoutProps {
   children: React.ReactNode;
   user?: {
     name?: string;
-    handle?: string;
     avatar?: string;
     role?: string;
     isGuest?: boolean;
@@ -66,9 +65,9 @@ export const MobileAppLayout: React.FC<MobileAppLayoutProps> = ({
           </header>
         )}
 
-        <main className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className="flex-1 overflow-y-auto custom-scrollbar" id="main-content">
           {children}
-        </main>
+        </div>
       </div>
     </div>
   );

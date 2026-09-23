@@ -6,16 +6,11 @@ import { api } from '../../../convex/_generated/api';
 import { Message } from '@/types';
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
-import SettingsPageHeader from "@/components/settings/SettingsPageHeader";
-
-interface Props {
-    goBack: () => void;
-}
 
 const FAQItem = ({ question, answer }: { question: string, answer: string }) => {
     const [isOpen, setIsOpen] = useState(false);
     return (
-        <div className="bg-muted/20 rounded-xl mb-3 border border-border/50 overflow-hidden">
+        <div className="bg-card rounded-xl mb-3 border border-border/60 overflow-hidden">
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className="w-full flex items-center justify-between p-5 hover:bg-muted/30 transition-all duration-200 text-left group"
@@ -34,7 +29,7 @@ const FAQItem = ({ question, answer }: { question: string, answer: string }) => 
     );
 };
 
-const SettingsHelpScreen: React.FC<Props> = ({ goBack }) => {
+const SettingsHelpScreen: React.FC = () => {
     const sendMessageAction = useAction(api.sunflower.sendMessage);
     const [query, setQuery] = useState('');
     const [conversation, setConversation] = useState<Message[]>([]);
@@ -107,9 +102,9 @@ const SettingsHelpScreen: React.FC<Props> = ({ goBack }) => {
     };
 
     return (
-        <div className="flex flex-col h-full bg-background transition-colors duration-300">
-            <SettingsPageHeader title="Help & Support" onBack={goBack}>
-                {conversation.length > 0 && (
+        <div className="flex flex-col h-full -mt-6 -mx-4 sm:-mx-6 lg:-mx-10">
+            {conversation.length > 0 && (
+                <div className="flex justify-end px-4 pt-3">
                     <Button
                         variant="ghost"
                         size="sm"
@@ -120,11 +115,11 @@ const SettingsHelpScreen: React.FC<Props> = ({ goBack }) => {
                         <RefreshCw className={`w-4 h-4 mr-1 ${isResetting ? 'animate-spin' : ''}`} />
                         Reset
                     </Button>
-                )}
-            </SettingsPageHeader>
+                </div>
+            )}
 
             {/* Top Input Bar */}
-            <div className="flex-none p-4 bg-muted/20 border-b border-border/50">
+            <div className="flex-none p-4 border-b border-border/60">
                 <div className="max-w-2xl mx-auto">
                     <div className="relative group">
                         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">

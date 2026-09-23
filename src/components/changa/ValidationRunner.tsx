@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useChangaMutation as useMutation, useChangaQuery as useQuery } from "@/hooks/useChangaData";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
@@ -45,6 +45,7 @@ export default function ValidationRunner({ languageCode, goBack }: ValidationRun
     const [selectedCode, setSelectedCode] = useState<typeof REJECT_CODES[number]["code"] | null>(null);
     const [comment, setComment] = useState("");
     const [error, setError] = useState<string | null>(null);
+    const [voteSuccess, setVoteSuccess] = useState(false);
     const [done, setDone] = useState(false);
 
     const current = queue?.[index];
@@ -55,7 +56,8 @@ export default function ValidationRunner({ languageCode, goBack }: ValidationRun
         api.changa.validation.getValidationBundle,
         current ? { submissionId: current._id } : "skip",
     );
-    const audioAsset = bundle?.assets.find((asset) => asset.assetType === "audio");
+    const assets = (bundle as { assets?: { assetType: string; [k: string]: unknown }[] } | null | undefined)?.assets;
+    const audioAsset = assets?.find((asset) => asset.assetType === "audio");
     const audioUrl = useQuery(
         api.changa.validation.getSubmissionAssetUrl,
         audioAsset ? { assetId: audioAsset._id } : "skip",
@@ -66,6 +68,7 @@ export default function ValidationRunner({ languageCode, goBack }: ValidationRun
         setShowRejectCodes(false);
         setComment("");
         setError(null);
+        setVoteSuccess(false);
         if (queue && index + 1 >= queue.length) {
             setDone(true);
         } else {
@@ -89,6 +92,7 @@ export default function ValidationRunner({ languageCode, goBack }: ValidationRun
                 issueCodes: vote === "reject" ? [selectedCode ?? "reject"] : undefined,
                 comment: comment.trim() || undefined,
             });
+            setVoteSuccess(true);
             advance();
         } catch (voteError) {
             setError(voteError instanceof Error ? voteError.message : "We could not record your review. Please try again.");
@@ -105,6 +109,7 @@ export default function ValidationRunner({ languageCode, goBack }: ValidationRun
                 submissionId: current._id,
                 reason: comment.trim() || undefined,
             });
+            setVoteSuccess(true);
             advance();
         } catch (escalateError) {
             setError(escalateError instanceof Error ? escalateError.message : "We could not escalate this item. Please try again.");
@@ -153,131 +158,136 @@ export default function ValidationRunner({ languageCode, goBack }: ValidationRun
                         <Loader2 className="mx-auto mb-3 size-6 animate-spin" />
                         Loading the submission…
                     </Card>
-                ) : current && bundle ? (
+                ) : null}
+                {isVoting && <p className="text-center text-xs text-muted-foreground">Recording your review…</p>}
+                {voteSuccess && (
+                    <p role="status" className="rounded-lg bg-emerald-100 p-3 text-sm text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">
+                        Review recorded. Loading the next item…
+                    </p>
+                )}
+                {error && <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
+                </div>
+
+                {current && bundle ? (
                     <div className="space-y-5">
-                        <Card className="space-y-4 p-5 sm:p-6">
-                            <div className="flex flex-wrap items-center gap-2 text-xs">
-                                <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1">
-                                    <Languages className="size-3" />
-                                    {bundle.languageCode}
-                                    {bundle.dialectCode ? ` · ${bundle.dialectCode}` : ""}
+                    <Card className="space-y-4 p-5 sm:p-6">
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1">
+                                <Languages className="size-3" />
+                                {bundle.languageCode}
+                                {bundle.dialectCode ? ` · ${bundle.dialectCode}` : ""}
+                            </span>
+                            <span className="rounded-full bg-muted px-2.5 py-1">
+                                {SUBMISSION_TYPE_LABELS[bundle.submissionType] ?? bundle.submissionType}
+                            </span>
+                            {current.requiresModerator && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+                                    <Flag className="size-3" /> Needs moderator attention
                                 </span>
-                                <span className="rounded-full bg-muted px-2.5 py-1">
-                                    {SUBMISSION_TYPE_LABELS[bundle.submissionType] ?? bundle.submissionType}
+                            )}
+                            {current.voteCount > 0 && (
+                                <span className="rounded-full bg-muted px-2.5 py-1 text-muted-foreground">
+                                    {current.voteCount} review{current.voteCount === 1 ? "" : "s"} so far
                                 </span>
-                                {current.requiresModerator && (
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
-                                        <Flag className="size-3" /> Needs moderator attention
-                                    </span>
-                                )}
-                                {current.voteCount > 0 && (
-                                    <span className="rounded-full bg-muted px-2.5 py-1 text-muted-foreground">
-                                        {current.voteCount} review{current.voteCount === 1 ? "" : "s"} so far
-                                    </span>
-                                )}
-                            </div>
-
-                            {bundle.sourceText && (
-                                <section className="rounded-xl border bg-muted/40 p-4">
-                                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prompt</p>
-                                    <p className="text-base leading-relaxed">{bundle.sourceText}</p>
-                                </section>
                             )}
-
-                            {(bundle.targetText || bundle.transcriptText) && (
-                                <section className="rounded-xl border p-4">
-                                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Submitted answer</p>
-                                    <p className="text-base leading-relaxed">{bundle.targetText || bundle.transcriptText}</p>
-                                </section>
-                            )}
-
-                            {bundle.contextNote && (
-                                <p className="text-xs text-muted-foreground">Context: {bundle.contextNote}</p>
-                            )}
-
-                            {audioAsset && (
-                                <div className="space-y-1">
-                                    <Label>Recording</Label>
-                                    {audioUrl === undefined ? (
-                                        <p className="text-sm text-muted-foreground">Loading audio…</p>
-                                    ) : audioUrl ? (
-                                        <audio controls preload="metadata" src={audioUrl} className="w-full" />
-                                    ) : (
-                                        <p className="text-sm text-muted-foreground">Audio is temporarily unavailable.</p>
-                                    )}
-                                </div>
-                            )}
-
-                            <div className="space-y-2">
-                                <Label htmlFor="review-note">Note to the contributor (optional)</Label>
-                                <Textarea
-                                    id="review-note"
-                                    value={comment}
-                                    onChange={(event) => setComment(event.target.value)}
-                                    placeholder="One clear sentence — what should change, if anything?"
-                                    className="min-h-20 text-sm"
-                                    maxLength={2000}
-                                />
-                            </div>
-
-                            {showRejectCodes && (
-                                <div className="space-y-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3">
-                                    <p className="text-sm font-medium">Why should this be rejected?</p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {REJECT_CODES.map((option) => (
-                                            <button
-                                                key={option.code}
-                                                onClick={() => setSelectedCode(option.code)}
-                                                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                                                    selectedCode === option.code
-                                                        ? "bg-destructive text-destructive-foreground"
-                                                        : "bg-muted hover:bg-accent"
-                                                }`}
-                                            >
-                                                {option.label}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {error && <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
-                        </Card>
-
-                        <div className="grid grid-cols-2 gap-3">
-                            <Button
-                                variant="outline"
-                                disabled={isVoting}
-                                onClick={() => handleVote("accept")}
-                                className="border-emerald-300 text-emerald-800 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-200 dark:hover:bg-emerald-900/30"
-                            >
-                                <CheckCircle2 className="mr-2 size-4" /> Accept
-                            </Button>
-                            <Button
-                                variant="outline"
-                                disabled={isVoting}
-                                onClick={() => handleVote("minor_fix")}
-                                className="border-sky-300 text-sky-800 hover:bg-sky-50 dark:border-sky-800 dark:text-sky-200 dark:hover:bg-sky-900/30"
-                            >
-                                <Wrench className="mr-2 size-4" /> Needs a small fix
-                            </Button>
-                            <Button
-                                variant="outline"
-                                disabled={isVoting}
-                                onClick={() => handleVote("reject")}
-                                className="border-destructive/40 text-destructive hover:bg-destructive/5"
-                            >
-                                <XCircle className="mr-2 size-4" /> Reject
-                            </Button>
-                            <Button variant="ghost" disabled={isVoting} onClick={handleEscalate}>
-                                <Flag className="mr-2 size-4" /> Escalate
-                            </Button>
                         </div>
 
-                        {isVoting && <p className="text-center text-xs text-muted-foreground">Recording your review…</p>}
+                        {bundle.sourceText && (
+                            <section className="rounded-xl border bg-muted/40 p-4">
+                                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prompt</p>
+                                <p className="text-base leading-relaxed">{bundle.sourceText}</p>
+                            </section>
+                        )}
+
+                        {(bundle.targetText || bundle.transcriptText) && (
+                            <section className="rounded-xl border p-4">
+                                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Submitted answer</p>
+                                <p className="text-base leading-relaxed">{bundle.targetText || bundle.transcriptText}</p>
+                            </section>
+                        )}
+
+                        {bundle.contextNote && (
+                            <p className="text-xs text-muted-foreground">Context: {bundle.contextNote}</p>
+                        )}
+
+                        {audioAsset && (
+                            <div className="space-y-1">
+                                <Label>Recording</Label>
+                                {audioUrl === undefined ? (
+                                    <p className="text-sm text-muted-foreground">Loading audio…</p>
+                                ) : audioUrl ? (
+                                    <audio controls preload="metadata" src={audioUrl} className="w-full" />
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">Audio is temporarily unavailable.</p>
+                                )}
+                            </div>
+                        )}
+
+                        <div className="space-y-2">
+                            <Label htmlFor="review-note">Note to the contributor (optional)</Label>
+                            <Textarea
+                                id="review-note"
+                                value={comment}
+                                onChange={(event) => setComment(event.target.value)}
+                                placeholder="One clear sentence — what should change, if anything?"
+                                className="min-h-20 text-sm"
+                                maxLength={2000}
+                            />
+                        </div>
+
+                        {showRejectCodes && (
+                            <div className="space-y-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3">
+                                <p className="text-sm font-medium">Why should this be rejected?</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {REJECT_CODES.map((option) => (
+                                        <button
+                                            key={option.code}
+                                            onClick={() => setSelectedCode(option.code)}
+                                            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                                                selectedCode === option.code
+                                                    ? "bg-destructive text-destructive-foreground"
+                                                    : "bg-muted hover:bg-accent"
+                                            }`}
+                                        >
+                                            {option.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </Card>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <Button
+                            variant="outline"
+                            disabled={isVoting}
+                            onClick={() => handleVote("accept")}
+                            className="border-emerald-300 text-emerald-800 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-200 dark:hover:bg-emerald-900/30"
+                        >
+                            <CheckCircle2 className="mr-2 size-4" /> Accept
+                        </Button>
+                        <Button
+                            variant="outline"
+                            disabled={isVoting}
+                            onClick={() => handleVote("minor_fix")}
+                            className="border-sky-300 text-sky-800 hover:bg-sky-50 dark:border-sky-800 dark:text-sky-200 dark:hover:bg-sky-900/30"
+                        >
+                            <Wrench className="mr-2 size-4" /> Needs a small fix
+                        </Button>
+                        <Button
+                            variant="outline"
+                            disabled={isVoting}
+                            onClick={() => handleVote("reject")}
+                            className="border-destructive/40 text-destructive hover:bg-destructive/5"
+                        >
+                            <XCircle className="mr-2 size-4" /> Reject
+                        </Button>
+                        <Button variant="ghost" disabled={isVoting} onClick={handleEscalate}>
+                            <Flag className="mr-2 size-4" /> Escalate
+                        </Button>
+                    </div>
                     </div>
                 ) : null}
-                </div>
             </div>
         </main>
     );

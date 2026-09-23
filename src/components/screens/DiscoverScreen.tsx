@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Screen } from "@/types";
@@ -48,6 +48,45 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigate }) => {
 
   const categoryCounts = useQuery(api.discover.feed.getCategoryCounts);
 
+  // Local mirror of the Discover cluster shape. The generated API
+  // bindings are stale so useQuery returns unknown; this type lets us
+  // annotate callbacks until `npx convex dev` regenerates the real
+  // types from convex/_generated/. Matches the DiscoverCard prop shape.
+  type FeedCluster = {
+    _id: string;
+    topicTitle: string;
+    summary: string;
+    whyTrending: string;
+    suggestedQuery: string;
+    category: string;
+    country: string;
+    sourceCount: number;
+    sourceDomains: string[];
+    newestPublishedAt: number;
+    trendScore: number;
+    imageUrl?: string;
+    [k: string]: unknown;
+  };
+  type FeedClusters = FeedCluster[];
+  const [loadedClusters, setLoadedClusters] = useState<FeedClusters>([]);
+
+  // Accumulate clusters across paginated getFeed results so previously loaded
+  // pages remain visible while the next request is pending. A fresh load (no
+  // cursor) replaces the accumulated list; a paginated load appends.
+  useEffect(() => {
+    if (!feedResult) return;
+    if (cursor === undefined) {
+      setLoadedClusters(feedResult.clusters as FeedClusters);
+    } else {
+      setLoadedClusters((prev: FeedClusters) => {
+        const existingIds = new Set(prev.map((c) => c._id));
+        const appended = (feedResult.clusters as FeedCluster[]).filter((c) => !existingIds.has(c._id));
+        return [...prev, ...appended];
+      });
+      setIsLoadingMore(false);
+    }
+  }, [feedResult, cursor]);
+
   const trackEngagement = useMutation(api.discover.feed.trackEngagement);
   const saveTopic = useMutation(api.discover.feed.saveTopic);
   const dismissTopic = useMutation(api.discover.feed.dismissTopic);
@@ -74,6 +113,7 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigate }) => {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
+    setLoadedClusters([]);
     setCursor(undefined);
     setTimeout(() => setIsRefreshing(false), 1000);
   };
@@ -82,11 +122,10 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigate }) => {
     if (!feedResult?.nextCursor || isLoadingMore) return;
     setIsLoadingMore(true);
     setCursor(feedResult.nextCursor);
-    setIsLoadingMore(false);
   };
 
   const isLoading = feedResult === undefined || categoryCounts === undefined;
-  const feed = feedResult?.clusters ?? [];
+  const feed = loadedClusters;
   const hasMore = !!feedResult?.nextCursor;
 
   return (
@@ -99,12 +138,14 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigate }) => {
               variant="ghost"
               size="icon"
               onClick={() => navigate(Screen.HOME_CHAT)}
-              className="rounded-full"
+              className="rounded-full size-11"
+              aria-label="Back to Samiati"
+              title="Back to Samiati"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-5 h-5" aria-hidden="true" />
             </Button>
             <div className="flex items-center gap-2">
-              <Compass className="w-5 h-5 text-primary" />
+              <Compass className="w-5 h-5 text-primary" aria-hidden="true" />
               <h1 className="text-base font-bold">Discover</h1>
             </div>
           </div>
@@ -113,13 +154,17 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigate }) => {
             size="icon"
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="rounded-full"
+            className="rounded-full size-11"
+            aria-label="Refresh Discover feed"
+            title="Refresh Discover feed"
+            aria-busy={isRefreshing}
           >
             <RefreshCw
               className={cn(
                 "w-4 h-4 transition-transform",
                 isRefreshing && "animate-spin"
               )}
+              aria-hidden="true"
             />
           </Button>
         </div>
@@ -137,6 +182,7 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigate }) => {
                   key={cat.id}
                   onClick={() => {
                     setActiveCategory(cat.id);
+                    setLoadedClusters([]);
                     setCursor(undefined);
                   }}
                   className={cn(
@@ -146,7 +192,7 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigate }) => {
                       : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
                   )}
                 >
-                  <Icon className="w-3 h-3" />
+                  <Icon className="w-3 h-3" aria-hidden="true" />
                   {cat.label}
                   {count > 0 && (
                     <Badge
@@ -166,13 +212,16 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigate }) => {
       {/* Content */}
       <main className="flex-1 overflow-y-auto">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          <div
+            role="status"
+            className="flex flex-col items-center justify-center py-20 gap-3"
+          >
+            <Loader2 className="w-6 h-6 animate-spin text-primary" aria-hidden="true" />
             <p className="text-xs text-muted-foreground">Loading Discover...</p>
           </div>
         ) : feed.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <Compass className="w-10 h-10 text-muted-foreground/30" />
+            <Compass className="w-10 h-10 text-muted-foreground/30" aria-hidden="true" />
             <p className="text-sm text-muted-foreground text-center max-w-xs">
               No topics yet. Content will appear as Samiati ingests news from Kenyan and African sources.
             </p>
@@ -201,7 +250,7 @@ export const DiscoverScreen: React.FC<DiscoverScreenProps> = ({ navigate }) => {
                 >
                   {isLoadingMore ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" aria-hidden="true" />
                       Loading...
                     </>
                   ) : (

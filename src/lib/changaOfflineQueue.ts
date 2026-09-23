@@ -12,6 +12,7 @@ export type QueuedChangaSubmission = {
     hasTrainingConsent: boolean;
     taskType: string;
     enqueuedAt: number;
+    retries?: number;
 };
 
 export function enqueueChangaSubmission(item: Omit<QueuedChangaSubmission, "enqueuedAt">): void {
@@ -47,5 +48,19 @@ export function changaQueueSize(): number {
         return raw ? (JSON.parse(raw) as QueuedChangaSubmission[]).length : 0;
     } catch {
         return 0;
+    }
+}
+
+// Re-enqueue a previously-failed item (e.g. after a transient outage) while
+// preserving its identity and incremented retry count.
+export function requeueChangaSubmission(item: QueuedChangaSubmission): void {
+    if (typeof window === "undefined") return;
+    try {
+        const raw = window.localStorage.getItem(QUEUE_KEY);
+        const queue: QueuedChangaSubmission[] = raw ? JSON.parse(raw) : [];
+        queue.push(item);
+        window.localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+    } catch {
+        // Storage unavailable — the item cannot be retried.
     }
 }

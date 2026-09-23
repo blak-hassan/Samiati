@@ -48,7 +48,6 @@ export const list = query({
                 ...c,
                 author: author ? {
                     name: author.name,
-                    handle: author.handle,
                     avatar: author.avatar,
                 } : null,
                 userVote: commentVoteMap.get(c._id) ?? 0,

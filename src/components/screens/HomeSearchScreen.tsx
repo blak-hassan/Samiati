@@ -7,7 +7,6 @@ import { Screen, Message, Conversation } from "@/types";
 import SamiatiLogo from "@/components/SamiatiLogo";
 import { Language, LANGUAGES } from "@/components/chat/LanguageSelector";
 import SearchHero from "@/components/search/SearchHero";
-import SuggestionSentences from "@/components/search/SuggestionSentences";
 import SearchPhaseIndicator from "@/components/search/SearchPhaseIndicator";
 import SearchResults from "@/components/search/SearchResults";
 import { fetchWikipediaLinks, fetchCommonsImages, SearchResult, SearchImage, SearchAttachment } from "@/services/sunflowerService";
@@ -17,11 +16,11 @@ import { Menu, SquarePen, ArrowDown, Compass } from "lucide-react";
 import { AppSidebar } from "@/components/shared/AppSidebar";
 import FeedbackBar from "@/components/feedback/FeedbackBar";
 import { cn } from "@/lib/utils";
+import { trackEvent } from "@/lib/analytics";
 
 interface Props {
   user?: {
     name?: string;
-    handle?: string;
     avatar?: string;
     role?: string;
     location?: string;
@@ -188,6 +187,13 @@ const HomeSearchScreen: React.FC<Props> = ({
         return;
       }
 
+      // Track search/translation start for analytics (no PII)
+      trackEvent("translation_started", {
+        languageCode: selectedLanguage.code,
+        service: "search",
+        location: "home_search",
+      });
+
       setQuery(searchQuery);
       setIsSearching(true);
       setSearchComplete(false);
@@ -197,6 +203,8 @@ const HomeSearchScreen: React.FC<Props> = ({
       setImages([]);
       setFollowUps([]);
       nearBottomRef.current = true;
+
+      const startTime = Date.now();
 
       // Timeout: if no response in 12 seconds, show a retry message
       // (covers slow 3G where the phase indicator looks broken)
@@ -250,6 +258,16 @@ const HomeSearchScreen: React.FC<Props> = ({
         setImages(result.images);
         setFollowUps(result.followUps);
 
+        // Track successful search completion
+        const durationMs = Date.now() - startTime;
+        trackEvent("translation_completed", {
+          languageCode: selectedLanguage.code,
+          service: "search",
+          status: "success",
+          durationMs,
+          location: "home_search",
+        });
+
         // Persist the Q&A pair into the current conversation
         const userMsg: Message = {
           id: `u_${Date.now()}`,
@@ -271,6 +289,16 @@ const HomeSearchScreen: React.FC<Props> = ({
         if (timedOut) return;
         clearTimeout(timeoutId);
         console.error("Search failed:", err);
+
+        // Track failed search
+        trackEvent("translation_failed", {
+          languageCode: selectedLanguage.code,
+          service: "search",
+          status: "error",
+          errorType: timedOut ? "timeout" : "unknown",
+          location: "home_search",
+        });
+
         setError(
           "Sorry, I encountered an error while searching. Please try again."
         );
@@ -284,10 +312,6 @@ const HomeSearchScreen: React.FC<Props> = ({
     [selectedLanguage, onSaveChat, activeConversation?.id, attachments, searchAction, user, navigate]
   );
 
-  const handleSuggestionSelect = (suggestionQuery: string) => {
-    handleSearch(suggestionQuery);
-  };
-
   const handleFollowUpSelect = (followUpQuery: string) => {
     handleSearch(followUpQuery);
   };
@@ -298,6 +322,12 @@ const HomeSearchScreen: React.FC<Props> = ({
         navigate(Screen.SIGN_IN);
         return;
       }
+
+      // Track voice recording start
+      trackEvent("voice_started", {
+        languageCode: selectedLanguage.code,
+        location: "home_search",
+      });
 
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         alert("Microphone access is not supported. Please use a secure connection (HTTPS) or localhost.");
@@ -317,6 +347,13 @@ const HomeSearchScreen: React.FC<Props> = ({
 
       mediaRecorder.onstop = async () => {
         setIsTranscribing(true);
+
+        // Track voice recording completion
+        trackEvent("voice_completed", {
+          languageCode: selectedLanguage.code,
+          location: "home_search",
+        });
+
         const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
 
         const reader = new FileReader();
@@ -507,22 +544,19 @@ const HomeSearchScreen: React.FC<Props> = ({
                 <Menu className="w-6 h-6" />
               </Button>
 
+              {/* New chat — shown only while a previous conversation is open,
+                  for quick navigation back to the fresh homepage */}
               {activeConversation && (
-                <>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleNewSearch}
-                    className="rounded-full gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground"
-                    aria-label="New chat"
-                  >
-                    <SquarePen className="w-4 h-4" />
-                    <span className="hidden sm:inline">New chat</span>
-                  </Button>
-                  <h1 className="text-sm font-bold text-foreground truncate max-w-[160px] sm:max-w-[240px]">
-                    {activeConversation.title}
-                  </h1>
-                </>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleNewSearch}
+                  className="rounded-full gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground"
+                  aria-label="New chat"
+                >
+                  <SquarePen className="w-4 h-4" />
+                  <span className="hidden sm:inline">New chat</span>
+                </Button>
               )}
             </div>
 
@@ -554,16 +588,14 @@ const HomeSearchScreen: React.FC<Props> = ({
 
         {/* Welcome Mode — centered hero with input */}
         {welcomeMode ? (
-          <main className="flex-1 overflow-y-auto">
-            <div className="min-h-full flex flex-col items-center justify-center w-full px-4 py-8 animate-in fade-in duration-500">
-              {/* Logo */}
-              <div className="flex flex-col items-center mb-8 shrink-0">
-                <div className="hover:scale-105 transition-transform duration-300 mb-2">
-                  <SamiatiLogo size={80} className="scale-110" />
-                </div>
+          <main className="flex-1 relative overflow-y-auto">
+            {/* Logo + search bar — one tight hero group, raised above the
+                vertical center so the search bar sits roughly where the logo
+                used to be, with the logo directly on top of it. */}
+            <div className="absolute top-[42%] left-0 right-0 -translate-y-1/2 flex flex-col items-center px-4 gap-4 animate-in fade-in duration-500">
+              <div className="hover:scale-105 transition-transform duration-300 shrink-0">
+                <SamiatiLogo size={72} className="scale-110" />
               </div>
-
-              {/* Search Input — language in bar via SearchHero */}
               <SearchHero
                 value={query}
                 onValueChange={setQuery}
@@ -579,15 +611,12 @@ const HomeSearchScreen: React.FC<Props> = ({
                 onAttachImage={() => imageInputRef.current?.click()}
                 onRemoveAttachment={handleRemoveAttachment}
               />
+            </div>
 
-              {/* Trending Searches (personalized to language selected in dropdown) */}
-              <SuggestionSentences
-                selectedLanguage={selectedLanguage}
-                onSelect={handleSuggestionSelect}
-              />
-
-              {!user && (
-                <p className="mt-8 text-sm text-muted-foreground text-center">
+            {/* Sign-in hint — sits below the search bar, near the bottom */}
+            {!user && (
+              <div className="absolute bottom-10 left-0 right-0 flex justify-center px-4">
+                <p className="text-sm text-muted-foreground text-center">
                   Sign in to search, use voice, and save your conversations —{" "}
                   <button
                     onClick={() => navigate(Screen.SIGN_IN)}
@@ -596,8 +625,8 @@ const HomeSearchScreen: React.FC<Props> = ({
                     it&apos;s free
                   </button>
                 </p>
-              )}
-            </div>
+              </div>
+            )}
           </main>
         ) : (
           <>

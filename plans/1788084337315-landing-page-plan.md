@@ -33,7 +33,7 @@ src/app/
 └── ConvexClientProvider.tsx           # Unchanged
 ```
 
-No new directories or route groups required. The landing page sits at `/` and should be a **Server Component by default** (no `"use client"`) to keep it fast, with client-side interactivity isolated to specific sub-components if needed (e.g., animated counters, FAQ accordion).
+No new directories or route groups are required: `src/components/landing/` (Navbar, FeatureCard, TestimonialCard, FAQAccordion) already exists from the implementation, so only `src/app/page.tsx` is replaced. The landing page sits at `/` and should be a **Server Component by default** (no `"use client"`) to keep it fast, with client-side interactivity isolated to specific sub-components if needed (e.g., animated counters, FAQ accordion).
 
 ---
 

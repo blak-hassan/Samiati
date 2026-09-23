@@ -1,6 +1,8 @@
 import { mutation, query, type MutationCtx } from "../_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser, isModerator } from "../users/utils";
+import { internal } from "../_generated/api";
+import { chokepoint } from "../lib/chokepoint";
 import { changaConsentScopeValidator } from "./validators";
 import type { Doc, Id } from "../_generated/dataModel";
 
@@ -10,9 +12,10 @@ import type { Doc, Id } from "../_generated/dataModel";
 export const FALLBACK_CONSENT_POLICY_VERSION = "changa-pilot-v1";
 
 // Plain helper used by the submission pipeline: persists a versioned consent
-// record for a submission without double-writing.
+// record for a submission without double-writing. Routes through the
+// dataset-write chokepoint so the CI grep-assert stays accurate.
 export async function insertConsentRecord(
-    db: MutationCtx["db"],
+    ctx: { db: MutationCtx["db"]; runMutation: MutationCtx["runMutation"] },
     record: {
         userId: Id<"users">;
         submissionId: Id<"changaSubmissions">;
@@ -21,17 +24,20 @@ export async function insertConsentRecord(
         attributionPreference: "public" | "private" | "pseudonymous";
     },
 ): Promise<Id<"changaConsentRecords">> {
-    const existing = await db.query("changaConsentRecords")
+    const existing = await ctx.db.query("changaConsentRecords")
         .withIndex("by_user_submission", (q) =>
             q.eq("userId", record.userId).eq("submissionId", record.submissionId),
         )
         .first();
     if (existing) return existing._id;
 
-    return db.insert("changaConsentRecords", {
-        ...record,
-        grantedAt: Date.now(),
+    const id = await ctx.runMutation(internal.changa.datasetWrites.insertConsentRecord, {
+        doc: {
+            ...record,
+            grantedAt: Date.now(),
+        },
     });
+    return id as Id<"changaConsentRecords">;
 }
 
 // Publish or update a versioned consent policy (data steward / moderator only).
@@ -57,7 +63,7 @@ export const publishConsentPolicy = mutation({
             throw new Error("A consent policy with this version already exists");
         }
 
-        const policyId = await ctx.db.insert("changaConsentPolicies", {
+        const policyId = await chokepoint.insertConsentPolicy(ctx, {
             policyVersion: version,
             effectiveAt: args.effectiveAt ?? Date.now(),
             summaryText: args.summaryText.trim().slice(0, 4000),
@@ -113,7 +119,7 @@ export const recordConsent = mutation({
             .first();
         if (existing) return existing._id;
 
-        return ctx.db.insert("changaConsentRecords", {
+        return chokepoint.insertConsentRecord(ctx, {
             userId: user._id,
             submissionId: args.submissionId,
             policyVersion: args.policyVersion,
@@ -145,14 +151,20 @@ export const revokeConsent = mutation({
             )
             .first();
         if (record && !record.revokedAt) {
-            await ctx.db.patch(record._id, { revokedAt: Date.now() });
+            await ctx.runMutation(internal.changa.datasetWrites.patchConsentRecord, {
+                id: record._id,
+                patch: { revokedAt: Date.now() },
+            });
         }
 
         if (submission.status !== "withdrawn") {
-            await ctx.db.patch(args.submissionId, {
-                status: "withdrawn",
-                withdrawnAt: Date.now(),
-                updatedAt: Date.now(),
+            await ctx.runMutation(internal.changa.datasetWrites.patchSubmission, {
+                id: args.submissionId,
+                patch: {
+                    status: "withdrawn",
+                    withdrawnAt: Date.now(),
+                    updatedAt: Date.now(),
+                },
             });
         }
 

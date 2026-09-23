@@ -49,8 +49,32 @@ export const communitySchema = z.object({
   members: z.array(z.string()).default([]),
 });
 
-export const muteWordSchema = z.object({
-  word: z.string().min(1, 'Word cannot be empty').max(50),
+export const resetPasswordSchema = z.object({
+  code: z.string().min(1, 'Code is required'),
+  newPassword: z.string().min(8, 'Password must be at least 8 characters'),
+});
+
+// Public-facing contribution form (the AddContributionScreen flow).
+export const contributionFormSchema = z.object({
+  type: z.string().min(1, 'Type is required'),
+  input1: z.string().min(1, 'Content is required').max(5000),
+  input2: z.string().min(1, 'Translation is required').max(5000),
+  context: z.string().max(2000),
+  tags: z.array(z.string()),
+  // Honeypot — must stay empty.
+  website: z.string().max(0, 'Submission rejected'),
+  // Cloudflare Turnstile token, verified server-side.
+  turnstile: z.string().min(1, 'Please complete the verification'),
+});
+
+// Public contact form.
+export const contactFormSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters').max(100),
+  email: z.string().email('Please enter a valid email address'),
+  message: z.string().min(10, 'Message must be at least 10 characters').max(5000),
+  // Honeypot.
+  website: z.string().max(0, 'Submission rejected'),
+  turnstile: z.string().min(1, 'Please complete the verification'),
 });
 
 export type SignInFormData = z.infer<typeof signInSchema>;
@@ -62,3 +86,10 @@ export type ReportFormData = z.infer<typeof reportSchema>;
 export type ModeratorApplicationFormData = z.infer<typeof moderatorApplicationSchema>;
 export type CommunityFormData = z.infer<typeof communitySchema>;
 export type MuteWordFormData = z.infer<typeof muteWordSchema>;
+export type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
+export type ContributionFormFormData = z.infer<typeof contributionFormSchema>;
+export type ContactFormFormData = z.infer<typeof contactFormSchema>;
+
+export const muteWordSchema = z.object({
+  word: z.string().min(1, 'Word cannot be empty').max(50),
+});

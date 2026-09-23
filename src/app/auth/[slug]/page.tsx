@@ -26,6 +26,8 @@ export default function ForgotPasswordPage({ params }: { params: Promise<{ slug:
     }
 
     return (
-        <ResetPasswordFlow screen={screen} navigate={navigate} />
+        <main id="main" tabIndex={-1}>
+            <ResetPasswordFlow screen={screen} navigate={navigate} />
+        </main>
     );
 }

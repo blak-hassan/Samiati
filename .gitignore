@@ -55,3 +55,6 @@ opencode.json
 # scratch / dev artifacts (contains local secrets)
 colab_server.py
 *.log
+
+# journey simulation harness artifacts
+tests/journey/artifacts/

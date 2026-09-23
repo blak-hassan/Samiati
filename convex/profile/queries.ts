@@ -75,18 +75,12 @@ const ACCEPTED_STATUSES = new Set(["validated", "curated"]);
 export const getDashboard = query({
     args: {
         userId: v.optional(v.id("users")),
-        handle: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
         let user: Doc<"users"> | null = null;
         try {
             if (args.userId) {
                 user = await ctx.db.get(args.userId);
-            } else if (args.handle) {
-                user = await ctx.db
-                    .query("users")
-                    .withIndex("by_handle", (q) => q.eq("handle", args.handle!))
-                    .unique();
             } else {
                 user = await getCurrentUser(ctx);
             }
@@ -113,15 +107,11 @@ export const getDashboard = query({
             isFollowing = !!follow;
         }
 
-        // Real counts from the followers table — never denormalized guesses.
-        const followerCount = (await ctx.db
-            .query("followers")
-            .withIndex("by_following", (q) => q.eq("followingId", user._id))
-            .take(1000)).length;
-        const followingCount = (await ctx.db
-            .query("followers")
-            .withIndex("by_follower", (q) => q.eq("followerId", user._id))
-            .take(1000)).length;
+        // Real counts maintained by the follow/unfollow mutations (users.mutations).
+        // Reading the maintained field keeps the profile accurate past 1,000 followers
+        // and avoids a hot-path table scan on every profile view.
+        const followerCount = (user.followerCount as number | undefined) ?? 0;
+        const followingCount = (user.followingCount as number | undefined) ?? 0;
 
         // Contribution pipeline (Changa submissions).
         const submissions = await ctx.db

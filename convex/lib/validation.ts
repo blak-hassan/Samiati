@@ -3,12 +3,6 @@
  * Convex imports so they can be unit-tested in isolation.
  */
 
-const HANDLE_REGEX = /^[a-zA-Z0-9_]{3,30}$/;
-
-export function isValidHandle(handle: string): boolean {
-    return HANDLE_REGEX.test(handle);
-}
-
 export const MAX_AVATAR_URL_LENGTH = 2048;
 
 // Avatar must be a real http(s) URL — no data:, javascript:, or file: URIs.

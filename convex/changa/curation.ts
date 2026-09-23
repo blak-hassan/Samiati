@@ -6,6 +6,8 @@ import {
     changaReleaseStatusValidator,
     changaSplitRecommendationValidator,
 } from "./validators";
+import { internal } from "../_generated/api";
+import { chokepoint } from "../lib/chokepoint";
 import type { Doc } from "../_generated/dataModel";
 
 type SubmissionDoc = Doc<"changaSubmissions">;
@@ -22,8 +24,6 @@ export const listCuratedCandidates = query({
             throw new Error("Unauthorized: Only moderators and admins can view curation candidates");
         }
 
-        // Use the status-only index when no language is given, then bound the
-        // result with take() instead of collecting every validated submission.
         const limit = args.limit ?? 50;
         const submissions = await ctx.db.query("changaSubmissions")
             .withIndex(args.languageCode ? "by_language_status" : "by_status", (q) =>
@@ -81,7 +81,6 @@ export const promoteSubmissionToCuratedExample = mutation({
             throw new Error("Submission is not ready for curation");
         }
 
-        // A curated candidate must link to its processing evidence.
         const processingRuns = await ctx.db.query("changaProcessingRuns")
             .withIndex("by_submission", (q) => q.eq("submissionId", args.submissionId))
             .collect();
@@ -103,7 +102,8 @@ export const promoteSubmissionToCuratedExample = mutation({
             (asset) => asset.assetType === "audio",
         );
 
-        const exampleId = await ctx.db.insert("changaCuratedExamples", {
+        // Route the curated-example insert through the chokepoint.
+        const exampleId = await chokepoint.insertCuratedExample(ctx, {
             sourceSubmissionId: args.submissionId,
             exampleType: args.exampleType,
             languageCode: submission.languageCode,
@@ -121,7 +121,7 @@ export const promoteSubmissionToCuratedExample = mutation({
             createdAt: Date.now(),
         });
 
-        await ctx.db.patch(args.submissionId, {
+        await chokepoint.patchSubmission(ctx, args.submissionId, {
             status: "curated",
             curatedExampleId: exampleId,
             updatedAt: Date.now(),
@@ -152,20 +152,20 @@ export const approveCuratedExample = mutation({
             const release = await ctx.db.get(args.datasetReleaseId);
             if (!release) throw new Error("Dataset release not found");
             if (args.releaseStatus === "exported" && example.datasetReleaseId !== args.datasetReleaseId) {
-                await ctx.db.patch(args.datasetReleaseId, {
+                await chokepoint.patchDatasetRelease(ctx, args.datasetReleaseId, {
                     exampleCount: Math.max(0, release.exampleCount + 1),
                 });
                 if (example.datasetReleaseId) {
                     const previousRelease = await ctx.db.get(example.datasetReleaseId);
                     if (previousRelease) {
-                        await ctx.db.patch(previousRelease._id, {
+                        await chokepoint.patchDatasetRelease(ctx, previousRelease._id, {
                             exampleCount: Math.max(0, previousRelease.exampleCount - 1),
                         });
                     }
                 }
             }
         }
-        await ctx.db.patch(args.exampleId, {
+        await chokepoint.patchCuratedExample(ctx, args.exampleId, {
             releaseStatus: args.releaseStatus,
             datasetReleaseId: args.datasetReleaseId,
         });
@@ -193,7 +193,7 @@ export const createDatasetRelease = mutation({
             .first();
         if (existing) throw new Error("A dataset release with this version already exists");
 
-        return ctx.db.insert("changaDatasetReleases", {
+        return chokepoint.insertDatasetRelease(ctx, {
             name: args.name.trim().slice(0, 200),
             version: args.version.trim().slice(0, 100),
             languageScope: args.languageScope,
@@ -218,7 +218,9 @@ export const retireCuratedExample = mutation({
 
         const example = await ctx.db.get(args.exampleId);
         if (!example) throw new Error("Curated example not found");
-        await ctx.db.patch(args.exampleId, { releaseStatus: "retired" });
+        await chokepoint.patchCuratedExample(ctx, args.exampleId, {
+            releaseStatus: "retired",
+        });
         return args.exampleId;
     },
 });

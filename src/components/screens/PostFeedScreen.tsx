@@ -28,9 +28,8 @@ export function PostFeedScreen() {
         const mapped = results.map((p: Record<string, unknown>) => ({
             id: p._id as string,
             type: (p.type as "standard" | "proverb" | "audio" | "question" | "fireplace") || "standard",
-            author: (p.author as { name: string; handle: string; avatar: string; isVerified?: boolean }) || {
+            author: (p.author as { name: string; avatar: string; isVerified?: boolean }) || {
                 name: "Unknown",
-                handle: "unknown",
                 avatar: "",
             },
             content: (p.content as string) || "",
@@ -73,7 +72,7 @@ export function PostFeedScreen() {
 
     const handleUserClick = useCallback((e: React.MouseEvent, author: Post["author"]) => {
         e.stopPropagation();
-        navigate(Screen.PROFILE, { handle: author.handle });
+        navigate(Screen.PROFILE);
     }, [navigate]);
 
     const handleCommentClick = useCallback((e: React.MouseEvent, post: Post) => {
@@ -167,7 +166,6 @@ export function PostFeedScreen() {
                                         onLike={handleLike}
                                         onRepost={handleRepost}
                                         onMenuAction={handleMenuAction}
-                                        currentUserHandle={me?.handle}
                                     />
                                 </div>
                             ))}

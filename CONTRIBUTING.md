@@ -4,7 +4,7 @@ Thank you for your interest in contributing to Samiati! This guide will help you
 
 ## Prerequisites
 
-- Node.js 18+
+- Node.js 20.9.0+ (required by Next.js 16)
 - npm or pnpm
 - A Convex deployment (for production features)
 - Clerk account (for authentication)

@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "updated": "2026-09-04",
+  "notes": "First-pass baseline. CI parses .next/build-manifest.json (produced by any `next build`) and asserts per-route first-load JS against bundle.maxKb. The first enforcement pass sets bundle.maxKb to current+5% then ratchets down. To ratchet, run `npm run build`, inspect `.next/build-manifest.json`, and update this file in the same PR that intentionally changes a baseline. See docs/perf.md.",
+  "bundle": {
+    "maxKb": 460,
+    "ratchetHistory": [
+      {
+        "date": "2026-09-04",
+        "maxKb": 460,
+        "reason": "First-pass baseline captured from a partial `next build` (Turbopack, build errored at prerender due to a fake Clerk key; only shared chunks are on disk). Shared first-load JS is 431 kB; cap set at 431+5% = 453, rounded to 460 to absorb variance."
+      },
+      {
+        "date": "2026-09-04",
+        "maxKb": 350,
+        "reason": "Initial first-pass guess before baseline was captured. Superseded by the 460 kB entry."
+      }
+    ]
+  },
+  "webVitals": {
+    "lcpMs": 2500,
+    "inpMs": 200,
+    "tbtMs": 200,
+    "performanceScore": 0.9
+  },
+  "budgetedRoutes": ["/", "/feed", "/profile", "/post/[id]"]
+}

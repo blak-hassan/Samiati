@@ -180,7 +180,6 @@ const StoryDetailScreen: React.FC<Props> = ({ navigate, goBack, unreadCount = 0,
     e.stopPropagation();
     onViewProfile({
       name: activeStory.author,
-      handle: activeStory.author.toLowerCase().replace(/\s+/g, '_'),
       avatar: activeStory.avatar || "https://lh3.googleusercontent.com/aida-public/AB6AXuDTCkmqfVuPlLQ4IRyL2yV9d82xXGhUn6PZJQuyR-wOR0cvIaU2RmXVEYxrDKRF8LwvPO8ui_vLey4StEqf8CTMHBir5NqJ8BI6X6gXKzW2e5jtCmaOROPdLEoAJCmmFm51ht9zq7QwPnSBQC8TAqlJfRa5M4kLarJ9LqR6i2YIFBkKl3YmSCiPo77SFPw336bJQN6weNdBrPdUlu-Ta6wtwbzNsRkfyTwRr05-OJF-2JEsH1EwbuwH-dLxzpESsJxfK0fBRGIneoQ",
       isGuest: false,
       bio: `Passionately sharing stories from ${activeStory.type.split('•')[1]?.trim() || 'my culture'}.`,

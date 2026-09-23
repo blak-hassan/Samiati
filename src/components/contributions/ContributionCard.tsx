@@ -66,7 +66,6 @@ export const ContributionCard: React.FC<ContributionCardProps> = ({
                                 if (item.author) {
                                     onViewProfile({
                                         name: item.author.name,
-                                        handle: item.author.handle || 'user',
                                         avatar: item.author.avatar,
                                         isGuest: false
                                     });

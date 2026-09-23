@@ -80,7 +80,6 @@ const PeopleToFollowScreen: React.FC<Props> = ({ navigate, goBack, onViewProfile
     } else {
       onViewProfile({
         name: person.name,
-        handle: person.handle,
         avatar: person.avatar,
         isGuest: false
       });
@@ -242,7 +241,6 @@ const PeopleToFollowScreen: React.FC<Props> = ({ navigate, goBack, onViewProfile
             person={{
               id: community.id,
               name: community.name,
-              handle: 'Community',
               avatar: community.avatar,
               languages: [community.category || 'General'],
               region: community.memberCount + ' members',

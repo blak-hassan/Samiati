@@ -34,9 +34,10 @@ export enum Screen {
   SETTINGS_NOTIFICATIONS = 'SETTINGS_NOTIFICATIONS',
   SETTINGS_PRIVACY = 'SETTINGS_PRIVACY',
   SETTINGS_HELP = 'SETTINGS_HELP',
-  SETTINGS_BLOCKED = 'SETTINGS_BLOCKED',
-  SETTINGS_MUTED = 'SETTINGS_MUTED',
   SETTINGS_DATA = 'SETTINGS_DATA',
+  SETTINGS_EDIT_PROFILE = 'SETTINGS_EDIT_PROFILE',
+  SETTINGS_PROFILE = 'SETTINGS_PROFILE',
+  SETTINGS_BILLING = 'SETTINGS_BILLING',
   MODERATION_DASHBOARD = 'MODERATION_DASHBOARD',
   MODERATION_LOG = 'MODERATION_LOG',
   MODERATION_APPLICATION = 'MODERATION_APPLICATION',
@@ -65,16 +66,42 @@ export enum Screen {
   COMMUNITIES = 'COMMUNITIES',
   GROUP_VIEW = 'GROUP_VIEW',
   DARASA = 'DARASA',
-  DISCOVER = 'DISCOVER'
+  DISCOVER = 'DISCOVER',
+  // DOCUMENT_UPLOAD / MY_DOCUMENTS were removed: the document surface is
+  // embedded inside ContributionsScreen (see plan 1788531649565) and has no
+  // standalone route. Kept here as dead enum values to avoid breaking the
+  // public Screen type for any external consumers.
+  DOCUMENT_UPLOAD = 'DOCUMENT_UPLOAD',
+  MY_DOCUMENTS = 'MY_DOCUMENTS',
+  ADMIN_MODERATORS = 'ADMIN_MODERATORS',
+  ADMIN_BADGES = 'ADMIN_BADGES',
+  CUSTOM_CHALLENGE = 'CUSTOM_CHALLENGE',
 }
 
 export type NavigationParams = Record<string, unknown>;
 export type NavigateFn = (screen: Screen, params?: NavigationParams) => void;
 export type RouteSearchParams = Record<string, string | string[] | undefined>;
 
+// Canonical nav params for Changa-related screens. Any caller that
+// navigates to a challenge/campaign/task/contribution screen should
+// pass values matching this shape; the corresponding page reads from
+// these keys (and falls back to legacy `challenge` / `task` JSON-encoded
+// params for back-compat with screens that still use them).
+export interface ChangaNavParams {
+  taskId?: string;
+  campaignId?: string;
+  challengeId?: string;
+  legacyChallengeId?: string;
+  languageCode?: string;
+  title?: string;
+  seedPostId?: string;
+  // Free-form passthrough for screens that pass structured data.
+  [key: string]: unknown;
+}
+
 export interface User {
+  id?: string;
   name: string;
-  handle: string;
   avatar: string;
   isGuest: boolean;
   bio?: string;
@@ -123,7 +150,6 @@ export interface Post {
   type?: 'standard' | 'proverb' | 'audio' | 'question' | 'fireplace';
   author: {
     name: string;
-    handle: string;
     avatar: string;
     isVerified?: boolean;
     badges?: string[]; // e.g. 'Swahili Expert'
@@ -200,6 +226,9 @@ export interface Conversation {
   languageCode?: string; // e.g., "yo", "sw", "ig"
   category?: 'proverb' | 'story' | 'song' | 'history' | 'word' | 'general'; // Cultural category
   viewCount?: number; // How many people viewed this contribution
+  isArchived?: boolean;
+  pinOrder?: number; // Stable order for pinned cards
+  syncedToConvex?: boolean; // false when the row is local-only (guest or pre-sync)
 }
 
 
@@ -295,7 +324,6 @@ export interface ModerationReview {
     id: string;
     name: string;
     avatar: string;
-    handle?: string;
   };
   action: 'approved' | 'critiqued' | 'rejected';
   comment?: string;
@@ -315,7 +343,6 @@ export interface ContributionItem {
   author?: {
     name: string;
     avatar: string;
-    handle?: string; // Optional handle for profile navigation
   };
   icon: string;
   likes: number;
@@ -370,7 +397,6 @@ export interface Report {
   reasons: string[];
   reporter: {
     id: string;
-    handle: string;
     avatar: string;
     name: string;
   };
@@ -409,7 +435,6 @@ export interface ValidationItem {
   author: {
     id: string;
     name: string;
-    handle: string;
     avatar: string;
   };
 
@@ -475,6 +500,13 @@ export interface ChallengeInputField {
   label: string;
   required: boolean;
   options?: string[]; // For SELECT type
+  validation?: {
+    minLength?: number;
+    maxLength?: number;
+    maxSizeMB?: number;
+    acceptedFormats?: string[];
+  };
+  aiHint?: string; // What this field trains
 }
 
 
@@ -484,6 +516,8 @@ export interface ChallengeRole {
   userId: string;
   role: 'LEAD' | 'CONTRIBUTOR';
 }
+
+export type ChallengeStatus = 'draft' | 'upcoming' | 'active' | 'paused' | 'completed' | 'ended' | 'archived';
 
 export interface Challenge {
   id: string;
@@ -495,15 +529,24 @@ export interface Challenge {
   goalCount: number;
   currentCount: number;
   deadline?: string;
+  endedAt?: number;
   roles?: ChallengeRole[];
+  language?: string;
+  languageCode?: string;
   customConfig?: {
     region?: string;
     dialect?: string;
     language?: string;
+    isNativeSpeaker?: boolean;
+    selfReportedProficiency?: 'beginner' | 'intermediate' | 'fluent' | 'native';
+    deviceType?: string;
   };
   goalDescription?: string;
   inputSchema?: ChallengeInputField[];
-  // Legacy/Compatibility fields
+  rewardXP?: number;
+  status?: ChallengeStatus;
+  tags?: string[];
+  difficulty?: 'easy' | 'medium' | 'hard';
   // Legacy/Compatibility fields
   desc?: string;
   img?: string;

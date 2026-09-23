@@ -52,7 +52,7 @@ export const processQueuedRuns = internalAction({
 
             switch (run.processor) {
                 case "asr": {
-                    const audioAsset = assets.find((asset) => asset.assetType === "audio");
+                    const audioAsset = assets.find((asset: { assetType: string; [k: string]: unknown }) => asset.assetType === "audio");
                     if (!audioAsset) {
                         await ctx.runMutation(internal.changa.worker.completeAsrRun, {
                             runId: run._id,
@@ -107,9 +107,29 @@ export const processQueuedRuns = internalAction({
                 }
 
                 case "moderation": {
-                    await ctx.runMutation(internal.changa.worker.completeModerationRun, {
-                        runId: run._id,
-                    });
+                    // Phase 2E: classify via the AI router instead of just
+                    // recording a placeholder. The classifier returns
+                    // *scores* and *soft flags* — humans remain the only
+                    // deciders. See convex/changa/moderationClassifier.ts.
+                    const textToClassify =
+                        (submission.transcriptText || submission.targetText || submission.sourceText || "").trim();
+                    if (textToClassify.length > 0) {
+                        await ctx.runAction(
+                            internal.changa.moderationClassifier.classifySubmissionText,
+                            {
+                                runId: run._id,
+                                submissionId: submission._id,
+                                text: textToClassify,
+                            },
+                        );
+                    } else {
+                        // No text to score (audio-only submission? unlikely
+                        // since transcription runs first). Fall back to the
+                        // placeholder so the run completes.
+                        await ctx.runMutation(internal.changa.worker.completeModerationRun, {
+                            runId: run._id,
+                        });
+                    }
                     break;
                 }
 
@@ -142,11 +162,14 @@ export const completeAsrRun = internalMutation({
         const now = Date.now();
 
         if (args.error) {
-            await ctx.db.patch(run._id, {
-                status: "failed",
-                error: args.error,
-                modelVersion: ASR_MODEL_VERSION,
-                completedAt: now,
+            await ctx.runMutation(internal.changa.datasetWrites.patchProcessingRun, {
+                id: run._id,
+                patch: {
+                    status: "failed",
+                    error: args.error,
+                    modelVersion: ASR_MODEL_VERSION,
+                    completedAt: now,
+                },
             });
             // Route now that the queue is drained: the submission stays in
             // the human lane while `audio_analysis_pending` is a hard flag.
@@ -175,7 +198,10 @@ export const completeAsrRun = internalMutation({
             if (pendingIdx >= 0) flags.splice(pendingIdx, 1);
         }
         if (audioAsset) {
-            await ctx.db.patch(audioAsset._id, { asrText: text });
+            await ctx.runMutation(internal.changa.datasetWrites.patchSubmissionAsset, {
+                id: audioAsset._id,
+                patch: { asrText: text },
+            });
         }
 
         // Compare the transcript the contributor supplied against the ASR
@@ -185,23 +211,32 @@ export const completeAsrRun = internalMutation({
             if (similarity < 0.5 && !flags.includes("low_transcription_confidence")) {
                 flags.push("low_transcription_confidence");
             }
-            await ctx.db.patch(run._id, {
-                status: "completed",
-                result: { text, similarity, threshold: 0.7, model: ASR_MODEL_VERSION },
-                modelVersion: ASR_MODEL_VERSION,
-                completedAt: now,
+            await ctx.runMutation(internal.changa.datasetWrites.patchProcessingRun, {
+                id: run._id,
+                patch: {
+                    status: "completed",
+                    result: { text, similarity, threshold: 0.7, model: ASR_MODEL_VERSION },
+                    modelVersion: ASR_MODEL_VERSION,
+                    completedAt: now,
+                },
             });
         } else {
-            await ctx.db.patch(run._id, {
-                status: "completed",
-                result: { text, model: ASR_MODEL_VERSION },
-                modelVersion: ASR_MODEL_VERSION,
-                completedAt: now,
+            await ctx.runMutation(internal.changa.datasetWrites.patchProcessingRun, {
+                id: run._id,
+                patch: {
+                    status: "completed",
+                    result: { text, model: ASR_MODEL_VERSION },
+                    modelVersion: ASR_MODEL_VERSION,
+                    completedAt: now,
+                },
             });
         }
 
         if (submission && flags.length !== (submission.qualityFlags?.length ?? 0)) {
-            await ctx.db.patch(submission._id, { qualityFlags: flags, updatedAt: now });
+            await ctx.runMutation(internal.changa.datasetWrites.patchSubmission, {
+                id: submission._id,
+                patch: { qualityFlags: flags, updatedAt: now },
+            });
         }
 
         await ctx.runMutation(internal.changa.worker.finalizeSubmissionRouting, {
@@ -223,14 +258,17 @@ export const completeLanguageIdRun = internalMutation({
         const run = await ctx.db.get(args.runId);
         if (!run) throw new Error("Processing run not found");
 
-        await ctx.db.patch(run._id, {
-            status: "completed",
-            result: {
-                method: "declared_language",
-                languageCode: args.declaredLanguageCode,
-                confidence: null,
+        await ctx.runMutation(internal.changa.datasetWrites.patchProcessingRun, {
+            id: run._id,
+            patch: {
+                status: "completed",
+                result: {
+                    method: "declared_language",
+                    languageCode: args.declaredLanguageCode,
+                    confidence: null,
+                },
+                completedAt: Date.now(),
             },
-            completedAt: Date.now(),
         });
         return run._id;
     },
@@ -246,10 +284,13 @@ export const completeModerationRun = internalMutation({
         const run = await ctx.db.get(args.runId);
         if (!run) throw new Error("Processing run not found");
 
-        await ctx.db.patch(run._id, {
-            status: "completed",
-            result: { requiresHumanModeration: true },
-            completedAt: Date.now(),
+        await ctx.runMutation(internal.changa.datasetWrites.patchProcessingRun, {
+            id: run._id,
+            patch: {
+                status: "completed",
+                result: { requiresHumanModeration: true },
+                completedAt: Date.now(),
+            },
         });
         return run._id;
     },
@@ -264,10 +305,13 @@ export const completeInlineReviewedRun = internalMutation({
         const run = await ctx.db.get(args.runId);
         if (!run) throw new Error("Processing run not found");
 
-        await ctx.db.patch(run._id, {
-            status: "completed",
-            result: { reviewed: true, note: "decided inline at submit time" },
-            completedAt: Date.now(),
+        await ctx.runMutation(internal.changa.datasetWrites.patchProcessingRun, {
+            id: run._id,
+            patch: {
+                status: "completed",
+                result: { reviewed: true, note: "decided inline at submit time" },
+                completedAt: Date.now(),
+            },
         });
         return run._id;
     },
@@ -298,9 +342,12 @@ export const finalizeSubmissionRouting = internalMutation({
         );
 
         if (remaining === 0 && !hasHardFlag) {
-            await ctx.db.patch(args.submissionId, {
-                status: "in_validation",
-                updatedAt: Date.now(),
+            await ctx.runMutation(internal.changa.datasetWrites.patchSubmission, {
+                id: args.submissionId,
+                patch: {
+                    status: "in_validation",
+                    updatedAt: Date.now(),
+                },
             });
         }
     },

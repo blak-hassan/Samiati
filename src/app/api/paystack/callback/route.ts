@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// runtime: node — why: webhook + redirect handler. Default Node is fine
+// for both GET (redirect) and POST (webhook payload). Per docs/perf.md §1.
+
 export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const reference = searchParams.get("reference");
@@ -9,9 +12,11 @@ export async function GET(request: NextRequest) {
     }
 
     // In production, verify the transaction via Convex action
-    // For now, redirect to billing page
+    // Canonical billing route lives under the dashboard settings shell; going
+    // straight there avoids the legacy /settings/billing redirect hop and
+    // preserves the `verified` reference on the landing page.
     return NextResponse.redirect(
-        new URL(`/settings/billing?verified=${reference}`, request.url)
+        new URL(`/dashboard/settings/billing?verified=${reference}`, request.url)
     );
 }
 

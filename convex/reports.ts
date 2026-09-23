@@ -45,7 +45,6 @@ export const getPendingReports = query({
                     ...report,
                     reporter: reporter ? {
                         id: reporter._id,
-                        handle: reporter.handle,
                         avatar: reporter.avatar,
                         name: reporter.name,
                     } : null,
@@ -275,7 +274,6 @@ export const getReportHistory = query({
                     } : null,
                     moderator: moderator ? {
                         name: moderator.name,
-                        handle: moderator.handle,
                         avatar: moderator.avatar,
                     } : null,
                 };

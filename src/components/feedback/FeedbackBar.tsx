@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { trackEvent } from "@/lib/analytics";
 
 export type FeedbackContext = "chat" | "translate" | "voice" | "tts" | "search";
 
@@ -155,6 +156,13 @@ const FeedbackBar: React.FC<FeedbackBarProps> = ({
         language,
         originalText,
       });
+
+      // Track feedback given for analytics (no PII - no content sent)
+      trackEvent("feedback_given", {
+        location: "feedback_bar",
+        status: "success",
+      });
+
       setSubmitted(true);
       // Show correction prompt after a brief moment
       setTimeout(() => setShowCorrection(true), 300);

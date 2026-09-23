@@ -22,7 +22,6 @@ interface ModerationAction {
     action: string;
     moderator: {
         name: string;
-        handle: string;
         avatar: string;
     };
     report: {
@@ -134,9 +133,6 @@ export const ModerationLogContent: React.FC<{ isEmbedded?: boolean }> = ({ isEmb
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-bold text-stone-900 dark:text-white truncate">
                                             {action.moderator.name}
-                                        </p>
-                                        <p className="text-xs text-stone-500 dark:text-text-muted">
-                                            {action.moderator.handle}
                                         </p>
                                     </div>
                                 </div>

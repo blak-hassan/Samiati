@@ -233,3 +233,65 @@ deployment notes. Register: [`plans/security-hardening-plan.md`](plans/security-
   ships, run `npx convex deploy` together with the frontend push (prod Convex
   still serves the `gemini` module until then; the new `wiki` module is
   already present in the working tree + dev deployment).
+
+## Security Checklist (Recurring Self-Audit)
+
+Day-0 / week-1 / ongoing gates for the most common mistakes in speed-first web
+apps. See [`SECURITY_CHECKLIST.md`](./SECURITY_CHECKLIST.md) for the prioritized
+checklist and [`docs/security-checklist-vibe-coding.md`](./docs/security-checklist-vibe-coding.md)
+for the full ~140-item categorized register with rationale.
+
+### Local tooling
+- **Secret scan:** `npm run secrets:scan` (gitleaks, uses `.gitleaks.toml`).
+  Add `secrets:scan:staged` to a pre-commit hook to block leaks before commit.
+- **CSP reports:** browser violations POST to `/api/csp-report` (handled at
+  `src/app/api/csp-report/route.ts`); verify the endpoint is reachable from
+  production CSP `report-uri` and that reports flow into Sentry / logs.
+- **Vulnerability disclosure:** `public/.well-known/security.txt` (RFC 9116).
+  Update the `Expires` field annually.
+
+### CI gates
+`.github/workflows/ci.yml` now runs, in order: `lint`, `format:check`,
+`tsc --noEmit`, `npm test`, `npm audit --audit-level=high`,
+`gitleaks/gitleaks-action@v2` (uses `.gitleaks.toml`), then `next build`.
+These are the [Day 0/Week 1 gates](./SECURITY_CHECKLIST.md#day-0--ship-blockers)
+(A1–K12, B/C/D/E/F/H/J/I/Q series) enforced at the PR level.
+
+### Dynamic / AI pentest (Strix)
+`.github/workflows/strix.yml` runs [Strix](https://github.com/usestrix/strix),
+an open-source AI pentesting tool that exercises the app dynamically and
+validates findings with real PoCs. Strix complements the static checks
+above — it catches runtime / logic issues (IDOR, SSRF, broken auth, race
+conditions) that SAST misses.
+
+**Default mode (safe):** source-only scan (`-t ./`) on `pull_request`
+against `main` / `develop`. PR diff-scoped via `--scan-mode quick`. Strix
+exits non-zero when vulnerabilities are found — that is the desired
+signal, do **not** `|| true` the step.
+
+**Setup (one-time):**
+1. Set repo secret `STRIX_LLM` to the provider/model id, e.g.
+   `openrouter/z-ai/glm-5.3` (cheapest, recommended).
+2. Set repo secret `LLM_API_KEY` to the matching API key. Use a
+   **dedicated, spend-capped key** — Strix can run up to a few dollars
+   per PR with `--scan-mode quick`.
+3. Bump `STRIX_VERSION` and `STRIX_SHA256` in the workflow to the
+   current verified release from
+   <https://github.com/usestrix/strix/releases>. The placeholder
+   `0000…0000` deliberately fails the SHA256 check so an unmaintained
+   version can't run by accident.
+
+**Optional: live target.** Set the repository variable `STRIX_TARGET_URL`
+to enable live testing against a deployed environment. You MUST have
+**written authorization** (scope of work, rules of engagement) before
+doing this. The workflow emits a `::warning::` annotation when live mode
+is active. Strix's README is explicit: "Authorized use only …
+unauthorized testing is illegal in most jurisdictions."
+
+**What it does not do (and that's deliberate):**
+- No write access to the repo (`permissions: contents: read`,
+  `pull-requests: read`). Strix's "one-click autofix" PR creation is
+  **not** enabled. Bump permissions deliberately if/when you adopt it.
+- No scheduled full scans. Add a `schedule:` trigger with
+  `--scan-mode full` once you have a budget and a target.
+- No source-map upload. Source maps are not generated in CI.

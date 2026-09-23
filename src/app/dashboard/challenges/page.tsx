@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
-import { useQuery } from "convex/react";
+import { useChangaQuery as useQuery } from "@/hooks/useChangaData";
 import { api } from "../../../../convex/_generated/api";
 import dynamic from "next/dynamic";
 import { useNavigation } from "@/hooks/useNavigation";
@@ -13,7 +13,7 @@ import type { CampaignItem } from "@/components/screens/ChallengesScreen";
 const ChallengesScreen = dynamic(() => import("@/components/screens/ChallengesScreen"), {
   ssr: false,
   loading: () => (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background-dark gap-4">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-4">
       <Skeleton className="w-8 h-8 rounded-full" />
       <Skeleton className="w-32 h-4" />
     </div>

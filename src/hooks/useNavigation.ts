@@ -34,7 +34,7 @@ export const useNavigation = () => {
             case Screen.FORGOT_PASSWORD: go("/forgot-password"); break;
             case Screen.RESET_LINK_SENT: go("/auth/reset-link-sent"); break;
             case Screen.SET_NEW_PASSWORD: go("/auth/set-new-password"); break;
-            case Screen.PASSWORD_CHANGED: go("/auth/password-changed"); break;
+            case Screen.PASSWORD_CHANGED: go("/dashboard/password-changed" + queryString); break;
 
             case Screen.PROFILE: go("/dashboard/profile" + queryString); break;
             case Screen.EDIT_PROFILE: go("/dashboard/edit-profile" + queryString); break;
@@ -52,9 +52,10 @@ export const useNavigation = () => {
             case Screen.SETTINGS_PRIVACY: go("/dashboard/settings/privacy" + queryString); break;
             case Screen.MANAGE_LANGUAGES: go("/dashboard/settings/languages" + queryString); break;
             case Screen.SETTINGS_HELP: go("/dashboard/settings/help" + queryString); break;
-            case Screen.SETTINGS_BLOCKED: go("/dashboard/settings/blocked" + queryString); break;
-            case Screen.SETTINGS_MUTED: go("/dashboard/settings/muted" + queryString); break;
             case Screen.SETTINGS_DATA: go("/dashboard/settings/data" + queryString); break;
+            case Screen.SETTINGS_EDIT_PROFILE: go("/dashboard/settings/edit-profile" + queryString); break;
+            case Screen.SETTINGS_PROFILE: go("/dashboard/settings/profile" + queryString); break;
+            case Screen.SETTINGS_BILLING: go("/dashboard/settings/billing" + queryString); break;
 
             case Screen.SAVED_CONVERSATIONS: go("/dashboard/saved-conversations" + queryString); break;
             case Screen.ALL_ACHIEVEMENTS: go("/dashboard/all-achievements" + queryString); break;
@@ -73,7 +74,6 @@ export const useNavigation = () => {
             case Screen.CHALLENGE_WINNERS: go("/dashboard/challenge-winners" + queryString); break;
             case Screen.CHALLENGE_CREATED: go("/dashboard/challenge-created" + queryString); break;
             case Screen.IDEA_SUBMITTED: go("/dashboard/idea-submitted" + queryString); break;
-            case Screen.PASSWORD_CHANGED: go("/dashboard/password-changed" + queryString); break;
             case Screen.CHANGE_PASSWORD: go("/dashboard/change-password" + queryString); break;
 
             case Screen.VIDEO_CALL: go("/dashboard/video-call" + queryString); break;
@@ -94,8 +94,8 @@ export const useNavigation = () => {
             case Screen.REVIEW_ENTRY: go("/dashboard/review-entry" + queryString); break;
             case Screen.SUGGEST_LINK: go("/dashboard/suggest-link" + queryString); break;
 
-            case Screen.TERMS_OF_SERVICE: go("/terms-of-service" + queryString); break;
-            case Screen.PRIVACY_POLICY: go("/privacy-policy" + queryString); break;
+            case Screen.TERMS_OF_SERVICE: go("/terms" + queryString); break;
+            case Screen.PRIVACY_POLICY: go("/privacy" + queryString); break;
             case Screen.CHANGA: go("/dashboard/changa" + queryString); break;
             case Screen.CHANGA_CAMPAIGNS: go("/dashboard/changa-campaigns" + queryString); break;
             case Screen.REPORT_MODAL: go("/dashboard/report-modal" + queryString); break;

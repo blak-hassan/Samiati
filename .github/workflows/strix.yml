@@ -1,0 +1,133 @@
+# Strix — AI agentic penetration testing.
+#
+# Strix (https://github.com/usestrix/strix) is an open-source AI pentesting
+# tool that runs your code dynamically, finds vulnerabilities, and validates
+# them through actual proofs-of-concept. It complements (does not replace)
+# the static analysis already in .github/workflows/ci.yml.
+#
+# IMPORTANT — Authorized use only.
+# Strix actively tests whatever target you point it at. Pointing it at any
+# system you do not own or have explicit, written permission to test is
+# illegal in most jurisdictions. By default this workflow runs in
+# SOURCE-ONLY mode against the repo (`./`). To enable live testing of a
+# deployed environment you MUST have a written scope of work, set
+# `STRIX_TARGET_URL` in repository variables, and update the
+# `strix --target` line below. See SECURITY_FIXES.md for the full policy.
+#
+# Required secrets (set in repo Settings → Secrets and variables → Actions):
+#   - STRIX_LLM        : provider/model id, e.g. "openrouter/z-ai/glm-5.3"
+#                        (cheapest, recommended). See
+#                        https://docs.strix.ai/llm-providers/overview for
+#                        the full list. Other safe picks:
+#                          - "anthropic/claude-sonnet-4-6"
+#                          - "openai/gpt-5.4"
+#                          - "google/gemini-3-pro-preview"
+#   - LLM_API_KEY      : API key for the provider above. Use a dedicated,
+#                        spend-capped key (Strix can run up to a few
+#                        dollars per PR).
+#
+# Optional repository variables (Settings → Variables):
+#   - STRIX_TARGET_URL : only set if you have written authorization to
+#                        pentest a deployed environment. The default is
+#                        the source tree, which is always safe.
+#
+# Operational notes:
+#   - We pin the installer to a specific release and verify its SHA256
+#     before running (supply-chain hardening — see SECURITY_CHECKLIST.md
+#     item L3 / L5).
+#   - Concurrency group cancels previous runs when a new commit lands,
+#     so we don't burn tokens on superseded commits.
+#   - The job has a 30-minute hard timeout. Strix auto-scopes `--scan-mode
+#     quick` to changed files on PRs.
+
+name: strix-pentest
+
+on:
+  pull_request:
+    branches: [main, develop]
+    # Skip draft PRs to avoid burning tokens on work-in-progress.
+    types: [opened, synchronize, ready_for_review]
+
+# Cancel in-progress runs on the same PR when new commits are pushed.
+concurrency:
+  group: strix-${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  # Pull-request comments: read-only. We do not need write access to the
+  # repo to run a scan. If you enable Strix's "one-click autofix" later,
+  # bump this to `contents: write` AND `pull-requests: write` deliberately.
+  pull-requests: read
+
+jobs:
+  strix-scan:
+    name: Strix AI pentest
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Fail closed if secrets are missing rather than running with an
+      # unauthenticated LLM (which either fails noisily or, worse, uses
+      # the user's local credentials).
+      STRIX_LLM: ${{ secrets.STRIX_LLM }}
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          # Strix's --scan-mode quick on PRs scopes the review to
+          # changed files, which requires the full git history.
+          fetch-depth: 0
+
+      - name: Validate secrets are set
+        run: |
+          if [ -z "$STRIX_LLM" ]; then
+            echo "::error::Secret STRIX_LLM is not set. Add it under Settings → Secrets → Actions (e.g. 'openrouter/z-ai/glm-5.3')."
+            exit 1
+          fi
+          if [ -z "$LLM_API_KEY" ]; then
+            echo "::error::Secret LLM_API_KEY is not set. Add it under Settings → Secrets → Actions."
+            exit 1
+          fi
+
+      - name: Set target
+        id: target
+        run: |
+           if [ -n "${{ vars.STRIX_TARGET_URL }}" ]; then
+             echo "value=${{ vars.STRIX_TARGET_URL }}" >> "$GITHUB_OUTPUT"
+             echo "mode=live" >> "$GITHUB_OUTPUT"
+             echo "::warning::Strix is running in LIVE mode against ${{ vars.STRIX_TARGET_URL }}. Ensure you have written authorization."
+           else
+             echo "value=./" >> "$GITHUB_OUTPUT"
+             echo "mode=source" >> "$GITHUB_OUTPUT"
+             echo "Strix is running in SOURCE-ONLY mode (no live target)."
+           fi
+
+      - name: Install Strix
+        # Pin to a known release. Update STRIX_VERSION + the matching
+        # SHA256 when you upgrade. Get the checksum from
+        # https://github.com/usestrix/strix/releases — the install
+        # script is `install.sh` attached to each release.
+        env:
+          STRIX_VERSION: "v0.1.0" # TODO: bump to a real verified release
+          STRIX_SHA256: "0000000000000000000000000000000000000000000000000000000000000000" # TODO: set real hash
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/usestrix/strix/releases/download/${STRIX_VERSION}/install.sh" -o /tmp/strix-install.sh
+          echo "${STRIX_SHA256}  /tmp/strix-install.sh" | sha256sum -c -
+          bash /tmp/strix-install.sh
+          strix --version
+
+      - name: Run Strix (non-interactive, quick scan, diff-scoped on PRs)
+        # -n / --non-interactive : print findings as JSON and exit with a
+        #                          non-zero status if vulns are found.
+        # --scan-mode quick       : PR diff-scoped; full-mode on a cron.
+        # The `-t ./` (or `-t ${{ vars.STRIX_TARGET_URL }}`) target is
+        # the source tree by default. Switch to a live URL only with
+        # written authorization — see SECURITY_FIXES.md.
+        run: |
+          strix -n \
+            -t "${{ steps.target.outputs.value }}" \
+            --scan-mode quick
+        # Strix exits non-zero when it finds vulnerabilities. That's the
+        # desired signal on a PR — do not `|| true` it.

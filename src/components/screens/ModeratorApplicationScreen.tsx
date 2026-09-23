@@ -22,18 +22,45 @@ interface Props {
     goBack: () => void;
 }
 
+const LANGUAGE_OPTIONS = [
+    { id: "sheng", label: "Sheng" },
+    { id: "sw", label: "Kiswahili" },
+    { id: "en", label: "English" },
+    { id: "luo", label: "Dholuo" },
+    { id: "kam", label: "Kikamba" },
+    { id: "ki", label: "Kikuyu" },
+    { id: "luy", label: "Luhya" },
+    { id: "cal", label: "Kalenjin" },
+];
+
 const ModeratorApplicationScreen: React.FC<Props> = ({ navigate, goBack }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [requestedLanguages, setRequestedLanguages] = useState<string[]>([]);
+    const [motivation, setMotivation] = useState("");
     const applyForModerator = useMutation(api.moderation.applyForModerator);
 
+    const toggleLanguage = (id: string) => {
+        setRequestedLanguages((prev) =>
+            prev.includes(id) ? prev.filter((l) => l !== id) : [...prev, id]
+        );
+    };
+
     const handleSubmit = async () => {
+        if (requestedLanguages.length === 0) {
+            setError("Please pick at least one language you can moderate.");
+            return;
+        }
+        if (motivation.trim().length < 20) {
+            setError("Please write a short motivation (at least 20 characters).");
+            return;
+        }
         setIsSubmitting(true);
         setError(null);
 
         try {
-            await applyForModerator();
+            await applyForModerator({ requestedLanguages, motivation: motivation.trim() });
             setIsSubmitted(true);
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : 'Failed to submit application');
@@ -174,6 +201,53 @@ const ModeratorApplicationScreen: React.FC<Props> = ({ navigate, goBack }) => {
                             </li>
                         ))}
                     </ul>
+                </div>
+
+                {/* Language picker */}
+                <div className="bg-white dark:bg-[#32241a] rounded-xl p-6 space-y-4">
+                    <h3 className="text-lg font-bold text-stone-900 dark:text-white">
+                        Languages I can moderate
+                    </h3>
+                    <p className="text-sm text-stone-600 dark:text-text-muted">
+                        Pick every language you feel confident reviewing. You'll be granted a Changa role in each.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                        {LANGUAGE_OPTIONS.map((lang) => {
+                            const selected = requestedLanguages.includes(lang.id);
+                            return (
+                                <button
+                                    key={lang.id}
+                                    type="button"
+                                    onClick={() => toggleLanguage(lang.id)}
+                                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                                        selected
+                                            ? "bg-primary text-white"
+                                            : "bg-stone-100 dark:bg-white/5 text-stone-700 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-white/10"
+                                    }`}
+                                >
+                                    {lang.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Motivation */}
+                <div className="bg-white dark:bg-[#32241a] rounded-xl p-6 space-y-3">
+                    <h3 className="text-lg font-bold text-stone-900 dark:text-white">
+                        Why do you want to moderate?
+                    </h3>
+                    <textarea
+                        value={motivation}
+                        onChange={(e) => setMotivation(e.target.value)}
+                        rows={4}
+                        maxLength={1000}
+                        placeholder="Tell the admins about your background, language experience, and why you'd be a good moderator…"
+                        className="w-full rounded-lg border border-stone-200 dark:border-white/10 bg-stone-50 dark:bg-black/20 p-3 text-sm text-stone-900 dark:text-white outline-none focus:ring-2 focus:ring-primary"
+                    />
+                    <p className="text-xs text-stone-500 dark:text-text-muted/60 text-right">
+                        {motivation.length} / 1000
+                    </p>
                 </div>
 
                 {/* Error Message */}

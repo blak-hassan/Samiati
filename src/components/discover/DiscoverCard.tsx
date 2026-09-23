@@ -3,9 +3,19 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Compass, Clock, Bookmark, BookmarkCheck, Share2, Newspaper, X, TrendingUp } from "lucide-react";
+import {
+  Compass,
+  Clock,
+  Bookmark,
+  BookmarkCheck,
+  Share2,
+  Newspaper,
+  X,
+  TrendingUp,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { copyToClipboard } from "@/lib/utils";
+import { useToast } from "@/hooks/useToast";
 
 interface DiscoverCardProps {
   cluster: {
@@ -85,12 +95,10 @@ export const DiscoverCard: React.FC<DiscoverCardProps> = ({
   onDismiss,
 }) => {
   const [isSaved, setIsSaved] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 2500);
-  };
+  // Feedback goes through the app-wide ToastProvider (mounted in
+  // src/app/layout.tsx) so every message is announced to assistive tech via
+  // its aria-live region instead of living in a silent, unannounced div.
+  const { toast } = useToast();
 
   const handleExplore = () => {
     onExplore(cluster.suggestedQuery, cluster._id);
@@ -98,9 +106,12 @@ export const DiscoverCard: React.FC<DiscoverCardProps> = ({
 
   const handleSave = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsSaved(!isSaved);
+    // One-way control: there is no unsave mutation yet, so once a topic is
+    // saved we keep the saved state and only show the "saved" feedback.
+    if (isSaved) return;
+    setIsSaved(true);
     onSave?.(cluster._id);
-    showToast(isSaved ? "Removed from saved" : "Topic saved");
+    toast("Topic saved", "success");
   };
 
   const handleShare = async (e: React.MouseEvent) => {
@@ -111,22 +122,27 @@ export const DiscoverCard: React.FC<DiscoverCardProps> = ({
       url: window.location.href,
     };
 
-    try {
-      if (navigator.share) {
+    if (navigator.share) {
+      try {
         await navigator.share(shareData);
-      } else {
-        await copyToClipboard(shareData.url);
-        showToast("Link copied to clipboard");
+      } catch {
+        // User cancelled the native share sheet — stay silent.
       }
-    } catch {
-      // User cancelled share
+    } else {
+      try {
+        await copyToClipboard(shareData.url);
+        toast("Link copied to clipboard", "success");
+      } catch {
+        // Clipboard copy failure is a real error — surface it to the user.
+        toast("Couldn't copy the link. Please copy it manually.", "error");
+      }
     }
   };
 
   const handleDismiss = (e: React.MouseEvent) => {
     e.stopPropagation();
     onDismiss?.(cluster._id);
-    showToast("Topic dismissed");
+    toast("Topic dismissed");
   };
 
   const isTrending = cluster.trendScore > 60;
@@ -160,35 +176,49 @@ export const DiscoverCard: React.FC<DiscoverCardProps> = ({
         </div>
       </div>
 
-      {/* Image thumbnail */}
-      {cluster.imageUrl && (
-        <div className="mb-2 -mx-1">
+      {/* Tappable body — the whole topic is one real button, so the
+          Discover → Chat funnel is reachable by pointer and by keyboard.
+          Deliberately contains no nested interactive elements. */}
+      <button
+        type="button"
+        onClick={handleExplore}
+        aria-label={`Explore ${cluster.topicTitle} with Samiati`}
+        className={cn(
+          "block w-full text-left rounded-lg cursor-pointer",
+          "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        )}
+      >
+        {cluster.imageUrl && (
           <img
             src={cluster.imageUrl}
-            alt=""
-            className="w-full h-32 object-cover rounded-lg"
+            alt={`Thumbnail for ${cluster.topicTitle}`}
+            className="mb-2 w-full h-32 object-cover rounded-lg"
           />
-        </div>
-      )}
+        )}
 
-      {/* Title */}
-      <h3 className="text-sm font-bold text-foreground leading-snug mb-1.5 line-clamp-2">
-        {cluster.topicTitle}
-      </h3>
+        <h3 className="text-sm font-bold text-foreground leading-snug mb-1.5 line-clamp-2">
+          {cluster.topicTitle}
+        </h3>
 
-      {/* Summary */}
-      {cluster.summary && (
-        <p className="text-xs text-muted-foreground leading-relaxed mb-2 line-clamp-2">
-          {cluster.summary}
-        </p>
-      )}
+        {cluster.summary && (
+          <p className="text-xs text-muted-foreground leading-relaxed mb-2 line-clamp-2">
+            {cluster.summary}
+          </p>
+        )}
 
-      {/* Why trending */}
-      {cluster.whyTrending && (
-        <p className="text-xs text-muted-foreground mb-2 italic">
-          {cluster.whyTrending}
-        </p>
-      )}
+        {cluster.whyTrending && (
+          <p className="text-xs text-muted-foreground mb-2 italic">
+            {cluster.whyTrending}
+          </p>
+        )}
+
+        {/* Low-noise affordance so the card reads as tappable without
+            repeating a full-width CTA on every row. */}
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-primary">
+          <Compass className="w-3 h-3" aria-hidden="true" />
+          Explore with Samiati
+        </span>
+      </button>
 
       {/* Footer: Sources + Actions */}
       <div className="flex items-center justify-between">
@@ -212,53 +242,53 @@ export const DiscoverCard: React.FC<DiscoverCardProps> = ({
           )}
         </div>
 
-        {/* Actions */}
+        {/* Actions — every control here is icon-only, so each carries an
+            accessible name, and each is sized to a 44×44 minimum target. */}
         <div className="flex items-center gap-0.5">
           {isTrending && (
             <Badge variant="destructive" className="text-[9px] px-1 py-0 mr-0.5 gap-0.5">
-              <TrendingUp className="w-2.5 h-2.5" />
+              <TrendingUp className="w-2.5 h-2.5" aria-hidden="true" />
               Trending
             </Badge>
           )}
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="size-11"
             onClick={handleSave}
+            aria-label={isSaved ? "Topic saved" : "Save topic"}
+            title={isSaved ? "Topic saved" : "Save topic"}
           >
             {isSaved ? (
-              <BookmarkCheck className="w-3.5 h-3.5 text-primary" />
+              <BookmarkCheck className="w-4 h-4 text-primary" aria-hidden="true" />
             ) : (
-              <Bookmark className="w-3.5 h-3.5" />
+              <Bookmark className="w-4 h-4" aria-hidden="true" />
             )}
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="size-11"
             onClick={handleShare}
+            aria-label="Share topic"
+            title="Share topic"
           >
-            <Share2 className="w-3.5 h-3.5" />
+            <Share2 className="w-4 h-4" aria-hidden="true" />
           </Button>
           {onDismiss && (
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7"
+              className="size-11"
               onClick={handleDismiss}
+              aria-label="Dismiss topic"
+              title="Dismiss topic"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-4 h-4" aria-hidden="true" />
             </Button>
           )}
         </div>
       </div>
-
-      {/* Toast */}
-      {toastMessage && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-foreground text-background px-4 py-2 rounded-full shadow-lg text-xs font-bold z-50 animate-in fade-in slide-in-from-bottom-4">
-          {toastMessage}
-        </div>
-      )}
     </div>
   );
 };

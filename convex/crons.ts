@@ -25,6 +25,15 @@ crons.interval(
     {}
 );
 
+// Document auto-categorization (every 10 minutes). Picks up any documents
+// that still have pending entries and runs the offline classifier.
+crons.interval(
+    "changa-document-categorize",
+    { minutes: 10 },
+    internal.changa.categorization.categorizeAllPending,
+    { batchSize: 5 }
+);
+
 // Daily subscription renewal processor (runs at 6:00 AM UTC)
 crons.daily(
     "process-subscription-renewals",
@@ -56,7 +65,7 @@ crons.interval(
     "discover-compute-trend-scores",
     { minutes: 60 },
     internal.discover.cron.computeTrendScores,
-    {}
+    { limit: 5000 }
 );
 
 // Daily cleanup of old content (runs at 3:00 AM UTC)

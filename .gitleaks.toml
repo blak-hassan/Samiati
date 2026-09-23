@@ -1,0 +1,45 @@
+title = "Samiati secret detection"
+
+# gitleaks configuration for Samiati.
+# Run via: `gitleaks detect --config .gitleaks.toml --source . --no-banner`
+# Or via the `npm run secrets:scan` script.
+#
+# Allowlist common test fixtures, public example placeholders, and the keys
+# of env-var names themselves (we only care about VALUES that look like
+# credentials, not variable names).
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Public placeholders and test fixtures"
+paths = [
+  '''\.example$''',
+  '''\.local\.example$''',
+  '''/tests?/.*''',
+  '''/e2e/.*''',
+  '''/__tests__/.*''',
+  '''/fixtures?/.*''',
+  '''\.md$''',
+  '''SECURITY_CHECKLIST\.md$''',
+  '''SECURITY_FIXES\.md$''',
+  '''docs/security-checklist-vibe-coding\.md$''',
+]
+regexes = [
+  '''(?i)your[-_ ]?(api|secret|token|key)[-_ ]?here''',
+  '''(?i)changeme''',
+  '''(?i)example\.com''',
+  '''placeholder''',
+  '''xxxxx+''',
+  '''(?i)test[-_ ]?token''',
+  '''sk_test_[A-Za-z0-9]{8,}''',
+  '''pk_test_[A-Za-z0-9]{8,}''',
+]
+
+# Tighten the default Stripe secret-key rule: Stripe test keys are commonly
+# used in docs and tests; only flag live keys (`sk_live_`).
+[[rules]]
+id = "stripe-live-secret-key"
+description = "Stripe live secret key"
+regex = '''sk_live_[A-Za-z0-9]{16,}'''
+keywords = ["sk_live_"]

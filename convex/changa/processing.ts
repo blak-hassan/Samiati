@@ -1,4 +1,4 @@
-import { internalMutation, query, type MutationCtx } from "../_generated/server";
+import { internalMutation, query, type ActionCtx, type MutationCtx } from "../_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser, isModerator } from "../users/utils";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -11,6 +11,19 @@ export const HARD_QUALITY_FLAGS = [
     "transcript_missing",
     "potential_duplicate",
     "audio_analysis_pending",
+] as const;
+
+// Soft flags produced by the moderation classifier
+// (convex/changa/moderationClassifier.ts). These surface to human
+// reviewers as prioritization signals but do NOT block peer review.
+// A submission with a soft flag is routed to human review normally;
+// the moderator dashboard shows the flag for queue ordering.
+export const SOFT_QUALITY_FLAGS = [
+    "model_toxicity_high",
+    "model_insult_high",
+    "model_threat_high",
+    "model_identity_attack_high",
+    "model_sexual_high",
 ] as const;
 
 // Processors that must produce evidence before a raw record is considered for
@@ -28,26 +41,32 @@ export function requiredProcessorsForTask(taskType: string | undefined): readonl
 }
 
 // Insert queued processing runs for a submission, avoiding duplicates for
-// processors that already have a queued run.
+// processors that already have a queued run. The inserts go through the
+// dataset-write chokepoint so the CI grep-assert (which flags direct
+// writes to changa* tables outside the chokepoint) stays accurate.
 export async function enqueueSubmissionProcessing(
-    db: MutationCtx["db"],
+    ctx: { db: MutationCtx["db"]; runMutation: MutationCtx["runMutation"] | ActionCtx["runMutation"]; scheduler?: MutationCtx["scheduler"] },
     submissionId: Id<"changaSubmissions">,
     taskType: string | undefined,
+    targetProcessor?: ProcessorName,
 ): Promise<Id<"changaProcessingRuns">[]> {
-    const existing = await db.query("changaProcessingRuns")
+    const existing = await ctx.db.query("changaProcessingRuns")
         .withIndex("by_submission", (q) => q.eq("submissionId", submissionId))
         .collect();
     const queued = new Set(existing.filter((run) => run.status === "queued").map((run) => run.processor));
 
+    // When a specific processor is requested (re-run flow), only that processor
+    // is queued so completed unrelated processors are not re-enqueued.
+    const processors = targetProcessor ? [targetProcessor] : requiredProcessorsForTask(taskType);
+
     const created: Id<"changaProcessingRuns">[] = [];
-    for (const processor of requiredProcessorsForTask(taskType)) {
+    for (const processor of processors) {
         if (queued.has(processor)) continue;
-        created.push(await db.insert("changaProcessingRuns", {
-            submissionId,
-            processor,
-            status: "queued",
-            createdAt: Date.now(),
-        }));
+        const id = await ctx.runMutation(
+            (await import("../_generated/api")).internal.changa.datasetWrites.insertProcessingRun,
+            { submissionId, processor },
+        );
+        created.push(id as Id<"changaProcessingRuns">);
     }
     return created;
 }
@@ -142,17 +161,26 @@ export async function runSubmissionChecks(
         }
     }
 
-    // duplicate_detection — exact/near text similarity against recent work.
-    const duplicateRun = runs.find((run) => run.processor === "duplicate_detection");
-    if (duplicateRun && duplicateRun.status === "queued") {
-        const text = String(submission.targetText || submission.transcriptText || submission.sourceText || "");
-        const similarity = await findDuplicateText(db, text, submissionId);
-        const threshold = 0.8;
-        if (similarity > threshold && !flags.includes("potential_duplicate")) {
-            flags.push("potential_duplicate");
+        // duplicate_detection — exact/near text similarity against recent work.
+        // For audio_reading submissions without an ASR transcript, there is no
+        // transcribed text to compare, so skip text comparison rather than
+        // falling back to the shared sourceText.
+        const duplicateRun = runs.find((run) => run.processor === "duplicate_detection");
+        if (duplicateRun && duplicateRun.status === "queued") {
+            const hasTranscript = typeof submission.transcriptText === "string" && submission.transcriptText.trim().length > 0;
+            const isAudioWithoutTranscript = submission.submissionType === "audio_reading" && !hasTranscript;
+            if (!isAudioWithoutTranscript) {
+                const text = String(submission.targetText || submission.transcriptText || submission.sourceText || "");
+                const similarity = await findDuplicateText(db, text, submissionId);
+                const threshold = 0.8;
+                if (similarity > threshold && !flags.includes("potential_duplicate")) {
+                    flags.push("potential_duplicate");
+                }
+                await complete(duplicateRun, { maxSimilarity: similarity, threshold });
+            } else {
+                await complete(duplicateRun, { skipped: true, reason: "no_transcript" });
+            }
         }
-        await complete(duplicateRun, { maxSimilarity: similarity, threshold });
-    }
 
     // audio_quality — only decides from recorded asset signal metadata; with
     // no metadata it records that a manual audio review is required.
@@ -280,20 +308,20 @@ export const getSubmissionStatus = query({
 export const enqueueProcessing = internalMutation({
     args: {
         submissionId: v.id("changaSubmissions"),
-        processor: v.union(
+        processor: v.optional(v.union(
             v.literal("basic_task_check"),
             v.literal("audio_quality"),
             v.literal("asr"),
             v.literal("language_id"),
             v.literal("duplicate_detection"),
             v.literal("moderation"),
-        ),
+        )),
     },
     handler: async (ctx, args) => {
         const submission = await ctx.db.get(args.submissionId);
         if (!submission) throw new Error("Submission not found");
 
-        await enqueueSubmissionProcessing(ctx.db, args.submissionId, submission.submissionType);
+        await enqueueSubmissionProcessing(ctx, args.submissionId, submission.submissionType, args.processor);
         return args.submissionId;
     },
 });
@@ -310,12 +338,18 @@ export const completeProcessingRun = internalMutation({
         const run = await ctx.db.get(args.runId);
         if (!run) throw new Error("Processing run not found");
 
-        await ctx.db.patch(args.runId, {
-            status: args.error ? "failed" : "completed",
-            result: args.result,
-            error: args.error,
-            completedAt: Date.now(),
-        });
+        await ctx.runMutation(
+            (await import("../_generated/api")).internal.changa.datasetWrites.patchProcessingRun,
+            {
+                id: args.runId,
+                patch: {
+                    status: args.error ? "failed" : "completed",
+                    result: args.result,
+                    error: args.error,
+                    completedAt: Date.now(),
+                },
+            },
+        );
 
         return args.runId;
     },

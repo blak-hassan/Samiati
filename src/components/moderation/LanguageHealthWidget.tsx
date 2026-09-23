@@ -7,12 +7,14 @@ interface Props {
     languages: LanguageHealth[];
     selectedLanguage: string | null;
     onSelectLanguage: (code: string | null) => void;
+    viewerMode?: 'moderator' | 'contributor';
 }
 
 export const LanguageHealthWidget: React.FC<Props> = ({
     languages,
     selectedLanguage,
-    onSelectLanguage
+    onSelectLanguage,
+    viewerMode = 'moderator',
 }) => {
     const getHealthColor = (percent: number) => {
         if (percent >= 70) return 'bg-rasta-green';
@@ -20,17 +22,49 @@ export const LanguageHealthWidget: React.FC<Props> = ({
         return 'bg-rasta-red';
     };
 
-    const getHealthBorderColor = (percent: number) => {
-        if (percent >= 70) return 'border-rasta-green/30';
-        if (percent >= 40) return 'border-rasta-gold/30';
-        return 'border-rasta-red/30';
-    };
-
     const getHealthBgColor = (percent: number) => {
         if (percent >= 70) return 'bg-rasta-green/10';
         if (percent >= 40) return 'bg-rasta-gold/10';
         return 'bg-rasta-red/10';
     };
+
+    if (viewerMode === 'contributor') {
+        if (languages.length === 0) return null;
+        return (
+            <div className="w-full px-4">
+                <h3 className="text-xs font-black uppercase tracking-widest text-stone-500 dark:text-text-muted mb-2">
+                    Your languages
+                </h3>
+                <ul className="space-y-1.5">
+                    {languages.map((lang) => {
+                        const dot =
+                            lang.healthPercent >= 70
+                                ? 'bg-rasta-green'
+                                : lang.healthPercent >= 40
+                                    ? 'bg-rasta-gold'
+                                    : 'bg-rasta-red';
+                        return (
+                            <li
+                                key={lang.id}
+                                className="flex items-center gap-3 text-xs text-stone-600 dark:text-text-muted"
+                            >
+                                <span className={`size-2 rounded-full ${dot}`} aria-hidden />
+                                <span className="font-bold text-stone-800 dark:text-white">
+                                    {lang.name}
+                                </span>
+                                <span className="ml-auto tabular-nums font-black text-stone-700 dark:text-text-muted">
+                                    {lang.healthPercent}%
+                                </span>
+                                <span className="text-[10px] text-stone-400 dark:text-text-muted/60 tabular-nums">
+                                    {lang.validatedContributions}/{lang.targetContributions}
+                                </span>
+                            </li>
+                        );
+                    })}
+                </ul>
+            </div>
+        );
+    }
 
     return (
         <div className="w-full">

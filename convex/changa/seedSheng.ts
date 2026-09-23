@@ -1,7 +1,7 @@
 import { internalMutation, internalQuery, mutation } from "../_generated/server";
-import { v } from "convex/values";
 import { getCurrentUser, isModerator } from "../users/utils";
 import { internal } from "../_generated/api";
+import { chokepoint } from "../lib/chokepoint";
 import type { Id } from "../_generated/dataModel";
 
 // Seed Sheng task templates and English source sentences.
@@ -117,6 +117,18 @@ const SHENG_SENTENCES = [
 export const seedShengData = internalMutation({
     args: {},
     handler: async (ctx) => {
+        // Idempotency: if a Sheng campaign has already been seeded, return
+        // without creating duplicate templates, campaign, or task rows.
+        const existingCampaign = await ctx.db
+            .query("changaCampaigns")
+            .withIndex("by_language_status", (q) =>
+                q.eq("languageCode", "sheng").eq("status", "active"),
+            )
+            .first();
+        if (existingCampaign) {
+            return { alreadySeeded: true as const };
+        }
+
         // Create a system user if none exists (for dev/CLI seeding)
         let createdBy: Id<"users">;
         const existingUser = await ctx.db.query("users").first();
@@ -126,7 +138,6 @@ export const seedShengData = internalMutation({
             // Insert a minimal system user for audit trail
             createdBy = await ctx.db.insert("users", {
                 name: "Changa System",
-                handle: "@changa-system",
                 avatar: "",
                 isGuest: false,
                 clerkId: "system-seed",
@@ -135,7 +146,7 @@ export const seedShengData = internalMutation({
         }
 
         // 1. Create Sheng task templates
-        const translationTemplateId = await ctx.db.insert("changaTaskTemplates", {
+        const translationTemplateId = await chokepoint.insertTaskTemplate(ctx, {
             name: "Sheng Translation",
             taskType: "sentence_translation",
             instructions: "Write the natural Sheng equivalent of the English sentence. Use the phrasing a fluent Sheng speaker would actually use in conversation — not standard Swahili, not a word-for-word translation.",
@@ -158,7 +169,7 @@ export const seedShengData = internalMutation({
             createdAt: Date.now(),
         });
 
-        const audioTemplateId = await ctx.db.insert("changaTaskTemplates", {
+        const audioTemplateId = await chokepoint.insertTaskTemplate(ctx, {
             name: "Sheng Audio Reading",
             taskType: "audio_reading",
             instructions: "Read the Sheng sentence aloud in your natural voice. Speak clearly, in a quiet environment if possible. Listen back before submitting.",
@@ -181,7 +192,7 @@ export const seedShengData = internalMutation({
             createdAt: Date.now(),
         });
 
-        const validationTemplateId = await ctx.db.insert("changaTaskTemplates", {
+        const validationTemplateId = await chokepoint.insertTaskTemplate(ctx, {
             name: "Sheng Translation Validation",
             taskType: "validation",
             instructions: "Review the Sheng translation for naturalness, correctness, and whether it sounds like something a real Sheng speaker would say.",
@@ -207,7 +218,7 @@ export const seedShengData = internalMutation({
         });
 
         // 2. Create Sheng collection campaign
-        const campaignId = await ctx.db.insert("changaCampaigns", {
+        const campaignId = await chokepoint.insertCampaign(ctx, {
             title: "Collect 500 Sheng Sentences",
             description: "Help build the first high-quality Sheng translation dataset. Every sentence you translate helps AI understand how real Sheng speakers talk.",
             languageCode: "sheng",
@@ -223,7 +234,7 @@ export const seedShengData = internalMutation({
         // 3. Create translation tasks from English sentences
         let taskCount = 0;
         for (const sentence of SHENG_SENTENCES) {
-            await ctx.db.insert("changaTasks", {
+            await chokepoint.insertTask(ctx, {
                 templateId: translationTemplateId,
                 campaignId,
                 taskType: "sentence_translation",
@@ -246,7 +257,7 @@ export const seedShengData = internalMutation({
         // The actual Sheng text will be set by moderators after reviewing translations
         let audioTaskCount = 0;
         for (const sentence of SHENG_SENTENCES.slice(0, 50)) {
-            await ctx.db.insert("changaTasks", {
+            await chokepoint.insertTask(ctx, {
                 templateId: audioTemplateId,
                 campaignId,
                 taskType: "audio_reading",

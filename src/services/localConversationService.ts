@@ -51,6 +51,18 @@ export const localConversationService = {
         }
     },
 
+    deleteConversations: (ids: string[]) => {
+        if (typeof window === 'undefined') return;
+        const idSet = new Set(ids);
+        const conversations = loadSettings().filter(c => !idSet.has(c.id));
+        persistSettings(conversations);
+
+        const active = localStorage.getItem(ACTIVE_CHAT_KEY);
+        if (active && idSet.has(active)) {
+            localStorage.removeItem(ACTIVE_CHAT_KEY);
+        }
+    },
+
     saveAll: (conversations: Conversation[]) => {
         if (typeof window === 'undefined') return;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
@@ -58,7 +70,7 @@ export const localConversationService = {
 
     createNewConversation: (): Conversation => {
         const newConversation: Conversation = {
-            id: `chat_${Date.now()}`,
+            id: `chat_${Date.now()}_${crypto.randomUUID()}`,
             title: "New Conversation",
             date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
             messageCount: 0,

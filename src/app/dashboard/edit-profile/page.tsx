@@ -1,6 +1,7 @@
 "use client";
 
 import EditProfileScreen from "@/components/screens/EditProfileScreen";
+import { PLACEHOLDER_AVATAR_URL } from "@/lib/defaults";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useAppUser } from "@/hooks/useAppUser";
 import { Screen } from "@/types";
@@ -11,15 +12,13 @@ export default function EditProfilePage() {
     const { user: clerkUser } = useAppUser();
 
     const appUser: User = clerkUser ? {
-        name: clerkUser.fullName || "User",
-        handle: "@" + (clerkUser.username || "user"),
-        avatar: clerkUser.imageUrl,
+        name: clerkUser.name || "User",
+        avatar: clerkUser.avatar,
         isGuest: false,
         bio: "Digital Storyteller",
     } : {
         name: "Guest",
-        handle: "@guest",
-        avatar: "https://lh3.googleusercontent.com/aida-public/AB6AXuDKkfM9WqTPsqCfuM1KQIQ1QzsbiAaq2rab_EQ2MwL_8b9sbJ3-mIl3CjDCR888PPrsBNhkpl7tkden40rCqo3pJe3Sepe18k46KUvejTidyoAK941vcqejBnqRrcfC5hPZop_XFQ7S9jkteso1RvDSjv8s1JfGwGhOYE1uQ1M1J93quDxOniTqTNGD-1WZq2GOu_Z1EpzGjMzNeyvhYbuIwiqYK1TDLfGX5mpdg--_df6DoewiFO-RhrraeKpwY7MetQ94avb6spo",
+        avatar: PLACEHOLDER_AVATAR_URL,
         isGuest: true
     };
 

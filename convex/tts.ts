@@ -2,20 +2,16 @@
 import { v } from "convex/values";
 import { action } from "./_generated/server";
 import { requireAuthenticatedAction, enforceAiQuotaAction } from "./lib/aiSecurity";
+import { captureMessage } from "./lib/observability";
+import { internal } from "./_generated/api";
+import "./lib/providers";
 
 // =============================================================================
-// ORPHEUS-3B TTS SERVICE (HuggingFace Inference API)
+// TTS SERVICE — via the AI router
 // =============================================================================
-// Uses Sunbird/orpheus-3b-tts-multilingual for text-to-speech synthesis.
-// Supports 20+ African languages with multi-speaker voices.
-//
-// API: HuggingFace Inference API (Text Generation Pipeline)
-// MODEL: BlakHasan/orpheus-3b-tts-multilingual
-// KEY: HUGGINGFACE_API_KEY (Set in Convex Dashboard)
-//
-// Note: Orpheus-3B uses a special prompt format with speaker_id tags.
-// The model generates SNAC audio codes that need to be decoded.
-// For HuggingFace Inference API, we use the text-to-speech pipeline.
+// Primary provider: HuggingFace Orpheus-3B multilingual TTS
+// (BlakHasan/orpheus-3b-tts-multilingual), 20+ African languages with
+// per-language speaker IDs. See convex/lib/aiRouter.ts.
 // =============================================================================
 
 // Map language codes to Orpheus speaker IDs
@@ -54,9 +50,7 @@ const ORPHEUS_SPEAKER_MAP: Record<string, string> = {
     'mlg': 'waxal_mlg_0001',
 };
 
-// Default speaker if language not found
 const DEFAULT_SPEAKER = 'salt_eng_0001';
-
 const MAX_TTS_LENGTH = 5000;
 
 export const synthesizeSpeech = action({
@@ -65,97 +59,70 @@ export const synthesizeSpeech = action({
         language: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
-        await requireAuthenticatedAction(ctx);
+        const identity = await requireAuthenticatedAction(ctx);
         await enforceAiQuotaAction(ctx, "tts");
 
         if (args.text.length > MAX_TTS_LENGTH) {
             return { audioBase64: null, error: "ERROR: Text too long. Please keep text under 5,000 characters." };
         }
 
-        const apiKey = process.env.HUGGINGFACE_API_KEY;
-
-        if (!apiKey) {
-            console.error("HUGGINGFACE_API_KEY is not set!");
-            return { audioBase64: null, error: "ERROR: API key not configured. Please set HUGGINGFACE_API_KEY in Convex Dashboard." };
-        }
-
-        // Select the appropriate speaker ID for the language
         const lang = args.language || 'en';
         const speakerId = ORPHEUS_SPEAKER_MAP[lang] || DEFAULT_SPEAKER;
 
-        console.log(`[Orpheus TTS] Synthesizing speech with speaker ${speakerId} for language: ${lang}`);
+        console.log(`[TTS] Synthesizing speech with speaker ${speakerId} for language: ${lang}`);
 
         const text = args.text.slice(0, MAX_TTS_LENGTH);
 
-        try {
-            // Use router.huggingface.co for better reliability on free tier
-            // Note: Orpheus-3B requires self-hosting or using a dedicated endpoint
-            // This uses the HuggingFace Inference API with the text-generation pipeline
-            const url = "https://router.huggingface.co/BlakHasan/orpheus-3b-tts-multilingual";
+        const { routeTts } = await import("./lib/aiRouter");
+        const result = await routeTts({ text, language: lang, speakerId });
 
-            const response = await fetch(url, {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${apiKey}`,
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    model: "BlakHasan/orpheus-3b-tts-multilingual",
-                    inputs: `${speakerId}: ${text}`,
-                    parameters: {
-                        max_new_tokens: 1200,
-                        temperature: 0.6,
-                        top_p: 0.95,
-                        repetition_penalty: 1.1,
-                    },
-                }),
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error(`[Orpheus TTS] API Error (${response.status}):`, errorText);
-
-                // Handle 403 Forbidden specifically
-                if (response.status === 403) {
-                    return { audioBase64: null, error: "ERROR: TTS API access forbidden. This may be due to: (1) Invalid API key, (2) Model requires accepting terms at https://huggingface.co/models/BlakHasan/orpheus-3b-tts-multilingual, or (3) API quota exceeded." };
-                }
-
-                // Handle 429 Rate Limit
-                if (response.status === 429) {
-                    return { audioBase64: null, error: "ERROR: TTS API rate limit exceeded. Please wait a moment and try again." };
-                }
-
-                // Handle model loading (common with HF free tier)
-                if (response.status === 503) {
-                    return { audioBase64: null, error: "TTS Model is loading, please try again in a moment." };
-                }
-
-                return { audioBase64: null, error: `TTS API Error: ${response.status}. Please try again.` };
+        if (result.usage) {
+            const { usageToRecordArgs } = await import("./lib/aiUsage");
+            try {
+                await ctx.runMutation(
+                    internal.lib.aiUsage.recordUsage,
+                    usageToRecordArgs(result.usage, result.provider, {
+                        ok: result.ok,
+                        errorCode: result.ok ? undefined : result.error.code,
+                        subject: identity?.subject,
+                    }),
+                );
+            } catch (e) {
+                console.error("[tts] failed to record usage:", e);
             }
+        }
 
-            // Response is raw audio binary (WAV)
-            const audioBuffer = await response.arrayBuffer();
-            const audioBytes = new Uint8Array(audioBuffer);
-
-            // Convert to base64 for transport to frontend
-            let binaryString = '';
-            for (let i = 0; i < audioBytes.length; i++) {
-                binaryString += String.fromCharCode(audioBytes[i]);
-            }
-            const audioBase64 = btoa(binaryString);
-
-            const contentType = response.headers.get("content-type") || "audio/wav";
-            console.log(`[Orpheus TTS] Generated ${audioBytes.length} bytes of audio (${contentType})`);
-
+        if (result.ok) {
             return {
-                audioBase64,
-                contentType,
+                audioBase64: result.value.audioBase64,
+                contentType: result.value.contentType,
                 error: null,
             };
+        }
 
-        } catch (error) {
-            console.error("[Orpheus TTS] Failed:", error);
-            return { audioBase64: null, error: "Speech synthesis failed due to a network error. Please check your connection." };
+        const e = result.error;
+        captureMessage("TTS provider call failed", {
+            level: "warning",
+            tags: { service: "tts", provider: result.provider, code: e.code },
+            extra: { status: e.status, language: lang },
+        });
+
+        switch (e.code) {
+            case "auth_missing":
+                return { audioBase64: null, error: "ERROR: API key not configured. Please set HUGGINGFACE_API_KEY in Convex Dashboard." };
+            case "auth_invalid":
+                return { audioBase64: null, error: "ERROR: TTS API access forbidden. This may be due to: (1) Invalid API key, (2) Model requires accepting terms at https://huggingface.co/models/BlakHasan/orpheus-3b-tts-multilingual, or (3) API quota exceeded." };
+            case "rate_limited":
+                return { audioBase64: null, error: "ERROR: TTS API rate limit exceeded. Please wait a moment and try again." };
+            case "model_loading":
+                return { audioBase64: null, error: "TTS Model is loading, please try again in a moment." };
+            case "server_error":
+            case "bad_response":
+                return { audioBase64: null, error: e.status ? `TTS API Error: ${e.status}. Please try again.` : "TTS service returned an unexpected response." };
+            case "not_implemented":
+                return { audioBase64: null, error: "ERROR: TTS is temporarily unavailable. Please try again later." };
+            default:
+                return { audioBase64: null, error: "Speech synthesis failed due to a network error. Please check your connection." };
         }
     },
 });

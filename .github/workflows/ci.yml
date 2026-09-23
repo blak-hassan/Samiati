@@ -29,6 +29,18 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit
 
+      - name: Test
+        run: npm test
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
       - name: Build
         run: npm run build
         env:
@@ -38,3 +50,133 @@ jobs:
           CLERK_ISSUER_URL: ${{ secrets.CLERK_ISSUER_URL }}
           NEXT_PUBLIC_GEMINI_API_KEY: ${{ secrets.NEXT_PUBLIC_GEMINI_API_KEY }}
           HUGGINGFACE_API_KEY: ${{ secrets.HUGGINGFACE_API_KEY }}
+
+  # ---- Performance gates (see docs/perf.md §6) ---------------------------
+
+  accessibility-audit:
+    name: Accessibility + SEO audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          CLERK_ISSUER_URL: ${{ secrets.CLERK_ISSUER_URL }}
+          NEXT_PUBLIC_GEMINI_API_KEY: ${{ secrets.NEXT_PUBLIC_GEMINI_API_KEY }}
+          HUGGINGFACE_API_KEY: ${{ secrets.HUGGINGFACE_API_KEY }}
+
+      - name: WCAG AA contrast audit
+        run: node scripts/check-contrast.mjs
+
+      - name: Alt-text audit
+        run: node scripts/check-alt-text.mjs
+
+      - name: Broken-link audit
+        run: node scripts/check-broken-links.mjs
+
+      - name: Mobile-first audit
+        run: node scripts/check-mobile-first.mjs
+
+      - name: Image-size audit
+        run: node scripts/check-image-sizes.mjs
+
+  schema-index:
+    name: Convex schema index coverage
+    runs-on: ubuntu-latest
+    # Skip the gate on PRs that explicitly opt out via the label below.
+    if: "!contains(github.event.pull_request.labels.*.name, 'perf:no-schema-impact')"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Check schema index coverage
+        run: node scripts/check-schema-index.mjs
+
+  bundle-budget:
+    name: First-load JS bundle budget
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          CLERK_ISSUER_URL: ${{ secrets.CLERK_ISSUER_URL }}
+          NEXT_PUBLIC_GEMINI_API_KEY: ${{ secrets.NEXT_PUBLIC_GEMINI_API_KEY }}
+          HUGGINGFACE_API_KEY: ${{ secrets.HUGGINGFACE_API_KEY }}
+
+      - name: Assert bundle budget
+        # Reads perf-budget.json:bundle.maxKb and fails if any first-load JS
+        # chunk in the build manifest exceeds it. See scripts/check-bundle-budget.mjs.
+        run: node scripts/check-bundle-budget.mjs
+        env:
+          BUDGET_FILE: perf-budget.json
+          BUILD_MANIFEST: .next/build-manifest.json
+          APP_DIR: .next
+
+  # Lighthouse CI runs against a built + started app and a real Chrome.
+  # Until the first green baseline is captured, this is gated behind the
+  # `perf:lhci` PR label so it doesn't block every PR. Once stable, remove
+  # the `if:` and let it block.
+  lighthouse:
+    name: Lighthouse CI (opt-in)
+    runs-on: ubuntu-latest
+    if: "contains(github.event.pull_request.labels.*.name, 'perf:lhci')"
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          CLERK_ISSUER_URL: ${{ secrets.CLERK_ISSUER_URL }}
+          NEXT_PUBLIC_GEMINI_API_KEY: ${{ secrets.NEXT_PUBLIC_GEMINI_API_KEY }}
+          HUGGINGFACE_API_KEY: ${{ secrets.HUGGINGFACE_API_KEY }}
+
+      - name: Run LHCI
+        run: npx --yes @lhci/cli@0.13.x autorun
+        env:
+          LHCI_TOKEN: ${{ secrets.LHCI_TOKEN }}

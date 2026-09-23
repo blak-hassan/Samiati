@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -27,16 +27,173 @@ import { cn } from "@/lib/utils";
 import { LANGUAGES, Language } from "@/components/chat/LanguageSelector";
 import { SearchAttachment } from "@/services/sunflowerService";
 
-const PLACEHOLDER_MAP: Record<string, string> = {
-  sw: "Andika au ongea...",
-  ki: "Andika kanaũa...",
-  luo: "Nyalo ka nyingo...",
-  kam: "Woa ka ñae...",
-  kln: "Kiye ka kap Kennedy...",
-  luy: "Wandika kana ongea...",
-  mer: "Andika kanaũa...",
-  mas: "Ndaa ka olmurrensi...",
-  en: "Type or Speak...",
+// =============================================================================
+// Per-language rotating suggestion pool (Perplexity-style placeholder)
+// =============================================================================
+interface Suggestion {
+  text: string;
+  query: string;
+}
+
+const LANGUAGE_SUGGESTIONS: Record<string, Suggestion[]> = {
+  sw: [
+    { text: "Nifundisha methali za Kiswahili", query: "Nifundisha methali za Kiswahili na maana yake" },
+    { text: "Hadithi za watu wa Kenya", query: "Ni hadithi gani maarufu za watu wa Kenya?" },
+    { text: "Maneno ya kawaida ya Kikuyu", query: "Nipe maneno ya kawaida ya Kikuyu na tafsiri yake" },
+    { text: "Utamaduni wa Wamaasai", query: "Eleza utamaduni na mila za Wamaasai" },
+    { text: "Nyimbo za jadi za Kenya", query: "Ni nyimbo gani za jadi za Kenya na maana yake?" },
+    { text: "Historia ya Lugha za Kenya", query: "Ni lugha ngapi zinazozungumzwa Kenya na historia yake?" },
+    { text: "Mila za harusi za Kikuyu", query: "Eleza mila za harusi za jamii ya Kikuyu" },
+    { text: "Maneno ya Luo na tafsiri", query: "Nipe maneno ya Luo na tafsiri yake Kiswahilini" },
+  ],
+  ki: [
+    { text: "Ni mathagu ma Kikuyu?", query: "Nigatuoke mathagu mothe ma Kikuyu na thimuthio wake" },
+    { text: "Warete wa guthiomi", query: "Nigatuoke warete wa guthiomi ma Kikuyu" },
+    { text: "Muthoni wa guku wa Kikuyu", query: "Nigatuoke muthoni wa guku na thuthuthu wa Kikuyu" },
+    { text: "Irio na ngano ya Kikuyu", query: "Nithuire irio na ngano ya Kikuyu" },
+    { text: "Mathagu ma guku", query: "Nigatuoke mathagu ma guku na thimuthio wake" },
+    { text: "Ruti ya Kikuyu", query: "Nigatuoke ruti ya Kikuyu na mila yake" },
+    { text: "Kiama kia Kikuyu", query: "Nithuire kiama kia Kikuyu na thuthuthu wake" },
+    { text: "Mihiriga ya Kikuyu", query: "Nigatuoke mihiriga ya Kikuyu na thuthuthu yothe" },
+  ],
+  luo: [
+    { text: "Ngech mag Luo", query: "Natina ngech mag Luo kod tiendgi" },
+    { text: "Kend mar Luo", query: "Natina kit kend ma jo-Luo timo kod timbendgi" },
+    { text: "Wend Luo", query: "Natina wend Luo kod tiendgi" },
+    { text: "Chiemo mar Luo", query: "Natina chiemo ma jo-Luo damo e chiro" },
+    { text: "Ker mar Luo", query: "Natina kit locho kod tich maguena jo-Luo" },
+    { text: "Nying Luo", query: "Natina nying Luo kod tiendgi" },
+  ],
+  kam: [
+    { text: "Methali za Kikamba", query: "Ndalutie methali za Kikamba na maana syao" },
+    { text: "Kimiko kya Kikamba", query: "Ndalutie kimiko na mila sya Kikamba" },
+    { text: "Nyimbo sya Kikamba", query: "Ndalutie nyimbo na kathemi sya Kikamba" },
+    { text: "Kilyo kya Kikamba", query: "Ndalutie kilyo kya Kikamba" },
+    { text: "Ukathi wa Akamba", query: "Ndalutie ukathi na kukite sya Akamba" },
+    { text: "Kwatu wa Kikamba", query: "Ndalutie kwatu na nzasa sya Kikamba" },
+  ],
+  kln: [
+    { text: "Mumek ab Kalenjin", query: "Agoi mumek ab Kalenjin kod tiendik" },
+    { text: "Chamgei ak kumari", query: "Agoi kumari ak chamgei en Kalenjin" },
+    { text: "Tiletis ak ng'wendek", query: "Agoi tiletis ak ng'wendek ab Kalenjin" },
+    { text: "Kinok ak kwaishisiek", query: "Agoi kinok ak kwaishisiek ab Kalenjin" },
+    { text: "Sodoik ak kipotonik", query: "Agoi sodoik ak kipotonik ab Kalenjin" },
+    { text: "Kosiakikab Kalenjin", query: "Agoi kosiakikab Kalenjin" },
+  ],
+  luy: [
+    { text: "Endakho ya Abaluhya", query: "Olonde endakho ne emilimo ya Abaluhya" },
+    { text: "Olurimi lw'Abaluhya", query: "Oloni olurimi lw'Abaluhya nende emigabi" },
+    { text: "Emisala ya Abaluhya", query: "Olonde emisala ya Abaluhya nende oburengi" },
+    { text: "Obukwe bwa Abaluhya", query: "Oloni obukwe bwa Abaluhya" },
+    { text: "Emboo sya Abaluhya", query: "Olonde emboo nende enyimbo sya Abaluhya" },
+    { text: "Ebiayo bya Abaluhya", query: "Oloni ebiayo ebya Abaluhya" },
+  ],
+  mer: [
+    { text: "Icro cia Kimeru", query: "Ooria icro cia Kimeru na micungeirie" },
+    { text: "Mwiko wa Ameru", query: "Ooria mwiko wa Ameru na mainya mangaine" },
+    { text: "Nyamario cia Ameru", query: "Ooria nyamario cia Ameru" },
+    { text: "Ruoki rwa Kimeru", query: "Ooria ruoki na mila cia Kimeru" },
+    { text: "Matata ma Ameru", query: "Ooria matata na maina ma Ameru" },
+    { text: "Kwenu kwa Ameru", query: "Ooria kwenu na mario kwa Ameru" },
+  ],
+  mas: [
+    { text: "Enkata o Maa", query: "Elakita enkata na ildet o Maa ilMaasai" },
+    { text: "Emurran o Maa", query: "Elakita emurran na orore o Maa ilMaasai" },
+    { text: "Enkipaata o Maa", query: "Elakita enkipaata na ilopil o Maa" },
+    { text: "Ilchokki o Maa", query: "Elakita ilchokki o Maa na inkoilisho" },
+    { text: "Enkang o Maa", query: "Elakita enkang na mparimo o Maa" },
+    { text: "Orkonyek a Maa", query: "Elakita orkonyek na ildamatisho o Maa" },
+  ],
+  en: [
+    { text: "Tell me about Kenyan proverbs", query: "What are some famous Kenyan proverbs and their meanings?" },
+    { text: "Explain Kikuyu cultural traditions", query: "Tell me about Kikuyu cultural traditions and ceremonies" },
+    { text: "What are common Luo greetings?", query: "What are common greetings and phrases in Luo language?" },
+    { text: "History of Maa people", query: "Tell me about the history and culture of the Maa people of Kenya" },
+    { text: "Traditional Kenyan songs", query: "What are some traditional Kenyan songs and their cultural significance?" },
+    { text: "Languages spoken in Kenya", query: "How many languages are spoken in Kenya and what are they?" },
+    { text: "Maasai beadwork meanings", query: "What do the different colors in Maasai beadwork mean?" },
+    { text: "Swahili sayings about life", query: "What are some Swahili sayings about life and wisdom?" },
+  ],
+};
+
+function getSuggestionsForLanguage(language: Language | undefined): Suggestion[] {
+  const code = language?.code ?? "en";
+  const pool = LANGUAGE_SUGGESTIONS[code];
+  return (pool ?? LANGUAGE_SUGGESTIONS.en).slice(0, 4);
+}
+
+interface RotatingPlaceholderProps {
+  suggestions: Suggestion[];
+  active: boolean;
+}
+
+const RotatingPlaceholder: React.FC<RotatingPlaceholderProps> = ({
+  suggestions,
+  active,
+}) => {
+  // A single monotonic counter drives the animation; display state is fully
+  // derived from it. This keeps the component effect-free so React 19's
+  // setState-in-effect lint rule stays happy.
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    if (!active || suggestions.length === 0) return;
+    const id = setInterval(() => {
+      setTick((t) => (t + 1) % 1_000_000);
+    }, 55);
+    return () => clearInterval(id);
+  }, [active, suggestions]);
+
+  if (!active || suggestions.length === 0) {
+    return null;
+  }
+
+  // Cycle: type one suggestion, hold, delete, advance.
+  const firstLen = suggestions[0].text.length;
+  const typeTicks = Math.max(8, firstLen);
+  const holdTicks = 28; // ~1.5s
+  const deleteTicks = Math.max(8, Math.floor(firstLen * 0.6));
+  const cycleTicks = typeTicks + holdTicks + deleteTicks;
+  const totalCycles = suggestions.length;
+
+  const cycle = Math.floor(tick / cycleTicks) % totalCycles;
+  const phaseTick = tick % cycleTicks;
+  const text = suggestions[cycle]?.text ?? suggestions[0].text;
+  const len = text.length;
+  const localType = Math.max(8, len);
+  const localHold = 28;
+  const localDelete = Math.max(8, Math.floor(len * 0.6));
+  const localCycle = localType + localHold + localDelete;
+  const localPhase = phaseTick % localCycle;
+
+  let visible: number;
+  let phase: "typing" | "hold" | "deleting";
+  if (localPhase < localType) {
+    phase = "typing";
+    visible = Math.min(len, Math.floor((localPhase / localType) * len) + 1);
+  } else if (localPhase < localType + localHold) {
+    phase = "hold";
+    visible = len;
+  } else {
+    phase = "deleting";
+    const progress = localPhase - localType - localHold;
+    visible = Math.max(0, len - 1 - Math.floor((progress / localDelete) * len));
+  }
+
+  return (
+    <span className="pointer-events-none absolute inset-0 flex items-center text-muted-foreground/70 font-medium">
+      <span className="truncate">
+        {text.slice(0, visible)}
+        <span
+          aria-hidden
+          className={cn(
+            "inline-block w-[1.5px] h-[1em] align-middle ml-0.5 bg-primary",
+            phase === "hold" ? "opacity-100" : "animate-pulse"
+          )}
+        />
+      </span>
+    </span>
+  );
 };
 
 const getMaturityBadge = (score: number) => {
@@ -105,7 +262,15 @@ const SearchHero: React.FC<SearchHeroProps> = ({
   const [isAttachmentOpen, setIsAttachmentOpen] = useState(false);
   const [isLangOpen, setIsLangOpen] = useState(false);
   const [langSearch, setLangSearch] = useState("");
+  const [isInputFocused, setIsInputFocused] = useState(false);
+  const [enableRotator, setEnableRotator] = useState(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Per-language suggestion pool that drives the rotating placeholder
+  const suggestions = useMemo(
+    () => getSuggestionsForLanguage(selectedLanguage),
+    [selectedLanguage]
+  );
 
   // Controlled when the parent provides value/onValueChange; otherwise
   // falls back to internal state (keeps the component self-sufficient).
@@ -114,6 +279,9 @@ const SearchHero: React.FC<SearchHeroProps> = ({
     if (onValueChange) onValueChange(next);
     else setInternalQuery(next);
   };
+
+  // Pause the rotating placeholder while the user is interacting
+  const rotatorActive = enableRotator && !isInputFocused && !query;
 
   const filteredLangs = LANGUAGES.filter((l) =>
     l.name.toLowerCase().includes(langSearch.toLowerCase())
@@ -149,31 +317,48 @@ const SearchHero: React.FC<SearchHeroProps> = ({
   };
 
   return (
-    <div className={cn("w-full", "max-w-2xl")}>
+    <div className={cn("w-full", "max-w-3xl mx-auto")}>
       <div
         className={cn(
-          "bg-background border border-border/40 rounded-[24px] transition-all duration-300",
+          "bg-background border border-border/40 rounded-[20px] transition-all duration-300",
           "shadow-xl shadow-primary/5",
           "focus-within:shadow-2xl focus-within:ring-1 focus-within:ring-primary/20",
-          compact ? "px-3 py-2" : "px-3 sm:px-4 py-3"
+          compact ? "px-2.5 py-1.5" : "px-3 sm:px-3.5 py-2"
         )}
       >
         {/* Text Input */}
-        <div className="w-full">
+        <div className="relative w-full">
           <textarea
             ref={textareaRef}
             value={query}
             onChange={(e) => updateQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={PLACEHOLDER_MAP[selectedLanguage?.code ?? ""] ?? PLACEHOLDER_MAP.en}
+            onFocus={() => {
+              setIsInputFocused(true);
+              setEnableRotator(false);
+            }}
+            onBlur={() => {
+              setIsInputFocused(false);
+              if (!query) setEnableRotator(true);
+            }}
+            placeholder=""
+            aria-label="Search"
             className={cn(
-              "w-full bg-transparent border-none text-foreground placeholder-muted-foreground/70",
-              "focus:ring-0 outline-none resize-none font-medium leading-relaxed",
-              "min-h-[40px] p-0",
-              compact ? "text-base" : "text-base md:text-lg"
+              "relative w-full bg-transparent border-none text-foreground placeholder-transparent",
+              "focus:ring-0 outline-none resize-none font-medium leading-snug",
+              "min-h-[28px] p-0 z-10",
+              compact ? "text-sm" : "text-sm md:text-base"
             )}
             rows={1}
           />
+          {/* Rotating Perplexity-style placeholder */}
+          {rotatorActive && (
+            <RotatingPlaceholder
+              key={suggestions.map((s) => s.query).join("|")}
+              suggestions={suggestions}
+              active={rotatorActive}
+            />
+          )}
         </div>
 
         {/* Attached files */}
@@ -339,35 +524,28 @@ const SearchHero: React.FC<SearchHeroProps> = ({
 
             {/* Microphone Button */}
             {onVoiceInput && (
-              <div className="flex flex-col items-center gap-0.5">
-                <Button
-                  size="icon"
-                  onClick={onVoiceInput}
-                  disabled={isTranscribing}
-                  className={cn(
-                    "w-9 h-9 rounded-full transition-all duration-300 shadow-sm transition-transform active:scale-95",
-                    isTranscribing
-                      ? "bg-muted text-muted-foreground opacity-50 cursor-not-allowed"
-                      : isRecording
-                      ? "bg-red-500 text-white animate-pulse"
-                      : "bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted"
-                  )}
-                  aria-label="Voice search"
-                >
-                  {isTranscribing ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : isRecording ? (
-                    <Square className="w-4 h-4 fill-current" />
-                  ) : (
-                    <Mic className="w-4 h-4" />
-                  )}
-                </Button>
-                {!isRecording && !isTranscribing && (
-                  <span className="text-[8px] font-bold text-muted-foreground/50 leading-none">
-                    Voice
-                  </span>
+              <Button
+                size="icon"
+                onClick={onVoiceInput}
+                disabled={isTranscribing}
+                className={cn(
+                  "w-9 h-9 rounded-full transition-all duration-300 shadow-sm transition-transform active:scale-95",
+                  isTranscribing
+                    ? "bg-muted text-muted-foreground opacity-50 cursor-not-allowed"
+                    : isRecording
+                    ? "bg-red-500 text-white animate-pulse"
+                    : "bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted"
                 )}
-              </div>
+                aria-label="Voice search"
+              >
+                {isTranscribing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : isRecording ? (
+                  <Square className="w-4 h-4 fill-current" />
+                ) : (
+                  <Mic className="w-4 h-4" />
+                )}
+              </Button>
             )}
 
             {/* Submit */}
@@ -392,6 +570,7 @@ const SearchHero: React.FC<SearchHeroProps> = ({
           </div>
         </div>
       </div>
+
     </div>
   );
 };

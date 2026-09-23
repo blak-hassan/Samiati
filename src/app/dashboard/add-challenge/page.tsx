@@ -3,7 +3,7 @@
 import { useState } from "react";
 import AddChallengeScreen from "@/components/screens/AddChallengeScreen";
 import { useNavigation } from "@/hooks/useNavigation";
-import { useMutation } from "convex/react";
+import { useChangaMutation as useMutation } from "@/hooks/useChangaData";
 import { api } from "../../../../convex/_generated/api";
 import { ChallengeType } from "@/types";
 import { changaTaskTypeValues } from "../../../../convex/changa/validators";

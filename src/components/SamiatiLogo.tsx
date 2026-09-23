@@ -9,7 +9,10 @@ interface SamiatiLogoProps {
 const SamiatiLogo: React.FC<SamiatiLogoProps> = ({ className, size = 48, variant = 'primary' }) => {
     const colors = {
         primary: {
-            text: '#FFFFFF',
+            /* Theme-aware: follows --foreground so the wordmark stays legible
+               on both light and dark surfaces. (Was hardcoded pure white,
+               which vanished on the light theme's #FAF9F6 background.) */
+            text: 'var(--foreground, #2b1e19)',
         },
         white: {
             text: '#FFFFFF',

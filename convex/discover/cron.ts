@@ -1,4 +1,3 @@
-import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 
@@ -35,19 +34,34 @@ export const fetchAndProcess = internalAction({
 });
 
 // Cluster + enrich job (runs every 30 min)
+//
+// Phase 2 pipeline: items are now embedded via the AI router
+// (paraphrase-multilingual-MiniLM-L12-v2, 384 dims) and clustered
+// using Convex's vector search. The old string-similarity clusterer
+// in `process.ts` is kept as a fallback for items that failed to
+// embed (e.g. quota exceeded); `clusterByEmbedding` will skip items
+// without an embedding, and the next `clusterItems` call (still
+// scheduled at the same cadence) will catch them via the heuristic.
 export const clusterAndEnrich = internalAction({
   args: {},
-  handler: async (ctx): Promise<{ clustered: number; enriched: number }> => {
+  handler: async (ctx): Promise<{ embedded: number; clustered: number; enriched: number }> => {
     console.log("[Discover Cron] Starting cluster and enrich...");
 
-    // Step 1: Cluster items
-    const clusterResult: { clustered: number } = await ctx.runAction(
-      internal.discover.process.clusterItems,
+    // Step 1: Compute embeddings for any unembedded items
+    const embedResult: { embedded: number; failed: number } = await ctx.runAction(
+      internal.discover.cluster.embedRawItems,
       {}
     );
-    console.log(`[Discover Cron] Clustered: ${clusterResult.clustered}`);
+    console.log(`[Discover Cron] Embedded: ${embedResult.embedded} (failed: ${embedResult.failed})`);
 
-    // Step 2: Enrich with AI summaries
+    // Step 2: Cluster embedded items by vector similarity
+    const clusterResult: { clustered: number; clustersTouched: number } = await ctx.runAction(
+      internal.discover.cluster.clusterByEmbedding,
+      {}
+    );
+    console.log(`[Discover Cron] Clustered: ${clusterResult.clustered} items into ${clusterResult.clustersTouched} clusters`);
+
+    // Step 3: Enrich with AI summaries
     const enrichResult: { enriched: number; total: number } = await ctx.runAction(
       internal.discover.enrich.enrichClusters,
       {}
@@ -55,6 +69,7 @@ export const clusterAndEnrich = internalAction({
     console.log(`[Discover Cron] Enriched: ${enrichResult.enriched}/${enrichResult.total}`);
 
     return {
+      embedded: embedResult.embedded,
       clustered: clusterResult.clustered,
       enriched: enrichResult.enriched,
     };
@@ -63,13 +78,13 @@ export const clusterAndEnrich = internalAction({
 
 // Compute trend scores (runs every hour)
 export const computeTrendScores = internalAction({
-  args: {},
-  handler: async (ctx): Promise<{ scored: number }> => {
+  args: { limit: v.number() },
+  handler: async (ctx, args): Promise<{ scored: number }> => {
     console.log("[Discover Cron] Computing trend scores...");
 
     const result: { scored: number } = await ctx.runAction(
       internal.discover.enrich.computeTrendScores,
-      {}
+      { limit: args.limit },
     );
     console.log(`[Discover Cron] Scored: ${result.scored}`);
 

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { useQuery } from "convex/react";
+import { useChangaQuery as useQuery } from "@/hooks/useChangaData";
 import { api } from "../../../convex/_generated/api";
 import { Screen } from "@/types";
 import SettingsPageHeader from "@/components/settings/SettingsPageHeader";

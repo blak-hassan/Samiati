@@ -115,7 +115,6 @@ const GroupScreen: React.FC<Props> = ({ navigate, goBack, community }) => {
                             onLike={() => { }}
                             onRepost={() => { }}
                             onMenuAction={handleMenuAction}
-                            currentUserHandle={me?.handle}
                         />
                     ))}
                     <div className="p-8 text-center text-muted-foreground">

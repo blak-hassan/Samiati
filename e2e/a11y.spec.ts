@@ -15,11 +15,20 @@ test.describe("Accessibility", () => {
     await page.goto("/dashboard");
     const skipLink = page.locator('a[href="#main"]');
     await expect(skipLink).toBeAttached();
+
+    // Exercise keyboard navigation: focus the link, activate it, and verify
+    // focus actually moves to the primary #main landmark.
+    await skipLink.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#main")).toBeFocused();
   });
 
   test("Changa home has accessible live regions", async ({ page }) => {
     await page.goto("/dashboard/changa");
-    const liveRegions = page.locator("[aria-live='polite']");
-    await expect(liveRegions.first()).toBeAttached();
+    // Scope to Changa's own status region (not any page-wide aria-live region)
+    // and assert it surfaces a status update.
+    const liveRegion = page.locator("main [aria-live='polite']").first();
+    await expect(liveRegion).toBeAttached();
+    await expect(liveRegion).not.toBeEmpty();
   });
 });

@@ -1,9 +1,10 @@
 "use client";
 
 import React, { Suspense, use, useState } from 'react';
+import { PLACEHOLDER_AVATAR_URL } from "@/lib/defaults";
 import { notFound } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { ChatPreview, Conversation, RouteSearchParams, Screen, User } from '@/types';
+import { ChatPreview, RouteSearchParams, Screen, User } from '@/types';
 import { useNavigation } from "@/hooks/useNavigation";
 import { useAppUser } from "@/hooks/useAppUser";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -17,8 +18,6 @@ function ScreenLoader() {
     );
 }
 
-import { localConversationService } from "@/services/localConversationService";
-
 // Dynamic Screen Imports — each loads only when needed
 const ChallengeDetailsScreen = dynamic(() => import('@/components/screens/ChallengeDetailsScreen'), { ssr: false });
 const ChallengeWinnersScreen = dynamic(() => import('@/components/screens/ChallengeWinnersScreen'), { ssr: false });
@@ -28,12 +27,9 @@ const SettingsAccountScreen = dynamic(() => import('@/components/screens/Setting
 const SettingsNotificationsScreen = dynamic(() => import('@/components/screens/SettingsNotificationsScreen'), { ssr: false });
 const SettingsPrivacyScreen = dynamic(() => import('@/components/screens/SettingsPrivacyScreen'), { ssr: false });
 const SettingsHelpScreen = dynamic(() => import('@/components/screens/SettingsHelpScreen'), { ssr: false });
-const SettingsBlockedScreen = dynamic(() => import('@/components/screens/SettingsBlockedScreen'), { ssr: false });
-const SettingsMutedScreen = dynamic(() => import('@/components/screens/SettingsMutedScreen'), { ssr: false });
 const SettingsDataScreen = dynamic(() => import('@/components/screens/SettingsDataScreen'), { ssr: false });
 const NotificationsScreen = dynamic(() => import('@/components/screens/NotificationsScreen'), { ssr: false });
 const ContributionsScreen = dynamic(() => import('@/components/screens/ContributionsScreen'), { ssr: false });
-const SavedConversationsScreen = dynamic(() => import('@/components/screens/SavedConversationsScreen'), { ssr: false });
 const SubmitEntryScreen = dynamic(() => import('@/components/screens/SubmitEntryScreen'), { ssr: false });
 const AddChallengeScreen = dynamic(() => import('@/components/screens/AddChallengeScreen'), { ssr: false });
 const ProverbDetailScreen = dynamic(() => import('@/components/screens/ProverbDetailScreen'), { ssr: false });
@@ -78,19 +74,14 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
     const screenKey = slug.replace(/-/g, '_').toUpperCase();
     const screen = Screen[screenKey as keyof typeof Screen];
 
-    const [conversations, setConversations] = useState<Conversation[]>([]);
-
     // Transform Clerk User to App User
     const appUser: User = clerkUser ? {
-        name: clerkUser.fullName || "User",
-        handle: "@" + (clerkUser.username || "user"),
-        avatar: clerkUser.imageUrl,
+        name: clerkUser.name || "User",
+        avatar: clerkUser.avatar,
         isGuest: false,
-        bio: "Digital Storyteller",
     } : {
         name: "Guest",
-        handle: "@guest",
-        avatar: "https://lh3.googleusercontent.com/aida-public/AB6AXuDKkfM9WqTPsqCfuM1KQIQ1QzsbiAaq2rab_EQ2MwL_8b9sbJ3-mIl3CjDCR888PPrsBNhkpl7tkden40rCqo3pJe3Sepe18k46KUvejTidyoAK941vcqejBnqRrcfC5hPZop_XFQ7S9jkteso1RvDSjv8s1JfGwGhOYE1uQ1M1J93quDxOniTqTNGD-1WZq2GOu_Z1EpzGjMzNeyvhYbuIwiqYK1TDLfGX5mpdg--_df6DoewiFO-RhrraeKpwY7MetQ94avb6spo",
+        avatar: PLACEHOLDER_AVATAR_URL,
         isGuest: true
     };
 
@@ -128,13 +119,11 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
         case Screen.EDIT_PROFILE: return <EditProfileScreen navigate={navigate} goBack={goBack} unreadCount={unreadCount} />;
 
         // Settings sub-pages
-        case Screen.SETTINGS_ACCOUNT: return <SettingsAccountScreen navigate={navigate} goBack={goBack} user={appUser} />;
-        case Screen.SETTINGS_NOTIFICATIONS: return <SettingsNotificationsScreen goBack={goBack} />;
-        case Screen.SETTINGS_PRIVACY: return <SettingsPrivacyScreen navigate={navigate} goBack={goBack} />;
-        case Screen.SETTINGS_BLOCKED: return <SettingsBlockedScreen goBack={goBack} />;
-        case Screen.SETTINGS_MUTED: return <SettingsMutedScreen goBack={goBack} />;
-        case Screen.SETTINGS_DATA: return <SettingsDataScreen goBack={goBack} />;
-        case Screen.SETTINGS_HELP: return <SettingsHelpScreen goBack={goBack} />;
+        case Screen.SETTINGS_ACCOUNT: return <SettingsAccountScreen navigate={navigate} user={appUser} />;
+        case Screen.SETTINGS_NOTIFICATIONS: return <SettingsNotificationsScreen navigate={navigate} goBack={goBack} />;
+        case Screen.SETTINGS_PRIVACY: return <SettingsPrivacyScreen navigate={navigate} />;
+        case Screen.SETTINGS_DATA: return <SettingsDataScreen navigate={navigate} />;
+        case Screen.SETTINGS_HELP: return <SettingsHelpScreen />;
 
         case Screen.CONTRIBUTIONS:
             if (isGuest) return <SignInPrompt feature="contribute" description="Join to contribute stories, words, and proverbs to the community." navigate={navigate} />;
@@ -172,9 +161,6 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
             if (isGuest) return <SignInPrompt feature="notifications" description="Sign in to see your activity and updates." navigate={navigate} />;
             return <NotificationsScreen navigate={navigate} goBack={goBack} notifications={notifications} onMarkAllRead={handleMarkAllRead} onNotificationClick={handleNotificationClick} />;
 
-        case Screen.SAVED_CONVERSATIONS:
-            return <SavedConversationsScreen navigate={navigate} goBack={goBack} conversations={conversations} setConversations={(next) => { setConversations(next); localConversationService.saveAll(next); }} onChatSelect={(id) => navigate(Screen.HOME_CHAT, { chatId: id })} onRename={(id, title) => { const c = localConversationService.getConversation(id); if (c) { localConversationService.saveConversation({ ...c, title }); setConversations(localConversationService.getConversations()); } }} />;
-
         case Screen.PROVERB_DETAIL: return <ProverbDetailScreen navigate={navigate} goBack={goBack} unreadCount={unreadCount} />;
         case Screen.STORY_DETAIL: return <StoryDetailScreen navigate={navigate} goBack={goBack} unreadCount={unreadCount} story={resolvedSearchParams?.story ? JSON.parse(resolvedSearchParams.story as string) : undefined} onViewProfile={handleViewProfile} />;
         case Screen.WORD_DETAIL: return <WordDetailScreen navigate={navigate} goBack={goBack} unreadCount={unreadCount} />;
@@ -187,7 +173,7 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
         case Screen.SUGGEST_LINK: return <SuggestLinkScreen navigate={navigate} goBack={goBack} />;
         case Screen.CHANGE_PASSWORD: return <ChangePasswordScreen navigate={navigate} goBack={goBack} />;
         case Screen.ALL_ACHIEVEMENTS: return <AllAchievementsScreen goBack={goBack} />;
-        case Screen.MANAGE_LANGUAGES: return <ManageLanguagesScreen goBack={goBack} languages={languages} onUpdateLanguages={setLanguages} />;
+        case Screen.MANAGE_LANGUAGES: return <ManageLanguagesScreen languages={languages} onUpdateLanguages={setLanguages} />;
 
         case Screen.POST_THREAD: return <PostThreadScreen navigate={navigate} goBack={goBack} post={resolvedSearchParams?.post ? JSON.parse(resolvedSearchParams.post as string) : undefined} onLike={handleLikePost} onRepost={handleRepost} autoFocusReply={resolvedSearchParams?.autoFocusReply === 'true'} />;
         case Screen.DIRECT_MESSAGE:

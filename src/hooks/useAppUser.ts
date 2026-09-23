@@ -8,6 +8,8 @@ import {
   ContributionItem,
   LanguageSkill,
   NotificationItem,
+  User,
+  UserRole,
   ValidationItem,
 } from "@/types";
 
@@ -28,8 +30,17 @@ export function useAppUser() {
 
   if (isDemoMode) {
     const mock = data as ReturnType<typeof useMockUser>;
+    const demoUser: User | null = mock.user
+      ? {
+          id: mock.user.id,
+          name: mock.user.fullName,
+          avatar: mock.user.imageUrl,
+          isGuest: false,
+          role: 'member',
+        }
+      : null;
     return {
-      user: mock.user,
+      user: demoUser,
       isLoaded: mock.isLoaded,
       isSignedIn: mock.isSignedIn,
       languages: mock.languages,
@@ -53,8 +64,17 @@ export function useAppUser() {
 
   const noop = () => {};
   const noopState = () => {};
+  const clerkUser: User | null = clerk.user
+    ? {
+        id: clerk.user.id,
+        name: clerk.user.fullName ?? clerk.user.username ?? 'Member',
+        avatar: clerk.user.imageUrl,
+        isGuest: false,
+        role: 'member' as UserRole,
+      }
+    : null;
   return {
-    user: clerk.user ?? null,
+    user: clerkUser,
     isLoaded: clerk.isLoaded,
     isSignedIn: !!clerk.user,
     languages: [] as LanguageSkill[],

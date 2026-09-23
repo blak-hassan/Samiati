@@ -1,22 +1,13 @@
 "use client";
 
 import SettingsHelpScreen from "@/components/screens/SettingsHelpScreen";
-import { useNavigation } from "@/hooks/useNavigation";
-import { useState, useSyncExternalStore } from "react";
-
-const emptySubscribe = () => () => {};
+import SettingsLayoutClient from "@/components/settings/SettingsLayoutClient";
+import { Screen } from "@/types";
 
 export default function SettingsHelpPage() {
-    const { goBack } = useNavigation();
-    const isHydrated = useSyncExternalStore(emptySubscribe, () => true, () => false);
-
-    if (!isHydrated) {
-        return null;
-    }
-
     return (
-        <SettingsHelpScreen
-            goBack={goBack}
-        />
+        <SettingsLayoutClient activeScreen={Screen.SETTINGS_HELP}>
+            <SettingsHelpScreen />
+        </SettingsLayoutClient>
     );
 }

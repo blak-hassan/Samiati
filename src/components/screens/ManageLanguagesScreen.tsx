@@ -3,11 +3,9 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { LanguageSkill } from '@/types';
 import { Button } from "@/components/ui/button";
-import SettingsPageHeader from "@/components/settings/SettingsPageHeader";
 import { useToast } from "@/hooks/useToast";
 
 interface Props {
-  goBack: () => void;
   languages: LanguageSkill[];
   onUpdateLanguages: (languages: LanguageSkill[]) => void;
 }
@@ -51,6 +49,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({ label, value, options, onCh
         setIsOpen(false);
       }
     };
+    document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
@@ -88,7 +87,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({ label, value, options, onCh
   );
 };
 
-const ManageLanguagesScreen: React.FC<Props> = ({ goBack, languages, onUpdateLanguages }) => {
+const ManageLanguagesScreen: React.FC<Props> = ({ languages, onUpdateLanguages }) => {
   const { toast } = useToast();
   const [isAdding, setIsAdding] = useState(false);
   const [newLangName, setNewLangName] = useState('');
@@ -140,11 +139,11 @@ const ManageLanguagesScreen: React.FC<Props> = ({ goBack, languages, onUpdateLan
       setNewLangName(unselectedLanguages[0]);
       setNewLangLevel('Learning');
       setValidationMessage(null);
+      setIsAdding(true);
     } else {
       setValidationMessage("All available languages have been added!");
       toast("All available languages have been added!", "info");
     }
-    setIsAdding(true);
   };
 
   const handleAddLanguage = () => {
@@ -164,22 +163,20 @@ const ManageLanguagesScreen: React.FC<Props> = ({ goBack, languages, onUpdateLan
     };
 
     onUpdateLanguages([...languages, newLang]);
+    setValidationMessage(null);
     setIsAdding(false);
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-background text-foreground transition-colors duration-300 relative">
-      <SettingsPageHeader title="Manage Languages" onBack={goBack} />
-
-      <main className="flex-1 p-4 space-y-4 pb-24 overflow-y-auto">
+    <div className="space-y-4">
+      <p className="text-muted-foreground text-sm">
+        Showcase the languages you speak and your proficiency level to the community.
+      </p>
         {validationMessage && (
           <div className="bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium px-4 py-2 rounded-xl">
             {validationMessage}
           </div>
         )}
-        <p className="text-stone-600 dark:text-text-muted text-sm mb-2">
-          Showcase the languages you speak and your proficiency level to the community.
-        </p>
 
         {languages.map(lang => (
           <div key={lang.id} className="bg-white dark:bg-surface-dark rounded-xl p-4 shadow-sm border border-stone-200 dark:border-white/5 transition-all">
@@ -234,18 +231,6 @@ const ManageLanguagesScreen: React.FC<Props> = ({ goBack, languages, onUpdateLan
           Add Another Language
         </button>
 
-      </main>
-
-      <div className="p-4 bg-muted/20 border-t border-border/50 sticky bottom-0 z-10">
-        <Button
-          onClick={goBack}
-          variant="secondary"
-          className="w-full font-bold py-4 rounded-xl"
-        >
-          Go Back
-        </Button>
-      </div>
-
       {/* Add Language Modal Overlay */}
       {isAdding && (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -271,7 +256,6 @@ const ManageLanguagesScreen: React.FC<Props> = ({ goBack, languages, onUpdateLan
                 options={['Learning', 'Conversational', 'Fluent', 'Native']}
                 onChange={(val) => setNewLangLevel(val as typeof newLangLevel)}
               />
-
               <div className="pt-4">
                 <button
                   onClick={handleAddLanguage}

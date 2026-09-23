@@ -57,7 +57,6 @@ export const getUserBookmarks = query({
                     ...post,
                     author: author ? {
                         name: author.name,
-                        handle: author.handle,
                         avatar: author.avatar,
                     } : null,
                 },

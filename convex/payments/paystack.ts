@@ -2,7 +2,13 @@ import { v } from "convex/values";
 import { action, internalAction, internalMutation, internalQuery, query } from "../_generated/server";
 import { internal } from "../_generated/api";
 
-const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY!;
+function requireEnv(name: string): string {
+    const v = process.env[name];
+    if (!v) throw new Error(`${name} not configured`);
+    return v;
+}
+
+const PAYSTACK_SECRET_KEY = requireEnv("PAYSTACK_SECRET_KEY");
 const PAYSTACK_BASE_URL = "https://api.paystack.co";
 
 // ── Internal Queries ────────────────────────────────────────────────────────

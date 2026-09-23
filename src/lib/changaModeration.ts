@@ -57,7 +57,7 @@ export const getLatestModeratorNote = (item: ContributionItem) =>
 
 export const normalizeContributionItem = (
   item: ContributionItem,
-  author: { id: string; name: string; handle: string; avatar: string },
+  author: { id: string; name: string; avatar: string },
 ): ContributionItem => {
   const moderationStatus = item.moderationStatus || mapContributionStatusToModerationStatus(item.status);
   const authorStatus = mapModerationStatusToContributionStatus(moderationStatus);
@@ -69,7 +69,6 @@ export const normalizeContributionItem = (
     author: item.author || {
       name: author.name,
       avatar: author.avatar,
-      handle: author.handle,
     },
     authorId: item.authorId || author.id,
     language: item.language || DEFAULT_LANGUAGE.name,
@@ -99,7 +98,6 @@ export const buildValidationItemFromContribution = (
   author: {
     id: item.authorId || 'u_current',
     name: item.author?.name || 'You',
-    handle: item.author?.handle || 'you',
     avatar: item.author?.avatar || '',
   },
   sentiment: {

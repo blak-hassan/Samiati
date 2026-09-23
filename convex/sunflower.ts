@@ -1,55 +1,39 @@
 import { v } from "convex/values";
 import { action, internalAction } from "./_generated/server";
 import { requireAuthenticatedAction, enforceAiQuotaAction } from "./lib/aiSecurity";
+import { captureException } from "./lib/observability";
+import { internal } from "./_generated/api";
+import "./lib/providers";
 
 // =============================================================================
-// AI SERVICE — Sunflower-Gemma4-E2B via HuggingFace Inference API
+// SEARCH SERVICE — via the AI router
 // =============================================================================
-// Single model for chat + search. Replaces Gemini API, Ollama, and previous providers.
-// API key: HUGGINGFACE_API_KEY (Set in Convex Dashboard)
-// Model: BlakHasan/Sunflower-Gemma4-E2B (69 African languages)
+// Primary: Sunflower-Gemma4-E2B on HuggingFace. The router adds an
+// abstraction layer; if HF degrades, a configured fallback is tried.
+// See convex/lib/aiRouter.ts.
 // =============================================================================
 
-const SUNFLOWER_URL = "https://router.huggingface.co/BlakHasan/Sunflower-Gemma4-E2B";
 const MAX_MESSAGE_LENGTH = 10000;
 const MAX_HISTORY_LENGTH = 20;
 
+/**
+ * Shared chat helper. Wraps the router so the call sites below
+ * (sendMessage + runSearchCore) can stay focused on prompt construction.
+ * Returns the assistant's reply text on success or throws on permanent
+ * failure so the callers can map to their own user-facing strings.
+ */
 export async function callSunflower(
-    messages: { role: string; content: string }[],
+    messages: { role: "system" | "user" | "assistant"; content: string }[],
     maxTokens = 1024,
     temperature = 0.7,
 ): Promise<string> {
-    const apiKey = process.env.HUGGINGFACE_API_KEY;
-    if (!apiKey) {
-        throw new Error("HUGGINGFACE_API_KEY not configured in Convex Dashboard.");
-    }
-
-    const response = await fetch(SUNFLOWER_URL, {
-        method: "POST",
-        headers: {
-            "Authorization": `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            model: "BlakHasan/Sunflower-Gemma4-E2B",
-            messages,
-            max_tokens: maxTokens,
-            temperature,
-        }),
-    });
-
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`[Sunflower] API Error (${response.status}):`, errorText);
-        if (response.status === 503) throw new Error("Model is loading, please try again in a moment.");
-        if (response.status === 429) throw new Error("Rate limit exceeded. Please wait and try again.");
-        throw new Error(`API error: ${response.status}`);
-    }
-
-    const result = await response.json();
-    const content = result?.choices?.[0]?.message?.content;
-    if (!content) throw new Error("Unexpected response format from Sunflower API.");
-    return content.trim();
+    const { routeChat } = await import("./lib/aiRouter");
+    const result = await routeChat({ messages, maxTokens, temperature });
+    if (result.ok) return result.value;
+    const e = result.error;
+    // Permanent errors throw; transient errors have already been
+    // retried via the fallback path inside the router.
+    throw new Error(e.message || "AI provider error");
 }
 
 export const sendMessage = action({
@@ -78,7 +62,7 @@ export const sendMessage = action({
 
         const messages = [
             {
-                role: "system",
+                role: "system" as const,
                 content: "You are Samiati, a friendly AI assistant focused on African languages and culture. Reply naturally and helpfully.",
             },
             ...limitedHistory.map(msg => ({
@@ -89,9 +73,15 @@ export const sendMessage = action({
         ];
 
         try {
+            // callSunflower delegates to the router but re-throws on
+            // permanent errors, so we lose the UsageEstimate here.
+            // Acceptable: this `sendMessage` is the legacy action and
+            // is not the main chat path (`convex/chat.ts` records
+            // usage). New callers should use `routeChat` directly.
             return await callSunflower(messages, 1024, 0.9);
         } catch (error) {
-            console.error("[Sunflower] sendMessage failed:", error);
+            console.error("[Search] sendMessage failed:", error);
+            captureException(error, { tags: { service: "chat" } });
             return `ERROR: ${error instanceof Error ? error.message : "Failed to get response."}`;
         }
     },
@@ -115,7 +105,14 @@ interface SearchResult {
 
 // Shared search core. Kept free of auth/quota so internal callers (SMS
 // pipeline) can reuse it; every public entry point must gate it.
-export async function runSearchCore(args: SearchArgs): Promise<SearchResult> {
+//
+// `callLLM` is injected so the caller decides whether to use the
+// router (for usage capture) or `callSunflower` (legacy path). The
+// default is the router.
+export async function runSearchCore(
+    args: SearchArgs,
+    callLLM?: (messages: Array<{ role: "system" | "user"; content: string }>, maxTokens: number, temperature: number) => Promise<{ text: string; provider: string; usage: import("./lib/aiRouter").UsageEstimate | undefined }>,
+): Promise<SearchResult> {
     if (args.query.length > MAX_QUERY_LENGTH) {
         return { answer: "ERROR: Query too long. Please keep queries under 5,000 characters.", sources: [], followUps: [] };
     }
@@ -135,7 +132,7 @@ export async function runSearchCore(args: SearchArgs): Promise<SearchResult> {
         ? `\n\nThe user attached a document. Use it as the primary context when answering:\n---\n${doc}\n---`
         : "";
 
-    const messages = [
+    const messages: Array<{ role: "system" | "user"; content: string }> = [
         {
             role: "system",
             content: `You are Samiati, an AI assistant focused on African languages and culture. ${langInstruction}`,
@@ -148,47 +145,54 @@ Question: ${args.query}`,
         },
     ];
 
+    let rawText: string;
     try {
-        const rawText = await callSunflower(messages, 1024, 0.7);
-
-        let answer = rawText;
-        let followUps: string[] = [];
-        let sources: { title: string; url: string; snippet?: string }[] = [];
-
-        const followUpMatch = rawText.match(/FOLLOWUPS:\s*(.+)$/m);
-        if (followUpMatch) {
-            followUps = followUpMatch[1].split("||").map(s => s.trim()).filter(Boolean);
-            answer = answer.replace(/\n?FOLLOWUPS:\s*.+$/, "").trim();
+        if (callLLM) {
+            const r = await callLLM(messages, 1024, 0.7);
+            rawText = r.text;
+        } else {
+            rawText = await callSunflower(messages, 1024, 0.7);
         }
-
-        const sourcesMatch = answer.match(/SOURCES:\s*(.+)$/m);
-        if (sourcesMatch) {
-            answer = answer.replace(/\n?SOURCES:\s*.+$/, "").trim();
-            const byNumber = new Map(links.map((l, i) => [i + 1, l]));
-            const cited = sourcesMatch[1]
-                .split(/[,\s]+/)
-                .map(s => parseInt(s.replace(/[^0-9]/g, ""), 10))
-                .filter(n => !isNaN(n) && byNumber.has(n));
-            sources = cited.map(n => byNumber.get(n)!).filter(Boolean);
-        }
-
-        if (sources.length === 0) {
-            const order: number[] = [];
-            const citationRe = /\[(\d+)\]/g;
-            let m;
-            while ((m = citationRe.exec(answer)) !== null) {
-                const n = parseInt(m[1], 10);
-                if (!order.includes(n)) order.push(n);
-            }
-            const byNumber = new Map(links.map((l, i) => [i + 1, l]));
-            sources = order.map(n => byNumber.get(n)).filter(Boolean) as { title: string; url: string; snippet?: string }[];
-        }
-
-        return { answer, sources, followUps };
     } catch (error) {
-        console.error("[Sunflower] search failed:", error);
+        console.error("[Search] LLM call failed:", error);
+        captureException(error, { tags: { service: "search" } });
         return { answer: `ERROR: ${error instanceof Error ? error.message : "Search failed."}`, sources: [], followUps: [] };
     }
+
+    let answer = rawText;
+    let followUps: string[] = [];
+    let sources: { title: string; url: string; snippet?: string }[] = [];
+
+    const followUpMatch = rawText.match(/FOLLOWUPS:\s*(.+)$/m);
+    if (followUpMatch) {
+        followUps = followUpMatch[1].split("||").map(s => s.trim()).filter(Boolean);
+        answer = answer.replace(/\n?FOLLOWUPS:\s*.+$/, "").trim();
+    }
+
+    const sourcesMatch = answer.match(/SOURCES:\s*(.+)$/m);
+    if (sourcesMatch) {
+        answer = answer.replace(/\n?SOURCES:\s*.+$/, "").trim();
+        const byNumber = new Map(links.map((l, i) => [i + 1, l]));
+        const cited = sourcesMatch[1]
+            .split(/[,\s]+/)
+            .map(s => parseInt(s.replace(/[^0-9]/g, ""), 10))
+            .filter(n => !isNaN(n) && byNumber.has(n));
+        sources = cited.map(n => byNumber.get(n)!).filter(Boolean);
+    }
+
+    if (sources.length === 0) {
+        const order: number[] = [];
+        const citationRe = /\[(\d+)\]/g;
+        let m;
+        while ((m = citationRe.exec(answer)) !== null) {
+            const n = parseInt(m[1], 10);
+            if (!order.includes(n)) order.push(n);
+        }
+        const byNumber = new Map(links.map((l, i) => [i + 1, l]));
+        sources = order.map(n => byNumber.get(n)).filter(Boolean) as { title: string; url: string; snippet?: string }[];
+    }
+
+    return { answer, sources, followUps };
 }
 
 export const search = action({
@@ -203,12 +207,34 @@ export const search = action({
         document: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
-        await requireAuthenticatedAction(ctx);
+        const identity = await requireAuthenticatedAction(ctx);
         await enforceAiQuotaAction(ctx, "search");
         if (args.language.length > 100) {
             return { answer: "ERROR: Invalid language.", sources: [], followUps: [] };
         }
-        return await runSearchCore(args);
+        return await runSearchCore(args, async (messages, maxTokens, temperature) => {
+            const { routeChat } = await import("./lib/aiRouter");
+            const r = await routeChat({ messages, maxTokens, temperature });
+            if (r.usage) {
+                const { usageToRecordArgs } = await import("./lib/aiUsage");
+                try {
+                    await ctx.runMutation(
+                        internal.lib.aiUsage.recordUsage,
+                        usageToRecordArgs(r.usage, r.provider, {
+                            ok: r.ok,
+                            errorCode: r.ok ? undefined : r.error.code,
+                            subject: identity?.subject,
+                        }),
+                    );
+                } catch (e) {
+                    console.error("[search] failed to record usage:", e);
+                }
+            }
+            if (!r.ok) {
+                throw new Error(r.error.message);
+            }
+            return { text: r.value, provider: r.provider, usage: r.usage };
+        });
     },
 });
 
@@ -226,6 +252,28 @@ export const searchInternal = internalAction({
         document: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
-        return await runSearchCore(args);
+        return await runSearchCore(args, async (messages, maxTokens, temperature) => {
+            const { routeChat } = await import("./lib/aiRouter");
+            const r = await routeChat({ messages, maxTokens, temperature });
+            if (r.usage) {
+                const { usageToRecordArgs } = await import("./lib/aiUsage");
+                try {
+                    await ctx.runMutation(
+                        internal.lib.aiUsage.recordUsage,
+                        usageToRecordArgs(r.usage, r.provider, {
+                            ok: r.ok,
+                            errorCode: r.ok ? undefined : r.error.code,
+                            subject: "sms-pipeline",
+                        }),
+                    );
+                } catch (e) {
+                    console.error("[search-internal] failed to record usage:", e);
+                }
+            }
+            if (!r.ok) {
+                throw new Error(r.error.message);
+            }
+            return { text: r.value, provider: r.provider, usage: r.usage };
+        });
     },
 });

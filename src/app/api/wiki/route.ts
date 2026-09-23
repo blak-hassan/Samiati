@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ConvexHttpClient } from 'convex/browser';
 import { api } from '../../../../convex/_generated/api';
 
+// runtime: node — why: uses ConvexHttpClient over the public Convex URL
+// and may need Node-only APIs (Buffer, etc.) for future expansion.
+// Per docs/perf.md §1, default to Node unless a route is pure and
+// latency-sensitive.
+
 const WIKI_BASE: Record<string, string> = {
     links: 'https://{lang}.wikipedia.org/w/api.php',
     images: 'https://commons.wikimedia.org/w/api.php',

@@ -15,7 +15,7 @@ export default function ComingSoonPage() {
                 </Button>
                 <h1 className="text-lg font-bold ml-2">Feature Coming Soon</h1>
             </header>
-            <main className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+            <main id="main" tabIndex={-1} className="flex-1 flex flex-col items-center justify-center p-6 text-center">
                 <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
                     <span className="text-4xl text-primary">🚧</span>
                 </div>

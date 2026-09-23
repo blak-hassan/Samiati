@@ -45,7 +45,6 @@ export const listConversations = query({
                 otherUserId: otherId,
                 otherUser: otherUser ? {
                     name: otherUser.name,
-                    handle: otherUser.handle,
                     avatar: otherUser.avatar,
                     isOnline: otherUser.isOnline ?? (otherUser.lastSeen ? Date.now() - otherUser.lastSeen < 5 * 60 * 1000 : false),
                 } : null,

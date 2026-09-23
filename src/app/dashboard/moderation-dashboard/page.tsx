@@ -2,7 +2,7 @@
 
 import ModerationDashboardScreen from "@/components/screens/ModerationDashboardScreen";
 import { useNavigation } from "@/hooks/useNavigation";
-import { useQuery, useMutation } from "convex/react";
+import { useChangaQuery as useQuery, useChangaMutation as useMutation } from "@/hooks/useChangaData";
 import { api } from "../../../../convex/_generated/api";
 import { ValidationItem } from "@/types";
 import { Id } from "../../../../convex/_generated/dataModel";

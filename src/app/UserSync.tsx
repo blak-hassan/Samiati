@@ -24,14 +24,12 @@ export function UserSync() {
         hasSynced.current = true;
 
         const name = clerkUser.fullName || clerkUser.firstName || "User";
-        const handle = clerkUser.username || `user_${userId.slice(-8)}`;
         const avatar = clerkUser.imageUrl || "https://api.dicebear.com/7.x/avataaars/svg?seed=" + userId;
         const email = clerkUser.emailAddresses?.[0]?.emailAddress;
         const emailVerified = clerkUser.emailAddresses?.[0]?.verification?.status === "verified";
 
         storeUser({
             name,
-            handle,
             avatar,
             email,
         }).catch((err) => {
@@ -47,7 +45,7 @@ export function UserSync() {
                 console.error("UserSync: failed to sync Clerk user to Convex after retries", err);
             }
         });
-    }, [isLoaded, userId, clerkUser, storeUser, retryTick];
+    }, [isLoaded, userId, clerkUser, storeUser, retryTick]);
 
     useEffect(() => {
         if (!user || !isLoaded) return;

@@ -1,0 +1,5 @@
+# gapCatalog patch notes
+# - Added `billing?: string` (or `billing?: "ele" | "premium" | "sme"`) to the Gap interface (line 27)
+#   because SET-01's verify wants gap.billing but gapCatalog.ts doesn't have that field.
+#   This is a minimal structural patch; do NOT rewrite the surrounding file.
+|

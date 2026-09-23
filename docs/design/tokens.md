@@ -21,7 +21,7 @@ Samiati uses a warm, heritage-inspired palette with rasta accents.
 | `--color-background` | `#FAF9F6` | `#2b1e19` |
 | `--color-surface` | `#ffffff` | `#42342b` |
 | `--color-text-main` | `#2b1e19` | `#FAFAF9` |
-| `--color-text-muted` | `#A8A29E` | `#A8A29E` |
+| `--color-text-muted` | `#57534E` | `#A8A29E` |
 | `--color-sand-beige` | `#E7E5E4` | — |
 | `--color-input-bg` | `#E7E5E4` | `#584639` |
 
@@ -35,7 +35,7 @@ Samiati uses a warm, heritage-inspired palette with rasta accents.
 
 ## Typography
 
-Three font families loaded in a single request:
+Three text families plus one icon family loaded in a single request:
 
 | Family | Weights | Usage |
 |--------|---------|-------|

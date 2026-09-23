@@ -30,8 +30,8 @@ export function UsageBar({
                 <span className="font-medium">{label}</span>
                 <span className={cn(
                     "text-muted-foreground",
-                    isWarning && !isExhausted && "text-amber-500",
-                    isExhausted && "text-red-500"
+                    isWarning && !isExhausted && "text-[var(--color-warning)]",
+                    isExhausted && "text-[var(--color-error)]"
                 )}>
                     {current}{unit} / {limit}{unit}
                 </span>
@@ -41,16 +41,16 @@ export function UsageBar({
                     className={cn(
                         "h-full rounded-full transition-all duration-500",
                         isExhausted
-                            ? "bg-red-500"
+                            ? "bg-[var(--color-error)]"
                             : isWarning
-                            ? "bg-amber-500"
+                            ? "bg-[var(--color-warning)]"
                             : "bg-primary"
                     )}
                     style={{ width: `${percent}%` }}
                 />
             </div>
             {isExhausted && (
-                <p className="text-xs text-red-500">
+                <p className="text-xs text-[var(--color-error)]">
                     Limit reached. Resets next billing period.
                 </p>
             )}

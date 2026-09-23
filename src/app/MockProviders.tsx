@@ -135,7 +135,6 @@ export const ClerkProvider = ({ children }: { children: ReactNode }) => {
         normalizeContributionItem(item, {
           id: mockUser.id,
           name: mockUser.fullName,
-          handle: mockUser.username,
           avatar: mockUser.imageUrl,
         }),
       );
@@ -144,7 +143,6 @@ export const ClerkProvider = ({ children }: { children: ReactNode }) => {
         normalizeContributionItem(item, {
           id: mockUser.id,
           name: mockUser.fullName,
-          handle: mockUser.username,
           avatar: mockUser.imageUrl,
         }),
       );
@@ -186,7 +184,6 @@ export const ClerkProvider = ({ children }: { children: ReactNode }) => {
       const normalized = normalizeContributionItem(item, {
         id: mockUser.id,
         name: mockUser.fullName,
-        handle: mockUser.username,
         avatar: mockUser.imageUrl,
       });
 
@@ -216,7 +213,6 @@ export const ClerkProvider = ({ children }: { children: ReactNode }) => {
         id: mockUser.id,
         name: mockUser.fullName,
         avatar: mockUser.imageUrl,
-        handle: mockUser.username,
       },
       action,
       comment,

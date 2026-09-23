@@ -54,10 +54,10 @@ export const enrichClusters = internalAction({
     for (const cluster of clusters) {
       try {
         // Gather item details for context
-        const items = await ctx.runQuery(
+        const items = (await ctx.runQuery(
           internal.discover.enrich.getClusterItems,
           { itemIds: cluster.itemIds }
-        );
+        )) as { title?: string; description?: string; [k: string]: unknown }[];
 
         // Generate summary deterministically from article data
         const headlines = items.map((item) => item.title).filter(Boolean);
@@ -67,7 +67,7 @@ export const enrichClusters = internalAction({
         const summaryParts: string[] = [];
         if (descriptions.length > 0) {
           // Use the first meaningful description (up to 2 sentences)
-          const desc = descriptions[0].replace(/<[^>]*>/g, "").trim();
+           const desc = (descriptions[0] ?? "").replace(/<[^>]*>/g, "").trim();
           summaryParts.push(desc.slice(0, 200));
         }
         if (headlines.length > 1) {
@@ -106,12 +106,13 @@ export const enrichClusters = internalAction({
   },
 });
 
-// Compute trend scores for all active clusters
+// Compute trend scores for all active clusters (bounded retrieval)
 export const computeTrendScores = internalAction({
-  args: {},
-  handler: async (ctx): Promise<{ scored: number }> => {
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args): Promise<{ scored: number }> => {
     const clusters = await ctx.runQuery(
-      internal.discover.enrich.getActiveClusters
+      internal.discover.enrich.getActiveClusters,
+      { limit: args.limit ?? 5000 },
     );
 
     let scored = 0;
@@ -176,30 +177,33 @@ function calculateTrendScore(cluster: {
   return Math.round(Math.max(0, Math.min(100, score * 100)));
 }
 
-// Get clusters that need enrichment
+// Get clusters that need enrichment (bounded via by_status_summary index)
 export const getUnenrichedClusters = internalQuery({
   args: { limit: v.number() },
   handler: async (ctx, args) => {
-    const clusters = await ctx.db
+    // Clusters are created with `summary: ""` and fill in once the enrich
+    // pass finishes. Equality on the empty string is the "needs enrichment"
+    // predicate — a bounded index range, not a collect of every active
+    // cluster followed by in-memory filtering (Discover F-02). Rows leave
+    // this bucket as they are processed, so the query is starvation-free.
+    return await ctx.db
       .query("discoverClusters")
-      .withIndex("by_status_trendScore", (q) => q.eq("status", "active"))
-      .collect();
-
-    return clusters
-      .filter((c) => !c.summary || c.summary === "")
-      .sort((a, b) => b.newestPublishedAt - a.newestPublishedAt)
-      .slice(0, args.limit);
+      .withIndex("by_status_summary", (q) => q.eq("status", "active").eq("summary", ""))
+      .take(args.limit);
   },
 });
 
-// Get all active clusters for scoring
+// Get all active clusters for scoring (bounded via by_status_newest index)
 export const getActiveClusters = internalQuery({
-  args: {},
-  handler: async (ctx) => {
+  args: { limit: v.number() },
+  handler: async (ctx, args) => {
+    // The hourly trend scorer walks the full active set every hour. This used
+    // to be an unbounded `.collect()` (Discover F-02); now it's a bounded
+    // index read with a hard cap so growth never OOMs the cron run.
     return await ctx.db
       .query("discoverClusters")
-      .withIndex("by_status_trendScore", (q) => q.eq("status", "active"))
-      .collect();
+      .withIndex("by_status_newest", (q) => q.eq("status", "active"))
+      .take(args.limit);
   },
 });
 

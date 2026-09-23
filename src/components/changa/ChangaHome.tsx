@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useChangaQuery as useQuery, useChangaMutation as useMutation } from "@/hooks/useChangaData";
 import { api } from "../../../convex/_generated/api";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useTranslation } from "@/i18n/TranslationProvider";
@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Screen } from "@/types";
 import { logChangaEvent } from "@/lib/changaTelemetry";
+import { trackEvent } from "@/lib/analytics";
 import { XPProgressBar } from "@/components/changa/XPProgressBar";
 import { ChangaEmptyState } from "@/components/changa/ChangaEmptyState";
 import {
@@ -125,7 +126,19 @@ export default function ChangaHome({ onViewActivity }: ChangaHomeProps) {
     const isPowerUser = (userStats?.trustScore ?? 0) > 200;
     const visibleOtherTasks = isNewContributor ? [] : isPowerUser ? openTasks.slice(1, 11) : otherTasks;
 
-    const startTask = (taskId: string) => {
+    const startTask = (taskId: string, taskType: string, languageCode: string) => {
+        // Track changa task started
+        trackEvent("changa_started", {
+            location: "changa_home",
+        });
+
+        logChangaEvent({
+            name: "task_started",
+            taskType,
+            languageCode,
+            taskId,
+        });
+
         navigate(Screen.ADD_CONTRIBUTION, { taskId });
     };
 
@@ -157,8 +170,14 @@ export default function ChangaHome({ onViewActivity }: ChangaHomeProps) {
     };
 
     // Log the recommended task as "offered" exactly once, after render.
+    // Also track that the user has opened Changa.
     const offeredRef = useRef<string | null>(null);
     useEffect(() => {
+        // Track changa opened on first render
+        trackEvent("changa_opened", {
+            location: "changa_home",
+        });
+
         if (recommendedTask && offeredRef.current !== recommendedTask._id) {
             offeredRef.current = recommendedTask._id;
             logChangaEvent({
@@ -477,7 +496,7 @@ export default function ChangaHome({ onViewActivity }: ChangaHomeProps) {
                                 <Button
                                     className="w-full"
                                     size="lg"
-                                    onClick={() => startTask(recommendedTask._id)}
+                                    onClick={() => startTask(recommendedTask._id, recommendedTask.taskType, recommendedTask.languageCode)}
                                 >
                                     Start task
                                     <ArrowRight className="ml-2 size-4" />
@@ -509,7 +528,7 @@ export default function ChangaHome({ onViewActivity }: ChangaHomeProps) {
                                     {visibleOtherTasks.map((task) => (
                                         <button
                                             key={task._id}
-                                            onClick={() => startTask(task._id)}
+                                            onClick={() => startTask(task._id, task.taskType, task.languageCode)}
                                             className="flex w-full items-center justify-between gap-3 rounded-xl border bg-card p-4 text-left transition-colors hover:bg-accent"
                                         >
                                             <div className="min-w-0">

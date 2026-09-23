@@ -2,10 +2,14 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import {
     changaAssignmentStatusValidator,
+    changaAutoCategoryValidator,
     changaAutoChecksValidator,
     changaCampaignStatusValidator,
     changaConsentScopeValidator,
     changaConsentValidator,
+    changaDocumentEntryStatusValidator,
+    changaDocumentKindValidator,
+    changaDocumentStatusValidator,
     changaExampleTypeValidator,
     changaInputFieldValidator,
     changaLicenseValidator,
@@ -30,7 +34,7 @@ import {
 export default defineSchema({
     users: defineTable({
         name: v.string(),
-        handle: v.string(),
+        handle: v.optional(v.string()),
         email: v.optional(v.string()),
         emailVerified: v.optional(v.boolean()), // From Clerk identity; false/absent = unverified
         avatar: v.string(),
@@ -57,6 +61,8 @@ export default defineSchema({
             approvedAt: v.optional(v.number()),
             approvedBy: v.optional(v.id("users")),
             isActive: v.boolean(),
+            requestedLanguages: v.optional(v.array(v.string())),
+            motivation: v.optional(v.string()),
         })),
         // Gamification & Social
         xp: v.optional(v.number()),
@@ -86,7 +92,6 @@ export default defineSchema({
         isOnline: v.optional(v.boolean()), // Current online status
     })
         .index("by_clerkId", ["clerkId"])
-        .index("by_handle", ["handle"])
         .index("by_role", ["role"])
         .index("by_isOnline", ["isOnline"]),
 
@@ -96,11 +101,12 @@ export default defineSchema({
         messageCount: v.number(),
         isPinned: v.boolean(),
         lastActive: v.number(), // Timestamp
+        isArchived: v.optional(v.boolean()), // Soft archive — hidden from the "All" tab
         category: v.optional(v.string()), // Cultural category
         clientId: v.string(), // Client-generated ID for stable sync
         // Participants could be added here for multi-user
         userId: v.string(), // Owner/Participant
-    }).index("by_user", ["userId"]).index("by_clientId", ["clientId"]),
+    }).index("by_user", ["userId"]).index("by_clientId", ["clientId"]).index("by_user_clientId", ["userId", "clientId"]),
 
     messages: defineTable({
         conversationId: v.id("conversations"),
@@ -171,6 +177,17 @@ export default defineSchema({
     })
         .index("by_user", ["userId"])
         .index("by_user_isRead", ["userId", "isRead"]),
+
+    waitlist: defineTable({
+        email: v.string(),
+        name: v.optional(v.string()),
+        source: v.optional(v.string()), // "landing", "pricing", etc.
+        subscribedAt: v.number(),
+        isNotified: v.boolean(),
+        notifiedAt: v.optional(v.number()),
+    })
+        .index("by_email", ["email"])
+        .index("by_subscribedAt", ["subscribedAt"]),
 
     contributions: defineTable({
         userId: v.id("users"),
@@ -332,6 +349,12 @@ changaSubmissions: defineTable({
         contextNote: v.optional(v.string()),
         gloss: v.optional(v.string()),
         partOfSpeech: v.optional(v.string()),
+        // Optional reference to a public source (website, blog post,
+        // archive.org link). Validated on the server to be http(s).
+        externalUrl: v.optional(v.string()),
+        // If this submission was promoted from a bulk document entry,
+        // link back to it for traceability and review grouping.
+        documentEntryId: v.optional(v.id("changaDocumentEntries")),
         speakerProfile: v.optional(changaSpeakerProfileValidator),
         consent: changaConsentValidator,
         consentPolicyVersion: v.optional(v.string()),
@@ -390,6 +413,65 @@ curatedExampleId: v.optional(v.id("changaCuratedExamples")),
     })
         .index("by_submission", ["submissionId"])
         .index("by_status", ["status"]),
+
+    // -----------------------------------------------------------------
+    // Bulk document ingestion (dictionaries, novels, song collections,
+    // external website links, transcripts). A document groups many
+    // entries under one user-contributed source.
+    // -----------------------------------------------------------------
+    changaDocuments: defineTable({
+        ownerId: v.id("users"),
+        title: v.string(),
+        kind: changaDocumentKindValidator,
+        sourceUrl: v.optional(v.string()),
+        fileStorageId: v.optional(v.id("_storage")),
+        languageCode: v.string(),
+        dialectCode: v.optional(v.string()),
+        regionCode: v.optional(v.string()),
+        totalEntries: v.number(),
+        importedEntries: v.number(),
+        // Total bytes uploaded so far (for progress + quota tracking).
+        bytesUploaded: v.optional(v.number()),
+        status: changaDocumentStatusValidator,
+        // Detected kind (from auto-categorization) may differ from declared.
+        detectedKind: v.optional(changaDocumentKindValidator),
+        detectedLanguage: v.optional(v.string()),
+        autoCategory: v.optional(changaAutoCategoryValidator),
+        autoConfidence: v.optional(v.number()),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+        finalizedAt: v.optional(v.number()),
+    })
+        .index("by_owner_status", ["ownerId", "status"])
+        .index("by_status", ["status"])
+        .index("by_kind", ["kind"])
+        .index("by_status_confidence", ["status", "autoConfidence"]),
+
+    changaDocumentEntries: defineTable({
+        documentId: v.id("changaDocuments"),
+        index: v.number(),
+        sourceText: v.string(),
+        targetText: v.optional(v.string()),
+        metadata: v.optional(v.object({
+            page: v.optional(v.number()),
+            chapter: v.optional(v.string()),
+            partOfSpeech: v.optional(v.string()),
+            gloss: v.optional(v.string()),
+        })),
+        autoCategory: v.optional(changaAutoCategoryValidator),
+        autoConfidence: v.optional(v.number()),
+        detectedLanguage: v.optional(v.string()),
+        piiRiskScore: v.optional(v.number()),
+        profanityRiskScore: v.optional(v.number()),
+        suggestedTarget: v.optional(v.string()),
+        status: changaDocumentEntryStatusValidator,
+        reviewAssignedTo: v.optional(v.id("users")),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+    })
+        .index("by_document", ["documentId"])
+        .index("by_document_status", ["documentId", "status"])
+        .index("by_document_index", ["documentId", "index"]),
 
     changaConsentPolicies: defineTable({
         policyVersion: v.string(),
@@ -506,6 +588,20 @@ curatedExampleId: v.optional(v.id("changaCuratedExamples")),
     })
         .index("by_user_language", ["userId", "languageCode"])
         .index("by_role_status", ["role", "status"]),
+
+    changaCustomTaskTemplates: defineTable({
+        creatorId: v.id("users"),
+        campaignId: v.optional(v.id("changaCampaigns")),
+        title: v.string(),
+        description: v.string(),
+        taskType: changaTaskTypeValidator,
+        languageCode: v.optional(v.string()),
+        inputSchema: v.array(changaInputFieldValidator),
+        successCriteria: v.optional(v.string()),
+        createdAt: v.number(),
+    })
+        .index("by_campaign", ["campaignId"])
+        .index("by_creator", ["creatorId"]),
 
     changaDecisions: defineTable({
         submissionId: v.id("changaSubmissions"),
@@ -671,6 +767,7 @@ curatedExampleId: v.optional(v.id("changaCuratedExamples")),
         deadline: v.number(),
         createdBy: v.id("users"),
         status: v.union(v.literal('active'), v.literal('ended'), v.literal('upcoming')),
+        endedAt: v.optional(v.number()),
     }).index("by_status", ["status"]),
 
     challengeEntries: defineTable({
@@ -679,6 +776,8 @@ curatedExampleId: v.optional(v.id("changaCuratedExamples")),
         content: v.string(),
         submittedAt: v.number(),
         status: v.union(v.literal('pending'), v.literal('winner'), v.literal('rejected')),
+        score: v.optional(v.number()),
+        rank: v.optional(v.number()),
     })
         .index("by_challenge", ["challengeId"])
         .index("by_user", ["userId"]),
@@ -742,6 +841,42 @@ curatedExampleId: v.optional(v.id("changaCuratedExamples")),
         count: v.number(),
         updatedAt: v.number(),
     }).index("by_key", ["key"]),
+
+    // AI usage log. One row per router call (success or failure).
+    // Written from the action layer after each call so the data is
+    // useful for cost dashboards and free-tier/LTV analysis. See
+    // convex/lib/aiUsage.ts.
+    aiUsage: defineTable({
+        service: v.union(
+            v.literal("chat"),
+            v.literal("search"),
+            v.literal("translate"),
+            v.literal("tts"),
+            v.literal("asr"),
+            v.literal("embed"),
+            v.literal("moderate"),
+        ),
+        model: v.string(),
+        provider: v.string(),
+        inputTokens: v.number(),
+        outputTokens: v.number(),
+        costCents: v.number(),
+        usageSource: v.union(v.literal("reported"), v.literal("estimated")),
+        ok: v.boolean(),
+        errorCode: v.optional(v.string()),
+        userId: v.optional(v.id("users")), // best-effort: not all calls have one
+        subject: v.optional(v.string()),    // rate-limit subject (e.g. SMS phone, anon)
+        tier: v.optional(v.union(
+            v.literal("free"),
+            v.literal("learner"),
+            v.literal("fluent"),
+            v.literal("organization"),
+        )),
+        createdAt: v.number(),
+    })
+        .index("by_createdAt", ["createdAt"])
+        .index("by_service_createdAt", ["service", "createdAt"])
+        .index("by_user_createdAt", ["userId", "createdAt"]),
 
     // ── Subscription & Billing (Paystack) ──────────────────────────────────
 
@@ -838,9 +973,30 @@ curatedExampleId: v.optional(v.id("changaCuratedExamples")),
         entities: v.array(v.string()),
         imageUrl: v.optional(v.string()),
         status: v.string(),             // "raw" | "clustered" | "enriched" | "archived"
-    }).index("by_status", ["status"])
-      .index("by_category_published", ["category", "publishedAt"])
-      .index("by_published", ["publishedAt"]),
+        // Embedding populated by the Discover processing pipeline via the
+        // AI router. When present, used for vector-search-based clustering
+        // (see convex/discover/cluster.ts). Dimensions must match the
+        // model registered in convex/lib/providers/huggingface.ts
+        // (paraphrase-multilingual-MiniLM-L12-v2 = 384).
+        embedding: v.optional(v.array(v.number())),
+        embeddingModel: v.optional(v.string()),
+        embeddedAt: v.optional(v.number()),
+        // Back-reference to the cluster this item was folded into. Lets the
+        // clustering pass resolve "which cluster already contains item X" with
+        // a point read instead of scanning every active cluster per neighbor.
+        clusterId: v.optional(v.id("discoverClusters")),
+    })
+        .index("by_status", ["status"])
+        .index("by_category_published", ["category", "publishedAt"])
+        .index("by_published", ["publishedAt"])
+        // Reserved for "list the items in a cluster" (per-source attribution,
+        // Phase 3 T3.1) and for cluster membership lookups.
+        .index("by_cluster", ["clusterId"])
+        .vectorIndex("by_embedding", {
+            dimensions: 384,
+            vectorField: "embedding",
+            filterFields: ["category", "country"],
+        }),
 
     // Clusters of articles about the same event
     discoverClusters: defineTable({
@@ -859,7 +1015,17 @@ curatedExampleId: v.optional(v.id("changaCuratedExamples")),
         imageUrl: v.optional(v.string()),
     }).index("by_status_trendScore", ["status", "trendScore"])
       .index("by_category_status", ["category", "status"])
-      .index("by_newest", ["newestPublishedAt"]),
+      .index("by_newest", ["newestPublishedAt"])
+      // Bounded feed reads: newest-first within the active set, optionally
+      // narrowed to a single category. Replaces the "collect every active
+      // cluster, then filter/sort in memory" pattern (Discover F-02).
+      .index("by_status_newest", ["status", "newestPublishedAt"])
+      .index("by_status_category_newest", ["status", "category", "newestPublishedAt"])
+      // Exact enrichment queue: clusters are created with `summary: ""` and
+      // leave that bucket once the enrich pass fills them in, so equality on
+      // the empty string is the "needs enrichment" predicate — bounded, and
+      // starvation-free because rows leave the bucket as they are processed.
+      .index("by_status_summary", ["status", "summary"]),
 
     // User engagement with Discover topics
     discoverEngagement: defineTable({
@@ -868,7 +1034,12 @@ curatedExampleId: v.optional(v.id("changaCuratedExamples")),
         action: v.string(),             // "click" | "read" | "explore" | "save" | "share" | "dismiss"
         timestamp: v.number(),
     }).index("by_user", ["userId"])
-      .index("by_cluster", ["clusterId"]),
+      .index("by_cluster", ["clusterId"])
+      // Bounded dedup check in saveTopic: "has user U saved cluster C?" is a
+      // point read, not a collect of every engagement that user ever logged
+      // (Discover F-02). Also lets getSavedTopics return only "save" rows.
+      .index("by_user_cluster_action", ["userId", "clusterId", "action"])
+      .index("by_user_action", ["userId", "action"]),
 
     // User interest scores per category
     discoverUserInterests: defineTable({

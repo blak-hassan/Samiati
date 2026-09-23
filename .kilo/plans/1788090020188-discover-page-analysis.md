@@ -54,9 +54,9 @@
 - Show toast: "Link copied to clipboard"
 
 **2d. Make refresh actually refetch**
-- File: `src/components/screens/DiscoverScreen.tsx:78-82`
-- Convex queries auto-refetch on mutation, but for manual refresh use `useRefresh` or invalidate queries
-- Or: call a no-op mutation to trigger reactivity; show toast "Feed refreshed"
+- File: `src/components/screens/DiscoverScreen.tsx`
+- The refresh handler resets `cursor` (and the accumulated `loadedClusters`) to `undefined`, which changes the `getFeed` query dependencies and triggers a fresh server read — no no-op mutation is needed.
+- A "Feed refreshed" toast, if desired, should only be shown after the refetched `feedResult` data is confirmed returned (not optimistically), to avoid claiming success on a failed read.
 
 ### Task 3: Improve Card Layout & Visual Hierarchy
 

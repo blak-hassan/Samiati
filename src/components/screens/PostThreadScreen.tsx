@@ -1,5 +1,6 @@
 ﻿"use client";
 import React, { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { Screen, Post } from '@/types';
 import { PollComponent } from '@/components/social/PollComponent';
 import {
@@ -230,7 +231,18 @@ const PostThreadScreen: React.FC<Props> = ({ goBack, post, onLike, onRepost, aut
 
                             {post.image && (
                                 <div className="mb-6 rounded-3xl overflow-hidden border border-border shadow-2xl relative group bg-muted/10">
-                                    <img src={post.image} alt={post.altText || "Post content"} className="w-full h-auto max-h-[600px] object-contain"  loading="lazy" decoding="async" />
+                                    <Image
+                                        src={post.image}
+                                        alt={post.altText || "Post content"}
+                                        width={1200}
+                                        height={800}
+                                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
+                                        className="w-full h-auto max-h-[600px] object-contain"
+                                        loading="lazy"
+                                        decoding="async"
+                                        placeholder="blur"
+                                        blurDataURL="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='800'><rect width='100%' height='100%' fill='%2342342b'/></svg>"
+                                    />
                                     {post.altText && (
                                         <>
                                             <Button

@@ -3,6 +3,15 @@ import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../../../convex/_generated/api";
 import { isValidTwilioSignature } from "@/lib/smsSignature";
 
+// runtime: node — why: uses Buffer (Twilio basic auth) and ConvexHttpClient.
+// Per docs/perf.md §1, default to Node.
+
+function requireEnv(name: string): string {
+    const v = process.env[name];
+    if (!v) throw new Error(`${name} not configured`);
+    return v;
+}
+
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
 const SMS_WEBHOOK_SECRET = process.env.SMS_WEBHOOK_SECRET;
@@ -117,7 +126,7 @@ export async function POST(request: Request) {
   }
 
   const auth = "Basic " + Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString("base64");
-  const params = new URLSearchParams({ To: to, From: process.env.TWILIO_FROM_NUMBER!, Body: trimmed });
+  const params = new URLSearchParams({ To: to, From: requireEnv("TWILIO_FROM_NUMBER"), Body: trimmed });
 
   const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`, {
     method: "POST",

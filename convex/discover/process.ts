@@ -5,7 +5,6 @@ import {
   classifyCategory,
   extractCountry,
   extractCounty,
-  getSourceReputation,
   fetchAllSources,
 } from "./sources";
 
@@ -176,214 +175,53 @@ export const storeNormalizedItem = internalMutation({
   },
 });
 
-// Cluster similar items into topics
-export const clusterItems = internalAction({
-  args: {},
-  handler: async (ctx) => {
-    // Get recent unclustered items
-    const items = await ctx.runQuery(
-      internal.discover.process.getUnclusteredItems,
-      { limit: 100 }
-    );
-
-    if (items.length === 0) return { clustered: 0 };
-
-    // Simple dedup: group by title similarity
-    const clusters: Map<string, typeof items> = new Map();
-
-    for (const item of items) {
-      const key = normalizeTitle(item.title);
-      if (clusters.has(key)) {
-        clusters.get(key)!.push(item);
-      } else {
-        clusters.set(key, [item]);
-      }
-    }
-
-    let clustered = 0;
-    for (const [, clusterItems] of clusters) {
-      if (clusterItems.length < 1) continue;
-
-      // Use the newest item's title as the topic title
-      const sorted = clusterItems.sort((a: typeof clusterItems[0], b: typeof clusterItems[0]) => b.publishedAt - a.publishedAt);
-      const topicTitle = sorted[0].title;
-      const sourceDomains = [...new Set(clusterItems.map((item: typeof clusterItems[0]) => item.sourceDomain))];
-      const country = sorted[0].country;
-      const category = sorted[0].category;
-
-      // Check if cluster already exists
-      const existing = await ctx.runQuery(
-        internal.discover.process.findClusterByTitle,
-        { topicTitle }
-      );
-
-      if (existing) {
-        // Update existing cluster
-        const newItemIds = [
-          ...existing.itemIds,
-          ...clusterItems.map((item: typeof clusterItems[0]) => item._id),
-        ].filter((id, idx, arr) => arr.indexOf(id) === idx);
-
-        await ctx.runMutation(internal.discover.process.updateCluster, {
-          clusterId: existing._id,
-          itemIds: newItemIds,
-          sourceDomains: [...new Set([...existing.sourceDomains, ...sourceDomains])],
-          sourceCount: [...new Set([...existing.sourceDomains, ...sourceDomains])].length,
-          newestPublishedAt: sorted[0].publishedAt,
-        });
-      } else {
-        // Create new cluster
-        await ctx.runMutation(internal.discover.process.createCluster, {
-          topicTitle,
-          itemIds: clusterItems.map((i) => i._id),
-          sourceDomains,
-          category,
-          country,
-          newestPublishedAt: sorted[0].publishedAt,
-          sourceCount: sourceDomains.length,
-        });
-      }
-
-      // Mark items as clustered
-      for (const item of clusterItems) {
-        await ctx.runMutation(internal.discover.process.markItemClustered, {
-          itemId: item._id,
-        });
-      }
-
-      clustered++;
-    }
-
-    console.log(`[Discover] Clustered ${clustered} groups from ${items.length} items`);
-    return { clustered };
-  },
-});
-
-// Get unclustered items
-export const getUnclusteredItems = internalQuery({
-  args: { limit: v.number() },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("discoverItems")
-      .withIndex("by_status", (q) => q.eq("status", "raw"))
-      .order("desc")
-      .take(args.limit);
-  },
-});
-
-// Normalize title for dedup (lowercase, remove punctuation, collapse whitespace)
-function normalizeTitle(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^\w\s]/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 80);
-}
-
-// Find cluster by topic title
-export const findClusterByTitle = internalQuery({
-  args: { topicTitle: v.string() },
-  handler: async (ctx, args) => {
-    const normalized = normalizeTitle(args.topicTitle);
-    // Search active clusters
-    const clusters = await ctx.db
-      .query("discoverClusters")
-      .withIndex("by_status_trendScore", (q) => q.eq("status", "active"))
-      .collect();
-
-    return clusters.find((c) => normalizeTitle(c.topicTitle) === normalized);
-  },
-});
-
-// Create new cluster
-export const createCluster = internalMutation({
-  args: {
-    topicTitle: v.string(),
-    itemIds: v.array(v.id("discoverItems")),
-    sourceDomains: v.array(v.string()),
-    category: v.string(),
-    country: v.string(),
-    newestPublishedAt: v.number(),
-    sourceCount: v.number(),
-  },
-  handler: async (ctx, args) => {
-    await ctx.db.insert("discoverClusters", {
-      topicTitle: args.topicTitle,
-      itemIds: args.itemIds,
-      sourceDomains: args.sourceDomains,
-      category: args.category,
-      country: args.country,
-      newestPublishedAt: args.newestPublishedAt,
-      sourceCount: args.sourceCount,
-      status: "active",
-      trendScore: 0,
-      summary: "",
-      whyTrending: "",
-      suggestedQuery: args.topicTitle,
-      imageUrl: undefined,
-    });
-  },
-});
-
-// Update existing cluster
-export const updateCluster = internalMutation({
-  args: {
-    clusterId: v.id("discoverClusters"),
-    itemIds: v.array(v.id("discoverItems")),
-    sourceDomains: v.array(v.string()),
-    sourceCount: v.number(),
-    newestPublishedAt: v.number(),
-  },
-  handler: async (ctx, args) => {
-    const cluster = await ctx.db.get(args.clusterId);
-    if (!cluster) return;
-
-    await ctx.db.patch(args.clusterId, {
-      itemIds: args.itemIds,
-      sourceDomains: args.sourceDomains,
-      sourceCount: args.sourceCount,
-      newestPublishedAt: args.newestPublishedAt,
-    });
-  },
-});
-
-// Mark item as clustered
-export const markItemClustered = internalMutation({
-  args: { itemId: v.id("discoverItems") },
-  handler: async (ctx, args) => {
-    await ctx.db.patch(args.itemId, { status: "clustered" });
-  },
-});
-
 // Archive old items (older than 7 days)
+//
+// Both sides of the cleanup read the *oldest* rows first (`by_ingested` /
+// `by_newest`, ascending) and loop in batches, so retention holds even when
+// ingestion outpaces a single batch. The previous version did exactly one
+// `take(100)` per day, which could not keep up with ingestion rates of
+// 4,800–19,200 items/day and let both tables grow without bound.
+const CLEANUP_CUTOFF_MS = 7 * 24 * 60 * 60 * 1000;
+const CLEANUP_BATCH = 100;
+const CLEANUP_MAX_BATCHES = 20; // hard ceiling per run: 2,000 rows of each kind
 export const archiveOldItems = internalAction({
   args: {},
   handler: async (ctx): Promise<{ archivedItems: number; archivedClusters: number }> => {
-    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const cutoff = Date.now() - CLEANUP_CUTOFF_MS;
 
     // Archive old raw items
-    const oldRaw = await ctx.runQuery(
-      internal.discover.process.getOldRawItems,
-      { cutoff }
-    );
-    for (const item of oldRaw) {
-      await ctx.runMutation(internal.discover.process.deleteItem, { itemId: item._id });
+    let archivedItems = 0;
+    for (let batch = 0; batch < CLEANUP_MAX_BATCHES; batch++) {
+      const oldRaw = await ctx.runQuery(
+        internal.discover.process.getOldRawItems,
+        { cutoff }
+      );
+      for (const item of oldRaw) {
+        await ctx.runMutation(internal.discover.process.deleteItem, { itemId: item._id });
+      }
+      archivedItems += oldRaw.length;
+      if (oldRaw.length < CLEANUP_BATCH) break;
     }
 
     // Archive old clusters
-    const oldClusters = await ctx.runQuery(
-      internal.discover.process.getOldClusters,
-      { cutoff }
-    );
-    for (const cluster of oldClusters) {
-      await ctx.runMutation(internal.discover.process.archiveCluster, {
-        clusterId: cluster._id,
-      });
+    let archivedClusters = 0;
+    for (let batch = 0; batch < CLEANUP_MAX_BATCHES; batch++) {
+      const oldClusters = await ctx.runQuery(
+        internal.discover.process.getOldClusters,
+        { cutoff }
+      );
+      for (const cluster of oldClusters) {
+        await ctx.runMutation(internal.discover.process.archiveCluster, {
+          clusterId: cluster._id,
+        });
+      }
+      archivedClusters += oldClusters.length;
+      if (oldClusters.length < CLEANUP_BATCH) break;
     }
 
-    console.log(`[Discover] Archived ${oldRaw.length} old items and ${oldClusters.length} old clusters`);
-    return { archivedItems: oldRaw.length, archivedClusters: oldClusters.length };
+    console.log(`[Discover] Archived ${archivedItems} old items and ${archivedClusters} old clusters`);
+    return { archivedItems, archivedClusters };
   },
 });
 

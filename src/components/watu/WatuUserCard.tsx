@@ -56,7 +56,7 @@ export const WatuUserCard: React.FC<WatuUserCardProps> = ({
                         </p>
                     ) : (
                         <p className="text-xs text-stone-500 dark:text-text-muted truncate">
-                            {person.handle} • {person.role}
+                            {person.role}
                         </p>
                     )}
                 </div>

@@ -126,7 +126,6 @@ export const getRecent = query({
                 return {
                     ...item,
                     userName: feedbackUser?.name,
-                    userHandle: feedbackUser?.handle,
                     userAvatar: feedbackUser?.avatar,
                 };
             })

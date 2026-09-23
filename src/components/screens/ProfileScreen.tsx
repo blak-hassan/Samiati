@@ -1,9 +1,10 @@
 "use client";
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { NavigateFn, Screen, User, LanguageSkill, ProfileDashboard } from '@/types';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { NotificationBell } from '@/components/shared/NotificationBell';
+import { useToast } from '@/hooks/useToast';
 import {
   ArrowLeft,
   Globe,
@@ -37,6 +38,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SettingsExitButton } from "@/components/settings/SettingsPageHeader";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -117,25 +119,118 @@ const ProfileScreen: React.FC<Props> = ({
   // Privacy state — initialised from server; mutations persist immediately.
   const privacy = dashboard?.privacy;
   const updatePrivacy = useMutation(api.users.mutations.updatePrivacy);
+  const followMutation = useMutation(api.users.mutations.follow);
+  const unfollowMutation = useMutation(api.users.mutations.unfollow);
+  const { toast } = useToast();
+
   const [profileVisible, setProfileVisible] = useState(privacy?.profileVisible ?? true);
   const [showContributions, setShowContributions] = useState(privacy?.showChanga ?? true);
-  const [isFollowing, setIsFollowing] = useState(false);
+  const [voiceDataAllowed, setVoiceDataAllowed] = useState(privacy?.voiceDataAllowed ?? true);
+  const [culturalDataAllowed, setCulturalDataAllowed] = useState(privacy?.culturalDataAllowed ?? true);
+  // Follow state is server-authoritative (dashboard.profile.isFollowing) with an
+  // optimistic local override while a mutation is in flight.
+  const serverFollowing = (dashboard?.profile as { isFollowing?: boolean } | undefined)?.isFollowing ?? false;
+  const [optimisticFollowing, setOptimisticFollowing] = useState<boolean | null>(null);
+  const isFollowing = optimisticFollowing ?? serverFollowing;
+
+  useEffect(() => {
+    setProfileVisible(privacy?.profileVisible ?? true);
+    setShowContributions(privacy?.showChanga ?? true);
+    setVoiceDataAllowed(privacy?.voiceDataAllowed ?? true);
+    setCulturalDataAllowed(privacy?.culturalDataAllowed ?? true);
+  }, [privacy?.profileVisible, privacy?.showChanga, privacy?.voiceDataAllowed, privacy?.culturalDataAllowed]);
 
   const handleProfileVisibleChange = useCallback((checked: boolean) => {
     setProfileVisible(checked);
-    updatePrivacy({ profileVisible: checked }).catch(() => setProfileVisible(!checked));
-  }, [updatePrivacy]);
+    updatePrivacy({ profileVisible: checked }).catch(() => {
+      setProfileVisible(!checked);
+      toast("Couldn't update privacy setting", "error");
+    });
+  }, [updatePrivacy, toast]);
 
   const handleShowChangaChange = useCallback((checked: boolean) => {
     setShowContributions(checked);
-    updatePrivacy({ showChanga: checked }).catch(() => setShowContributions(!checked));
-  }, [updatePrivacy]);
+    updatePrivacy({ showChanga: checked }).catch(() => {
+      setShowContributions(!checked);
+      toast("Couldn't update privacy setting", "error");
+    });
+  }, [updatePrivacy, toast]);
+
+  const handleVoiceDataChange = useCallback((checked: boolean) => {
+    setVoiceDataAllowed(checked);
+    updatePrivacy({ voiceDataAllowed: checked }).catch(() => {
+      setVoiceDataAllowed(!checked);
+      toast("Couldn't update privacy setting", "error");
+    });
+  }, [updatePrivacy, toast]);
+
+  const handleCulturalDataChange = useCallback((checked: boolean) => {
+    setCulturalDataAllowed(checked);
+    updatePrivacy({ culturalDataAllowed: checked }).catch(() => {
+      setCulturalDataAllowed(!checked);
+      toast("Couldn't update privacy setting", "error");
+    });
+  }, [updatePrivacy, toast]);
 
   const contribution = dashboard?.contribution;
   const level = dashboard?.contributorLevel ?? { level: 1, title: 'Explorer' };
   const isLoading = loading && dashboard === undefined;
   const hasReviewed = (contribution?.acceptRate ?? 0) > 0 && (contribution?.total ?? 0) > 0;
   const languagesForDisplay = user.languages && user.languages.length > 0 ? user.languages : languages;
+
+  // Languages with at least one accepted contribution. Drives the verified chip
+  // and the "Verified contributor in {lang}" badge (brand-aligned, quality-only).
+  const verifiedLanguageNames = useMemo(() => {
+    const out = new Set<string>();
+    const byLanguage = contribution?.byLanguage ?? {};
+    for (const [code, counts] of Object.entries(byLanguage)) {
+      if (counts.accepted > 0) {
+        out.add(code.toLowerCase());
+        // Also accept matching by display name (Kikuyu vs kikuyu).
+        const match = languagesForDisplay.find((skill) => skill.name.toLowerCase() === code.toLowerCase());
+        if (match) out.add(match.name.toLowerCase());
+      }
+    }
+    return out;
+  }, [contribution?.byLanguage, languagesForDisplay]);
+
+  // First language the user marked as "Learning" — surfaced as a quick-edit chip.
+  const learningLanguage = useMemo(
+    () => languagesForDisplay.find((skill) => skill.level === 'Learning'),
+    [languagesForDisplay],
+  );
+
+  const activeRoles = dashboard?.activeRoles ?? [];
+  const serverBadges = contribution?.badges ?? [];
+
+  // Target user id (the profile being viewed) — falls back to undefined for
+  // the self-profile case where follow/unfollow is not shown.
+  const targetUserId = (dashboard?.profile as { _id?: unknown } | undefined)?._id as string | undefined;
+
+  const handleToggleFollow = useCallback(async () => {
+    if (!targetUserId) return;
+    const next = !isFollowing;
+    setOptimisticFollowing(next);
+    try {
+      if (next) {
+        await followMutation({ targetUserId: targetUserId as never });
+        toast(`Following ${user.name}`, "success");
+      } else {
+        await unfollowMutation({ targetUserId: targetUserId as never });
+        toast(`Unfollowed ${user.name}`, "info");
+      }
+    } catch (err) {
+      setOptimisticFollowing(!next);
+      toast(err instanceof Error ? err.message : "Couldn't update follow", "error");
+    } finally {
+      setOptimisticFollowing(null);
+    }
+  }, [targetUserId, isFollowing, followMutation, unfollowMutation, toast, user.name]);
+
+  const handleMessage = useCallback(() => {
+    if (!targetUserId) return;
+    navigate(Screen.DIRECT_MESSAGE, { userId: targetUserId, name: user.name, avatar: user.avatar });
+  }, [navigate, targetUserId, user.name, user.avatar]);
 
   // Progress toward the next contributor title — volume ladder is 5 verified
   // contributions per level, gated by acceptance quality (spec §17).
@@ -190,10 +285,11 @@ const ProfileScreen: React.FC<Props> = ({
         <Button variant="ghost" size="icon" onClick={goBack} className="-ml-2 rounded-full">
           <ArrowLeft className="w-6 h-6" />
         </Button>
+        <SettingsExitButton onClick={() => navigate(Screen.HOME_CHAT)} />
         <h1 className="flex-1 text-center text-lg font-black text-foreground tracking-tight ml-8">Profile</h1>
         <div className="flex items-center gap-2">
           {isOwnProfile ? (
-            <Button variant="ghost" size="icon" onClick={() => navigate(Screen.EDIT_PROFILE)} className="rounded-full">
+            <Button variant="ghost" size="icon" onClick={() => navigate(Screen.SETTINGS_EDIT_PROFILE)} className="rounded-full">
               <Edit3 className="w-5 h-5" />
             </Button>
           ) : (
@@ -222,7 +318,6 @@ const ProfileScreen: React.FC<Props> = ({
             </div>
             <div className="text-center sm:text-left flex flex-col gap-1.5 flex-1">
               <h2 className="text-2xl font-black text-foreground tracking-tight">{user.name}</h2>
-              <p className="text-sm font-bold text-muted-foreground">{user.handle}</p>
               {user.culturalBackground && (
                 <div className="flex items-center justify-center sm:justify-start gap-1.5 text-sm font-bold text-primary uppercase tracking-wider">
                   <Globe className="w-4 h-4" />
@@ -249,10 +344,41 @@ const ProfileScreen: React.FC<Props> = ({
           {/* Language identity chips (spec §5) */}
           {languagesForDisplay.length > 0 && (
             <div className="flex flex-wrap justify-center sm:justify-start gap-2">
-              {languagesForDisplay.map((skill) => (
-                <Badge key={skill.id} variant="outline" className="gap-1 px-2.5 py-1 text-xs font-bold text-foreground border-border/60 bg-card">
-                  {getSkillIcon(skill.level)} {skill.name}
-                  <span className="text-muted-foreground font-semibold">· {skill.level}</span>
+              {languagesForDisplay.map((skill) => {
+                const isVerified = verifiedLanguageNames.has(skill.name.toLowerCase());
+                return (
+                  <Badge key={skill.id} variant="outline" className="gap-1 px-2.5 py-1 text-xs font-bold text-foreground border-border/60 bg-card">
+                    {getSkillIcon(skill.level)} {skill.name}
+                    <span className="text-muted-foreground font-semibold">· {skill.level}</span>
+                    {isVerified && (
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" aria-label="Verified contributor" />
+                    )}
+                  </Badge>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Quick-edit Learning chip (own profile only) */}
+          {isOwnProfile && learningLanguage && (
+            <button
+              type="button"
+              onClick={() => navigate(Screen.MANAGE_LANGUAGES)}
+              className="mx-auto sm:mx-0 flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <span>Currently learning</span>
+              <span className="text-foreground">{learningLanguage.name}</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {/* Active role grants (spec §16) */}
+          {activeRoles.length > 0 && (
+            <div className="flex flex-wrap justify-center sm:justify-start gap-2">
+              {activeRoles.map((grant) => (
+                <Badge key={`${grant.languageCode}-${grant.role}`} variant="secondary" className="gap-1 px-2.5 py-1 text-xs font-bold bg-primary/10 text-primary border-none">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  {grant.role} · {grant.languageCode}
                 </Badge>
               ))}
             </div>
@@ -281,10 +407,31 @@ const ProfileScreen: React.FC<Props> = ({
               <div className="absolute top-2 left-2 text-primary opacity-20">
                 <StickyNote className="w-8 h-8 rotate-12" />
               </div>
+              {isOwnProfile && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => navigate(Screen.EDIT_PROFILE)}
+                  className="absolute top-1 right-1 h-7 w-7 rounded-full text-muted-foreground hover:text-foreground"
+                  aria-label="Edit bio"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                </Button>
+              )}
               <p className="text-foreground/90 leading-relaxed text-sm relative z-10 px-4 py-2">
                 &quot;{user.bio}&quot;
               </p>
             </Card>
+          )}
+
+          {!user.bio && isOwnProfile && (
+            <button
+              type="button"
+              onClick={() => navigate(Screen.EDIT_PROFILE)}
+              className="w-full text-xs font-bold text-muted-foreground hover:text-foreground transition-colors py-2"
+            >
+              + Add a short bio
+            </button>
           )}
 
           <div className="flex gap-3">
@@ -294,10 +441,16 @@ const ProfileScreen: React.FC<Props> = ({
                 Edit Profile
               </Button>
             ) : (
-              <Button onClick={() => setIsFollowing(!isFollowing)} variant={isFollowing ? "outline" : "default"} className={cn("flex-1 h-12 rounded-xl gap-2 font-bold", isFollowing ? "border-primary text-primary" : "")}>
-                {isFollowing ? <UserCheck className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
-                {isFollowing ? 'Following' : 'Follow'}
-              </Button>
+              <>
+                <Button onClick={handleToggleFollow} variant={isFollowing ? "outline" : "default"} className={cn("flex-1 h-12 rounded-xl gap-2 font-bold", isFollowing ? "border-primary text-primary" : "")}>
+                  {isFollowing ? <UserCheck className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+                  {isFollowing ? 'Following' : 'Follow'}
+                </Button>
+                <Button onClick={handleMessage} variant="secondary" className="flex-1 h-12 rounded-xl gap-2 font-bold">
+                  <MessageCircle className="w-4 h-4" />
+                  Message
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -475,7 +628,7 @@ const ProfileScreen: React.FC<Props> = ({
               </section>
             )}
 
-            {/* Achievements (spec §21) — derived only from real milestones */}
+            {/* Achievements (spec §21) — server badges + derived milestones */}
             <section className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground">Achievements</h3>
@@ -484,23 +637,46 @@ const ProfileScreen: React.FC<Props> = ({
                 </Button>
               </div>
               <div className="grid grid-cols-4 gap-3">
-                {[
-                  { earned: conversationCount > 0, icon: <MessageCircle className="w-5 h-5" />, label: 'First Chat', color: 'bg-primary/10 text-primary' },
-                  { earned: messageCount >= 50, icon: <MessagesSquare className="w-5 h-5" />, label: 'Conversationalist', color: 'bg-sky-100 text-sky-600 dark:bg-sky-900/40 dark:text-sky-300' },
-                  { earned: (contribution?.accepted ?? 0) >= 1, icon: <FileCheck2 className="w-5 h-5" />, label: 'First Verified', color: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-300' },
-                  { earned: (contribution?.accepted ?? 0) >= 100, icon: <Languages className="w-5 h-5" />, label: '100 Verified', color: 'bg-primary/10 text-primary' },
-                  { earned: (contribution?.streakDays ?? 0) >= 7, icon: <Flame className="w-5 h-5" />, label: '7-Day Streak', color: 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300' },
-                  { earned: (contribution?.streakDays ?? 0) >= 30, icon: <Flame className="w-5 h-5" />, label: '30-Day Streak', color: 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300' },
-                  { earned: languagesForDisplay.length >= 2, icon: <Globe className="w-5 h-5" />, label: 'Multi-Language', color: 'bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-300' },
-                  { earned: (contribution?.validationCount ?? 0) >= 10, icon: <ShieldCheck className="w-5 h-5" />, label: 'Validator', color: 'bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-300' },
-                ].map((achievement) => (
-                  <div key={achievement.label} className={cn("rounded-xl p-3 text-center border transition-all", achievement.earned ? "border-border/50 shadow-sm" : "border-dashed border-border/60 opacity-50")}>
-                    <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-1.5", achievement.earned ? achievement.color : "bg-muted text-muted-foreground")}>
-                      {achievement.icon}
+                {(() => {
+                  // Merge: server-authoritative badges (from changaUserStats) + derived
+                  // ones that live outside Changa (chat, streak, multi-language, validator).
+                  const serverBadgeSet = new Set(serverBadges.map((b) => b.toLowerCase()));
+                  const derived = [
+                    { key: 'first-chat', earned: conversationCount > 0, icon: <MessageCircle className="w-5 h-5" />, label: 'First Chat', color: 'bg-primary/10 text-primary' },
+                    { key: 'conversationalist', earned: messageCount >= 50, icon: <MessagesSquare className="w-5 h-5" />, label: 'Conversationalist', color: 'bg-sky-100 text-sky-600 dark:bg-sky-900/40 dark:text-sky-300' },
+                    { key: 'first-verified', earned: (contribution?.accepted ?? 0) >= 1, icon: <FileCheck2 className="w-5 h-5" />, label: 'First Verified', color: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-300' },
+                    { key: 'hundred-verified', earned: (contribution?.accepted ?? 0) >= 100, icon: <Languages className="w-5 h-5" />, label: '100 Verified', color: 'bg-primary/10 text-primary' },
+                    { key: 'streak-7', earned: (contribution?.streakDays ?? 0) >= 7, icon: <Flame className="w-5 h-5" />, label: '7-Day Streak', color: 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300' },
+                    { key: 'streak-30', earned: (contribution?.streakDays ?? 0) >= 30, icon: <Flame className="w-5 h-5" />, label: '30-Day Streak', color: 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300' },
+                    { key: 'multi-language', earned: languagesForDisplay.length >= 2, icon: <Globe className="w-5 h-5" />, label: 'Multi-Language', color: 'bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-300' },
+                    { key: 'validator', earned: (contribution?.validationCount ?? 0) >= 10, icon: <ShieldCheck className="w-5 h-5" />, label: 'Validator', color: 'bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-300' },
+                  ];
+                  // Pick any server badges the user has that aren't already covered
+                  // by the derived set, so we never hide a real award.
+                  const derivedKeys = new Set(derived.map((d) => d.key));
+                  const extras = serverBadges
+                    .filter((b) => !derivedKeys.has(b.toLowerCase().replace(/\s+/g, '-')))
+                    .slice(0, 4)
+                    .map((b) => ({
+                      key: `server-${b}`,
+                      earned: serverBadgeSet.has(b.toLowerCase()),
+                      icon: <Award className="w-5 h-5" />,
+                      label: b,
+                      color: 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-300',
+                    }));
+                  const all = [...derived, ...extras];
+                  // If user has zero achievements yet, show 4 placeholder tiles so the
+                  // section never collapses to an invisible state on first visit.
+                  const shown = all.length > 0 ? all.slice(0, 8) : derived.slice(0, 4);
+                  return shown.map((achievement) => (
+                    <div key={achievement.key} className={cn("rounded-xl p-3 text-center border transition-all", achievement.earned ? "border-border/50 shadow-sm" : "border-dashed border-border/60 opacity-50")}>
+                      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-1.5", achievement.earned ? achievement.color : "bg-muted text-muted-foreground")}>
+                        {achievement.icon}
+                      </div>
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider leading-tight">{achievement.label}</p>
                     </div>
-                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider leading-tight">{achievement.label}</p>
-                  </div>
-                ))}
+                  ));
+                })()}
               </div>
             </section>
 
@@ -662,6 +838,20 @@ const ProfileScreen: React.FC<Props> = ({
                     <p className="text-xs text-muted-foreground">Display your contributions publicly.</p>
                   </div>
                   <Switch id="show-changa" checked={showContributions} onCheckedChange={handleShowChangaChange} />
+                </div>
+                <div className="flex items-center justify-between p-4">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="voice-data" className="text-base font-bold">Voice Data</Label>
+                    <p className="text-xs text-muted-foreground">Allow your voice recordings to help train Samiati.</p>
+                  </div>
+                  <Switch id="voice-data" checked={voiceDataAllowed} onCheckedChange={handleVoiceDataChange} />
+                </div>
+                <div className="flex items-center justify-between p-4">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="cultural-data" className="text-base font-bold">Cultural Context</Label>
+                    <p className="text-xs text-muted-foreground">Allow cultural notes you add to inform recommendations.</p>
+                  </div>
+                  <Switch id="cultural-data" checked={culturalDataAllowed} onCheckedChange={handleCulturalDataChange} />
                 </div>
               </Card>
             </section>

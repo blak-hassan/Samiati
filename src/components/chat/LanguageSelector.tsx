@@ -13,6 +13,7 @@ import {
     ArrowUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { trackEvent } from "@/lib/analytics";
 
 export interface Language {
     code: string;
@@ -120,6 +121,12 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
         onSelect(lang);
         onOpenChange(false);
         setSearch("");
+
+        // Track language selection for analytics (no PII)
+        trackEvent("language_selected", {
+            languageCode: lang.code,
+            location: "language_selector",
+        });
     };
 
     return (

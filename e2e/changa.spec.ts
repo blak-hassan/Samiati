@@ -23,8 +23,9 @@ test.describe("Changa contribution flow", () => {
   test("displays campaign section when available", async ({ page }) => {
     // Wait for campaigns to load or show empty state
     await page.waitForTimeout(2000);
-    const campaigns = page.locator("text=Active campaigns");
-    const emptyState = page.locator("text=Claim your first task");
+    const campaigns = page.locator("text=Active campaigns").first();
+    const emptyState = page.locator("text=Claim your first task").first();
+    // Narrow the combined locator to a single match before asserting visibility.
     await expect(campaigns.or(emptyState)).toBeVisible();
   });
 });

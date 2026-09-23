@@ -27,7 +27,7 @@ Each module includes a detailed walkthrough of simulated user actions, expected 
 | Backend | Convex (real-time DB + mutations/queries + storage) | Schema at `convex/schema.ts` |
 | Auth | Clerk (`@clerk/nextjs`) | Demo mode supported via `isDemoMode` |
 | AI | Sunflower-Gemma4-E2B via HuggingFace Inference API | Used for chat, translate, and search |
-| Testing | Vitest | 4 existing tests: `ai-quota`, `rate-limit`, `smsSignature`, `validation` |
+| Testing | Vitest + Playwright | Unit tests (`ai-quota`, `rate-limit`, `smsSignature`, `validation`) plus browser specs in `e2e/`: `changa.spec.ts` (contribution flow), `validation.spec.ts` (community review / validation runner), `a11y.spec.ts` (accessibility + skip-link navigation) |
 | Payments | Paystack | Subscription tiers: free, learner, fluent, organization |
 
 ### Key Convex Tables
@@ -94,7 +94,7 @@ Each module includes a detailed walkthrough of simulated user actions, expected 
 | 2a.1 | Navigate to `/dashboard` (authenticated) | `HomeSearchScreen` renders with active chat area. `localConversationService` loads conversations from `localStorage`. | `src/app/dashboard/page.tsx:36-39` |
 | 2a.2 | Send message "Habari yako?" with targetLanguage "Swahili" | `convex/chat.ts:sendMessage` action called. System prompt instructs Samiati to reply in Swahili only. HuggingFace API returns Swahili response. | `convex/chat.ts:17-84` |
 | 2a.3 | Send message exceeding 5000 chars | Returns `"ERROR: Message too long. Please keep messages under 5,000 characters."` | `convex/chat.ts:37-40` |
-| 2a.4 | Send 21st message in same hour on free tier | `enforceAiQuotaAction` throws hourly quota error. Free tier: 5/hr, 10/day. | `convex/lib/aiQuota.ts:12-17`, `convex/lib/aiSecurity.ts:38-57` |
+| 2a.4 | Send 6th message in same hour on free tier | `enforceAiQuotaAction` throws hourly quota error. Free tier allows 5/hr, so the 6th message is the first to fail. Daily cap is 10/day. | `convex/lib/aiQuota.ts:12-17`, `convex/lib/aiSecurity.ts:38-57` |
 | 2a.5 | Click thumbs-up on AI response | `feedback.ts:submit` creates record with `type: 'up'`, `contextType: 'chat'`. Second click toggles off (deletes record). | `convex/feedback.ts:6-69` |
 | 2a.6 | Click thumbs-down + enter correction | Creates feedback record with `type: 'down'`, `correction` field populated. | `convex/feedback.ts:6-69` |
 | 2a.7 | Start new chat | `handleNewChat` clears active conversation ID from `localStorage`. URL becomes `/dashboard` (no `?chatId`). | `src/app/dashboard/page.tsx:81-85` |
@@ -186,7 +186,7 @@ Each module includes a detailed walkthrough of simulated user actions, expected 
 | ID | Description | Severity | Location |
 |----|-------------|----------|----------|
 | CHANGA-01 | **Consent is mandatory but not contextually explained**: Consent form requires `allowTraining` and `allowResearch` but provides no inline explanation of what these mean in practice. | Medium | `convex/changa/submissions.ts:15-25` |
-| CHANGA-02 | **Changa campaigns page route missing**: `useNavigation.ts` references `Screen.CHANGA_CAMPAIGNS` mapped to `/dashboard/changa-campaigns` but this route/page does not exist. | High | `src/hooks/useNavigation.ts:100` |
+| CHANGA-02 | **Changa campaigns page route missing** — RESOLVED at PR head: `/dashboard/changa-campaigns/page.tsx` now exists and `Screen.CHANGA_CAMPAIGNS` maps to it. | High → Historical | `src/hooks/useNavigation.ts`, `src/app/dashboard/changa-campaigns/page.tsx` |
 | CHANGA-03 | **No Changa campaign discovery UI**: `listActiveCampaigns` exists in Convex but there is no visible UI to browse campaigns by language or filter by task type. | Medium | `convex/changa/campaigns.ts:7-20` |
 | CHANGA-04 | **Audio upload is fragile**: `attachSubmissionAsset` requires pre-uploaded audio via Convex storage, but there is no visible upload UI component wired to this mutation in the changa input components. | High | `convex/changa/submissions.ts:493-561`, `src/components/changa/inputs/` |
 | CHANGA-05 | **Sheng seed is internal-only**: `seedShengData` is an `internalMutation` requiring a Convex CLI run — it cannot be triggered from the app UI. | Low | `convex/changa/seedSheng.ts:114` |
@@ -194,8 +194,8 @@ Each module includes a detailed walkthrough of simulated user actions, expected 
 | CHANGA-07 | **No campaign progress auto-update**: `changaCampaigns.currentCount` is set to 0 on creation and never automatically incremented when submissions are validated. | Medium | `convex/changa/campaigns.ts:49` |
 | CHANGA-08 | **Changa XP/reward profile not integrated with social XP**: The `changaRewardProfileValidator` defines XP rewards but there is no visible integration with the user's main XP/leveling system. | Low | `convex/changa/validators.ts:80-86` |
 | CHANGA-09 | **Worker processing is cron-dependent**: The `processQueuedRuns` worker action must be triggered by a cron schedule. If the cron fails, submissions remain stuck in `submitted` status indefinitely. | High | `convex/changa/worker.ts:41-128` |
-| CHANGA-10 | **No offline queue for Changa**: Unlike chat which uses localStorage, Changa submissions require real-time Convex mutations. Network loss causes hard failures. | Medium | `convex/changa/submissions.ts` |
-| CHANGA-11 | **Submission language mismatch not enforced for all fields**: `createDraftSubmission` cross-checks `submissionType` and `languageCode` against the task, but does not validate `dialectCode` or `regionCode` consistency. | Low | `convex/changa/submissions.ts:208-216` |
+| CHANGA-10 | **No offline queue for Changa** — RESOLVED at PR head: `TaskContributionScreen` now requeues failed text submissions with bounded retry metadata (`requeueChangaSubmission`) and only drops items after permanent (exhausted-retry) failure. | Medium → Historical | `src/components/changa/TaskContributionScreen.tsx`, `src/lib/changaOfflineQueue.ts` |
+| CHANGA-11 | **Submission dialect/region mismatch now enforced**: `createDraftSubmission` cross-checks `submissionType` and `languageCode` against the task and, when the task defines a scoped `dialectCode`/`regionCode`, requires exact equality (rejecting an omitted corresponding argument). | Low → Historical | `convex/changa/submissions.ts` |
 | CHANGA-12 | **Duplicate detection is placeholder**: `calculateTextSimilarity` in processing is a basic implementation. No real duplicate detection against existing curated examples. | Medium | `convex/changa/processing.ts` |
 
 ---
@@ -272,8 +272,8 @@ Each module includes a detailed walkthrough of simulated user actions, expected 
 | Priority | Gap | Location | Impact |
 |----------|-----|----------|--------|
 | P0 | **Chat history is localStorage-only** — lost on device switch/clear | `src/services/localConversationService.ts` | Data loss for all chat users |
-| P0 | **AI quota tier hardcoded to "free"** — paid plans get no benefit | `convex/lib/aiSecurity.ts:46` | Revenue/business model broken |
-| P0 | **Changa campaigns route missing** (`/dashboard/changa-campaigns`) | `src/hooks/useNavigation.ts:100` | Broken navigation |
+| P0 | ~~**AI quota tier hardcoded to "free"**~~ — RESOLVED at PR head: `enforceAiQuotaAction` now resolves tier via `internal.payments.billing.getUserPlanTier` and forwards it to `enforceAiQuota`. | `convex/lib/aiSecurity.ts:55-65` | Was: Revenue/business model broken |
+| P0 | ~~Changa campaigns route missing~~ — RESOLVED at PR head (`/dashboard/changa-campaigns` now exists) | `src/app/dashboard/changa-campaigns/page.tsx` | Was: Broken navigation |
 | P1 | **Handle collision race condition in user creation** | `convex/users/mutations.ts:214-234` | Duplicate handles possible |
 | P1 | **Like count race condition (read-then-patch)** | `convex/posts/mutations.ts:99-103` | Lost like counts under concurrency |
 | P1 | **Settings screens without backend** (data, blocked, muted, help) | `src/app/dashboard/settings/*` | Dead-end UI |

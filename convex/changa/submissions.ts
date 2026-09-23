@@ -1,6 +1,7 @@
 import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
-import { internal } from "../_generated/api";
+import { api, internal } from "../_generated/api";
+import { chokepoint } from "../lib/chokepoint";
 import { getCurrentUser, isModerator } from "../users/utils";
 import { enqueueSubmissionProcessing, runSubmissionChecks } from "./processing";
 import { FALLBACK_CONSENT_POLICY_VERSION, insertConsentRecord } from "./consent";
@@ -180,6 +181,8 @@ export const createDraftSubmission = mutation({
         contextNote: v.optional(v.string()),
         gloss: v.optional(v.string()),
         partOfSpeech: v.optional(v.string()),
+        externalUrl: v.optional(v.string()),
+        documentEntryId: v.optional(v.id("changaDocumentEntries")),
         speakerProfile: v.optional(changaSpeakerProfileValidator),
         consent: v.optional(changaConsentValidator),
         license: v.optional(changaLicenseValidator),
@@ -201,6 +204,14 @@ export const createDraftSubmission = mutation({
         const contextNote = args.contextNote?.slice(0, MAX_CONTEXT_NOTE);
         const gloss = args.gloss?.slice(0, MAX_GLOSS);
         const clientIdempotencyKey = args.clientIdempotencyKey?.slice(0, 100);
+        // External link is optional; if present, must be http(s) and bounded.
+        let externalUrl: string | undefined = undefined;
+        if (args.externalUrl) {
+            if (!/^https?:\/\//i.test(args.externalUrl)) {
+                throw new Error("externalUrl must be an http(s) URL");
+            }
+            externalUrl = args.externalUrl.slice(0, 2048);
+        }
         // The server decides quality/checks — a client may not pre-declare
         // itself clean.
         const qualityFlags: string[] = [];
@@ -217,10 +228,12 @@ export const createDraftSubmission = mutation({
         }
         // CHANGA-11: enforce dialect/region consistency with the task contract
         // so a task scoped to a dialect/region cannot receive mismatched data.
-        if (task?.dialectCode && args.dialectCode && task.dialectCode !== args.dialectCode) {
+        // When the task defines a scoped value, exact equality is required and
+        // an omitted corresponding argument is rejected.
+        if (task?.dialectCode && args.dialectCode !== task.dialectCode) {
             throw new Error("Submission dialect does not match the task");
         }
-        if (task?.regionCode && args.regionCode && task.regionCode !== args.regionCode) {
+        if (task?.regionCode && args.regionCode !== task.regionCode) {
             throw new Error("Submission region does not match the task");
         }
 
@@ -248,7 +261,7 @@ export const createDraftSubmission = mutation({
             throw new Error("You already have the maximum number of open submissions for this task");
         }
 
-        return ctx.db.insert("changaSubmissions", {
+        return chokepoint.insertSubmission(ctx, {
             taskId: args.taskId,
             submissionType: args.submissionType,
             languageCode: args.languageCode.slice(0, 20),
@@ -260,6 +273,8 @@ export const createDraftSubmission = mutation({
             contextNote,
             gloss,
             partOfSpeech: args.partOfSpeech?.slice(0, 50),
+            externalUrl,
+            documentEntryId: args.documentEntryId,
             speakerProfile: args.speakerProfile,
             consent: args.consent ?? createDefaultConsent(),
             license: args.license ?? "community",
@@ -308,10 +323,10 @@ export const startClaimedSubmission = mutation({
         }
         if (claim.submissionId) return claim.submissionId;
         if (claim.status !== "active" || claim.expiresAt <= now) {
-            if (claim.status === "active") {
-                await ctx.db.patch(args.claimId, { status: "expired" });
-            }
-            throw new Error("This task claim has expired. Please start again.");
+        if (claim.status === "active") {
+            await chokepoint.patchTaskClaim(ctx, args.claimId, { status: "expired" });
+        }
+        throw new Error("This task claim has expired. Please start again.");
         }
 
         const task = await ctx.db.get(claim.taskId);
@@ -319,7 +334,7 @@ export const startClaimedSubmission = mutation({
             throw new Error("The claimed task is no longer available");
         }
 
-        const submissionId = await ctx.db.insert("changaSubmissions", {
+        const submissionId = await chokepoint.insertSubmission(ctx, {
             taskId: claim.taskId,
             userId: user._id,
             submissionType: task.taskType,
@@ -339,7 +354,7 @@ export const startClaimedSubmission = mutation({
         const scopes: Array<"collection_storage" | "training" | "research"> = ["collection_storage"];
         if (args.consent.allowTraining) scopes.push("training");
         if (args.consent.allowResearch) scopes.push("research");
-        await insertConsentRecord(ctx.db, {
+        await insertConsentRecord(ctx, {
             userId: user._id,
             submissionId,
             policyVersion: args.consentPolicyVersion,
@@ -347,7 +362,7 @@ export const startClaimedSubmission = mutation({
             attributionPreference: args.consent.allowPublicAttribution ? "public" : "private",
         });
 
-        await ctx.db.patch(args.claimId, {
+        await chokepoint.patchTaskClaim(ctx, args.claimId, {
             status: "submitted",
             submissionId,
         });
@@ -429,7 +444,7 @@ export const submitSubmission = mutation({
         }
 
         const qualityFlags = task.taskType === "audio_reading" ? ["audio_analysis_pending"] : [];
-        await ctx.db.patch(args.submissionId, {
+        await chokepoint.patchSubmission(ctx, args.submissionId, {
             // Source text comes from the task. Contributors may supply a
             // context note but must not silently replace the task prompt.
             targetText: args.targetText?.slice(0, MAX_TARGET_TEXT),
@@ -448,7 +463,7 @@ export const submitSubmission = mutation({
         // Enqueue the required processing runs, then run the deterministic
         // checks inline so the submission can route to review (or stay
         // submitted for human attention) with stored evidence.
-        await enqueueSubmissionProcessing(ctx.db, args.submissionId, task.taskType);
+        await enqueueSubmissionProcessing(ctx, args.submissionId, task.taskType);
         await runSubmissionChecks(ctx, args.submissionId);
 
         // CHANGA-09: best-effort fallback so submissions don't remain stuck in
@@ -456,7 +471,16 @@ export const submitSubmission = mutation({
         // is idempotent and the cron also re-runs it on its normal schedule.
         await ctx.scheduler.runAfter(0, internal.changa.worker.processQueuedRuns, {});
 
-        return args.submissionId;
+        // Award XP + evaluate badges transactionally with the submit.
+        const xpResult = await ctx.runMutation(api.changa.xp.awardContributionXP, {
+            submissionId: args.submissionId,
+        });
+        await ctx.runMutation(api.changa.badges.evaluateAndGrantBadges, {
+            userId: user._id,
+        });
+
+        const xp = xpResult as { xpAwarded: number; leveledUp: boolean; newLevel: number };
+        return { submissionId: args.submissionId, xpAwarded: xp.xpAwarded, leveledUp: xp.leveledUp, newLevel: xp.newLevel };
     },
 });
 
@@ -478,7 +502,7 @@ export const withdrawDraftSubmission = mutation({
         }
 
         const now = Date.now();
-        await ctx.db.patch(args.submissionId, {
+        await chokepoint.patchSubmission(ctx, args.submissionId, {
             status: "withdrawn",
             withdrawnAt: now,
             updatedAt: now,
@@ -496,7 +520,7 @@ export const withdrawDraftSubmission = mutation({
                 (claim) => claim.status === "submitted" && claim.submissionId === args.submissionId,
             );
             if (activeClaim) {
-                await ctx.db.patch(activeClaim._id, { status: "released" });
+                await chokepoint.patchTaskClaim(ctx, activeClaim._id, { status: "released" });
             }
         }
 
@@ -558,7 +582,7 @@ export const attachSubmissionAsset = mutation({
         // Signal metadata (snrScore, clipping, ASR text, waveform, ...) is never
         // accepted here: only fields verified against the stored file are
         // recorded.
-        const assetId = await ctx.db.insert("changaSubmissionAssets", {
+        const assetId = await chokepoint.insertSubmissionAsset(ctx, {
             submissionId: args.submissionId,
             storageId: args.storageId,
             assetType: args.assetType,
@@ -567,7 +591,7 @@ export const attachSubmissionAsset = mutation({
             createdAt: Date.now(),
         });
 
-        await ctx.db.patch(args.submissionId, {
+        await chokepoint.patchSubmission(ctx, args.submissionId, {
             updatedAt: Date.now(),
         });
 

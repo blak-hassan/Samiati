@@ -1,0 +1,3 @@
+✖ Failed to run function "changa/seedDemo:demoSeedStatus":
+Error: [Request ID: 5b3b87c71d4a6882] Server Error
+You have exceeded the free plan limits, so your deployments have been disabled. Please upgrade to a Pro plan or reach out to us at support@convex.dev for help.

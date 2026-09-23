@@ -1,14 +1,14 @@
-import { mutation, query } from "../_generated/server";
+import { internalMutation, mutation, query } from "../_generated/server";
+import { internal } from "../_generated/api";
 import { v } from "convex/values";
 import { getCurrentUser, isGuestUser } from "./utils";
 import { checkRateLimit } from "../lib/rateLimit";
-import { isValidHandle, isValidAvatarUrl, sanitizeText } from "../lib/validation";
+import { isValidAvatarUrl, sanitizeText } from "../lib/validation";
 
 // Input validation constants
 const MAX_NAME_LENGTH = 100;
 const MAX_BIO_LENGTH = 500;
 const MAX_LOCATION_LENGTH = 200;
-const MAX_HANDLE_LENGTH = 30;
 
 // Guest creation is a public mutation (no Clerk session exists yet), so it
 // is the primary sybil vector. Bound how fast the whole app can mint rows.
@@ -196,7 +196,7 @@ export const unfollow = mutation({
 
 // Sync Clerk user (store/update) from original users.ts
 export const store = mutation({
-    args: { name: v.string(), handle: v.string(), email: v.optional(v.string()), avatar: v.string() },
+    args: { name: v.string(), email: v.optional(v.string()), avatar: v.string() },
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) {
@@ -204,20 +204,11 @@ export const store = mutation({
         }
 
         const name = args.name.trim().slice(0, MAX_NAME_LENGTH);
-        const handle = args.handle.trim();
         if (!name) {
             throw new Error("Name cannot be empty");
         }
-        if (!isValidHandle(handle)) {
-            throw new Error("Handle must be 3-30 characters: letters, numbers, underscores");
-        }
         const avatar = args.avatar.trim().slice(0, 2048);
-        // The email is a trusted claim from the Clerk identity, never from
-        // the client request body.
         const email = identity.email ?? args.email?.trim().slice(0, 254) ?? undefined;
-        // SECURITY: Only trust the Clerk identity's emailVerified claim.
-        // Never fall back to client-provided values — this prevents users from
-        // bypassing email verification by sending emailVerified: true.
         const emailVerified = identity.emailVerified === true;
 
         const user = await ctx.db
@@ -226,53 +217,19 @@ export const store = mutation({
             .unique();
 
         if (user !== null) {
-            // Validate handle uniqueness if handle is being changed
-            if (user.handle !== handle) {
-                const existingHandle = await ctx.db
-                    .query("users")
-                    .withIndex("by_handle", (q) => q.eq("handle", handle))
-                    .unique();
-                if (existingHandle) {
-                    throw new Error("Handle is already taken");
-                }
-            }
-            if (user.name !== name || user.handle !== handle || user.avatar !== avatar || user.email !== email || user.emailVerified !== emailVerified) {
-                await ctx.db.patch(user._id, { name, handle, avatar, email, emailVerified });
+            if (user.name !== name || user.avatar !== avatar || user.email !== email || user.emailVerified !== emailVerified) {
+                await ctx.db.patch(user._id, { name, avatar, email, emailVerified });
             }
             return user._id;
         }
 
-        // New user — ensure the handle is unique with retry on collision.
-        let finalHandle = handle;
-        for (let attempt = 0; attempt < 5; attempt++) {
-            const existingHandle = await ctx.db
-                .query("users")
-                .withIndex("by_handle", (q) => q.eq("handle", finalHandle))
-                .unique();
-
-            if (!existingHandle) break;
-
-            finalHandle = `${handle.slice(0, 20)}_${Math.random().toString(36).slice(2, 8)}`;
-        }
-
-        // Validate final generated handle before insertion
-        const finalCheckHandle = await ctx.db
-            .query("users")
-            .withIndex("by_handle", (q) => q.eq("handle", finalHandle))
-            .unique();
-        if (finalCheckHandle) {
-            throw new Error("Unable to generate unique handle after retries");
-        }
-
-        // New user
         return await ctx.db.insert("users", {
             name,
-            handle: finalHandle,
             avatar,
             email,
             emailVerified,
             clerkId: identity.subject,
-            role: 'member', // Default role
+            role: 'member',
             isGuest: false,
             joinedAt: Date.now(),
             followerCount: 0,
@@ -286,25 +243,17 @@ export const store = mutation({
 // Create a guest user (public - no auth required for initial creation)
 // This allows guests to use the app with limited permissions
 export const storeGuestUser = mutation({
-    args: { 
-        name: v.string(), 
-        handle: v.string(), 
-        avatar: v.optional(v.string()) 
+    args: {
+        name: v.string(),
+        avatar: v.optional(v.string())
     },
     handler: async (ctx, args) => {
         const name = args.name.trim().slice(0, MAX_NAME_LENGTH);
-        const handle = args.handle.trim();
         if (!name) {
             throw new Error("Name cannot be empty");
         }
-        if (!isValidHandle(handle) || handle.length > MAX_HANDLE_LENGTH) {
-            throw new Error("Handle must be 3-30 characters: letters, numbers, underscores");
-        }
         const avatar = (args.avatar ?? "").slice(0, 2048);
 
-        // Global rate limits — guest creation is public, so a flood of
-        // unauthenticated requests must not be able to grow the users table
-        // without bound.
         const now = Date.now();
         const hourly = await checkRateLimit(ctx.db, "guest-create:hour", 60 * 60 * 1000, MAX_GUESTS_PER_HOUR, now);
         if (!hourly.allowed) {
@@ -315,37 +264,19 @@ export const storeGuestUser = mutation({
             throw new Error("Too many guest sessions today. Please try again later.");
         }
 
-        // For guest users, we generate a unique ID based on timestamp
-        // In production, you'd want more robust guest identification
         const guestId = `guest_${Date.now()}_${Math.random().toString(36).slice(2, 15)}`;
-        
-        // Check if a guest user with this ID already exists
+
         const existingGuest = await ctx.db
             .query("users")
             .withIndex("by_clerkId", (q) => q.eq("clerkId", guestId))
             .unique();
-            
+
         if (existingGuest) {
             return existingGuest._id;
         }
-        
-        // Validate handle uniqueness
-        const existingHandle = await ctx.db
-            .query("users")
-            .withIndex("by_handle", (q) => q.eq("handle", handle))
-            .unique();
-            
-        if (existingHandle) {
-            // Generate a unique handle
-            args.handle = `${handle}_${Math.random().toString(36).slice(2, 6)}`;
-        } else {
-            args.handle = handle;
-        }
-        
-        // Create new guest user with restricted role
+
         return await ctx.db.insert("users", {
             name,
-            handle: args.handle,
             avatar: avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=guest",
             email: undefined,
             clerkId: guestId,
@@ -510,8 +441,9 @@ export const exportUserData = query({
     },
 });
 
-// Helper mutation for batched account deletion
-export const deleteAccountBatch = mutation({
+// Helper mutation for batched account deletion. Internal — invoked only by the
+// server-side deletion flow and scheduler, never directly by a client.
+export const deleteAccountBatch = internalMutation({
     args: {
         userId: v.id("users"),
         phase: v.number(), // 0=posts, 1=comments, 2=likes, 3=followers, 4=following, 5=notifications, 6=bookmarks, 7=conversations, 8=changa, 9=delete_user
@@ -524,7 +456,7 @@ export const deleteAccountBatch = mutation({
                 const posts = await ctx.db.query("posts").withIndex("by_author", (q) => q.eq("authorId", args.userId)).take(BATCH_SIZE);
                 for (const post of posts) {
                     // Cascade: delete comments, likes, bookmarks for this post
-                    const comments = await ctx.db.query("comments").withIndex("by_post", (q) => q.eq("postId", post._id)).collect();
+                    const comments = await ctx.db.query("comments").withIndex("by_target", (q) => q.eq("targetType", "post").eq("targetId", post._id)).collect();
                     for (const comment of comments) {
                         await ctx.db.delete(comment._id);
                     }
@@ -541,9 +473,9 @@ export const deleteAccountBatch = mutation({
                 // Check if more posts exist
                 const remainingPosts = await ctx.db.query("posts").withIndex("by_author", (q) => q.eq("authorId", args.userId)).first();
                 if (remainingPosts) {
-                    await ctx.scheduler.runAfter(0, args.userId + ":batch:0");
+                    await ctx.scheduler.runAfter(0, internal.users.mutations.deleteAccountBatch, { userId: args.userId, phase: 0 });
                 } else {
-                    await ctx.scheduler.runAfter(0, args.userId + ":batch:1");
+                    await ctx.scheduler.runAfter(0, internal.users.mutations.deleteAccountBatch, { userId: args.userId, phase: 1 });
                 }
                 break;
             }
@@ -554,9 +486,9 @@ export const deleteAccountBatch = mutation({
                 }
                 const remainingComments = await ctx.db.query("comments").withIndex("by_author", (q) => q.eq("authorId", args.userId)).first();
                 if (remainingComments) {
-                    await ctx.scheduler.runAfter(0, args.userId + ":batch:1");
+                    await ctx.scheduler.runAfter(0, internal.users.mutations.deleteAccountBatch, { userId: args.userId, phase: 1 });
                 } else {
-                    await ctx.scheduler.runAfter(0, args.userId + ":batch:2");
+                    await ctx.scheduler.runAfter(0, internal.users.mutations.deleteAccountBatch, { userId: args.userId, phase: 2 });
                 }
                 break;
             }
@@ -567,9 +499,9 @@ export const deleteAccountBatch = mutation({
                 }
                 const remainingLikes = await ctx.db.query("likes").withIndex("by_user", (q) => q.eq("userId", args.userId)).first();
                 if (remainingLikes) {
-                    await ctx.scheduler.runAfter(0, args.userId + ":batch:2");
+                    await ctx.scheduler.runAfter(0, internal.users.mutations.deleteAccountBatch, { userId: args.userId, phase: 2 });
                 } else {
-                    await ctx.scheduler.runAfter(0, args.userId + ":batch:3");
+                    await ctx.scheduler.runAfter(0, internal.users.mutations.deleteAccountBatch, { userId: args.userId, phase: 3 });
                 }
                 break;
             }
@@ -587,9 +519,9 @@ export const deleteAccountBatch = mutation({
                 }
                 const remainingFollowers = await ctx.db.query("followers").withIndex("by_follower", (q) => q.eq("followerId", args.userId)).first();
                 if (remainingFollowers) {
-                    await ctx.scheduler.runAfter(0, args.userId + ":batch:3");
+                    await ctx.scheduler.runAfter(0, internal.users.mutations.deleteAccountBatch, { userId: args.userId, phase: 3 });
                 } else {
-                    await ctx.scheduler.runAfter(0, args.userId + ":batch:4");
+                    await ctx.scheduler.runAfter(0, internal.users.mutations.deleteAccountBatch, { userId: args.userId, phase: 4 });
                 }
                 break;
             }
@@ -607,9 +539,9 @@ export const deleteAccountBatch = mutation({
                 }
                 const remainingFollowing = await ctx.db.query("followers").withIndex("by_following", (q) => q.eq("followingId", args.userId)).first();
                 if (remainingFollowing) {
-                    await ctx.scheduler.runAfter(0, args.userId + ":batch:4");
+                    await ctx.scheduler.runAfter(0, internal.users.mutations.deleteAccountBatch, { userId: args.userId, phase: 4 });
                 } else {
-                    await ctx.scheduler.runAfter(0, args.userId + ":batch:5");
+                    await ctx.scheduler.runAfter(0, internal.users.mutations.deleteAccountBatch, { userId: args.userId, phase: 5 });
                 }
                 break;
             }
@@ -620,9 +552,9 @@ export const deleteAccountBatch = mutation({
                 }
                 const remainingNotif = await ctx.db.query("notifications").withIndex("by_user", (q) => q.eq("userId", args.userId)).first();
                 if (remainingNotif) {
-                    await ctx.scheduler.runAfter(0, args.userId + ":batch:5");
+                    await ctx.scheduler.runAfter(0, internal.users.mutations.deleteAccountBatch, { userId: args.userId, phase: 5 });
                 } else {
-                    await ctx.scheduler.runAfter(0, args.userId + ":batch:6");
+                    await ctx.scheduler.runAfter(0, internal.users.mutations.deleteAccountBatch, { userId: args.userId, phase: 6 });
                 }
                 break;
             }
@@ -633,9 +565,9 @@ export const deleteAccountBatch = mutation({
                 }
                 const remainingBm = await ctx.db.query("bookmarks").withIndex("by_user", (q) => q.eq("userId", args.userId)).first();
                 if (remainingBm) {
-                    await ctx.scheduler.runAfter(0, args.userId + ":batch:6");
+                    await ctx.scheduler.runAfter(0, internal.users.mutations.deleteAccountBatch, { userId: args.userId, phase: 6 });
                 } else {
-                    await ctx.scheduler.runAfter(0, args.userId + ":batch:7");
+                    await ctx.scheduler.runAfter(0, internal.users.mutations.deleteAccountBatch, { userId: args.userId, phase: 7 });
                 }
                 break;
             }
@@ -650,9 +582,9 @@ export const deleteAccountBatch = mutation({
                 }
                 const remainingConv = await ctx.db.query("conversations").withIndex("by_user", (q) => q.eq("userId", String(args.userId))).first();
                 if (remainingConv) {
-                    await ctx.scheduler.runAfter(0, args.userId + ":batch:7");
+                    await ctx.scheduler.runAfter(0, internal.users.mutations.deleteAccountBatch, { userId: args.userId, phase: 7 });
                 } else {
-                    await ctx.scheduler.runAfter(0, args.userId + ":batch:8");
+                    await ctx.scheduler.runAfter(0, internal.users.mutations.deleteAccountBatch, { userId: args.userId, phase: 8 });
                 }
                 break;
             }
@@ -668,9 +600,9 @@ export const deleteAccountBatch = mutation({
                 const remainingSubs = await ctx.db.query("changaSubmissions").withIndex("by_user_status", (q) => q.eq("userId", args.userId)).first();
                 const remainingClaims = await ctx.db.query("changaTaskClaims").withIndex("by_user_task", (q) => q.eq("userId", args.userId)).first();
                 if (remainingSubs || remainingClaims) {
-                    await ctx.scheduler.runAfter(0, args.userId + ":batch:8");
+                    await ctx.scheduler.runAfter(0, internal.users.mutations.deleteAccountBatch, { userId: args.userId, phase: 8 });
                 } else {
-                    await ctx.scheduler.runAfter(0, args.userId + ":batch:9");
+                    await ctx.scheduler.runAfter(0, internal.users.mutations.deleteAccountBatch, { userId: args.userId, phase: 9 });
                 }
                 break;
             }
@@ -692,7 +624,7 @@ export const deleteAccount = mutation({
         const userId = user._id;
 
         // Schedule batched deletion starting with phase 0 (posts)
-        await ctx.scheduler.runAfter(0, userId + ":batch:0");
+        await ctx.scheduler.runAfter(0, internal.users.mutations.deleteAccountBatch, { userId, phase: 0 });
 
         return { success: true, message: "Account deletion scheduled. Processing will continue in the background." };
     },

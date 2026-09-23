@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useChangaQuery as useQuery, useChangaMutation as useMutation } from "@/hooks/useChangaData";
 import { api } from "../../../../convex/_generated/api";
 import CurationScreen from "@/components/screens/CurationScreen";
 import { useNavigation } from "@/hooks/useNavigation";

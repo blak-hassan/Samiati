@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import { getCurrentUser, isGuestUser } from "../users/utils";
 import { checkRateLimit } from "./rateLimit";
 import { AI_SERVICE_LIMITS, type AiService, type PlanTier } from "./aiQuota";
+import { captureMessage } from "./observability";
 
 export { AI_SERVICE_LIMITS, estimateRemaining } from "./aiQuota";
 export type { AiService, PlanTier } from "./aiQuota";
@@ -110,6 +111,18 @@ export const enforceAiQuota = internalMutation({
             );
             if (!result.allowed) {
                 const minutes = Math.ceil(result.retryAfterMs / 60000);
+                captureMessage("AI quota exceeded", {
+                    level: "info",
+                    tags: {
+                        service: args.service,
+                        tier: args.tier,
+                        window: name,
+                    },
+                    extra: {
+                        subject: args.subject,
+                        retryAfterMs: result.retryAfterMs,
+                    },
+                });
                 return {
                     allowed: false,
                     message: `You have reached the ${name === "daily" ? "daily" : "hourly"} limit for this AI feature on the ${args.tier} plan. Please try again in ~${Math.max(1, minutes)} minute(s) or upgrade your plan.`,

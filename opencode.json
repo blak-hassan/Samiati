@@ -8,5 +8,26 @@
       }
     }
   },
-  "disabled_providers": ["anthropic", "openai", "google", "groq", "mistral", "deepseek", "together", "fireworks", "openrouter", "xai", "cerebras", "sambanova", "vercel", "vllm", "lmstudio", "ollama", "bedrock", "azure", "cloudflare"]
+  "disabled_providers": [
+    "anthropic",
+    "openai",
+    "google",
+    "groq",
+    "mistral",
+    "deepseek",
+    "together",
+    "fireworks",
+    "openrouter",
+    "xai",
+    "cerebras",
+    "sambanova",
+    "vercel",
+    "vllm",
+    "lmstudio",
+    "ollama",
+    "bedrock",
+    "azure",
+    "cloudflare"
+  ],
+  "snapshot": false
 }
