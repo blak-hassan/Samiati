@@ -17,14 +17,14 @@ export const TotemUploader = () => {
                     <label className="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">Totem Name</label>
                     <input
                         type="text"
-                        className="w-full px-4 py-3 rounded-xl bg-white dark:bg-black/20 border border-stone-200 dark:border-white/10 outline-none focus:ring-2 ring-[#cf6317] dark:text-white"
+                        className="w-full px-4 py-3 rounded-xl bg-white dark:bg-black/20 border border-stone-200 dark:border-white/10 outline-none focus:ring-2 ring-brand-accent dark:text-white"
                         placeholder="e.g. The Sacred Mugumo Tree"
                     />
                 </div>
                 <div>
                     <label className="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">Historical Significance</label>
                     <textarea
-                        className="w-full px-4 py-3 rounded-xl bg-white dark:bg-black/20 border border-stone-200 dark:border-white/10 outline-none focus:ring-2 ring-[#cf6317] min-h-[120px] dark:text-white"
+                        className="w-full px-4 py-3 rounded-xl bg-white dark:bg-black/20 border border-stone-200 dark:border-white/10 outline-none focus:ring-2 ring-brand-accent min-h-[120px] dark:text-white"
                         placeholder="Tell the story behind this totem..."
                     />
                 </div>

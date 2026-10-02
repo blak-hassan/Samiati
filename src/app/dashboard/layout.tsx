@@ -14,12 +14,10 @@ export default function DashboardLayout({
 }) {
   return (
     <AuthGuard>
-      <a
-        href="#main"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:text-primary-foreground focus:shadow-lg"
-      >
-        Skip to content
-      </a>
+      {/* The skip link lives in the root layout (src/app/layout.tsx) and points
+          at this `#main`. Rendering a second identical link here made "Skip to
+          content" the first two tab stops instead of one — a duplicate
+          landmark/name for screen-reader users. */}
       <main id="main" tabIndex={-1} className="min-h-screen">
         {children}
       </main>

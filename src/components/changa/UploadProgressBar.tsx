@@ -45,7 +45,7 @@ const UploadProgressBar: React.FC<UploadProgressBarProps> = ({
     };
     const statusColor: Record<typeof status, string> = {
         idle: 'bg-stone-300',
-        uploading: 'bg-[#cf6317]',
+        uploading: 'bg-brand-accent',
         paused: 'bg-stone-400',
         error: 'bg-red-500',
         done: 'bg-green-500',
@@ -104,7 +104,7 @@ const UploadProgressBar: React.FC<UploadProgressBarProps> = ({
                 {status === 'paused' && onResume && (
                     <button
                         onClick={onResume}
-                        className="px-3 py-1.5 rounded-lg bg-[#cf6317] text-white text-xs font-bold hover:bg-[#b05210] transition-colors"
+                        className="px-3 py-1.5 rounded-lg bg-brand-accent text-white text-xs font-bold hover:bg-brand-accent-hover transition-colors"
                     >
                         Resume
                     </button>

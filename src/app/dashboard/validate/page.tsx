@@ -15,7 +15,7 @@ function ValidationContent() {
 
 export default function ValidationPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen bg-stone-50 p-8 dark:bg-stone-950">Loading the review queue…</div>}>
+        <Suspense fallback={<div className="min-h-screen bg-background p-8">Loading the review queue…</div>}>
             <ValidationContent />
         </Suspense>
     );

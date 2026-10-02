@@ -72,7 +72,7 @@ export default function ChangaCampaigns({ navigate, goBack }: ChangaCampaignsPro
     };
 
     return (
-        <main className="min-h-screen bg-amber-50 px-4 py-6 dark:bg-stone-950 sm:py-10">
+        <main className="min-h-screen bg-background px-4 py-6 sm:py-10">
             <div className="mx-auto max-w-xl space-y-5">
                 {/* Header */}
                 <div className="flex items-center gap-3">

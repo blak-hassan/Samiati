@@ -48,7 +48,7 @@ export const ProjectHero: React.FC<Props> = ({ challenge }) => {
                             </div>
                             <div className="h-4 bg-black/40 rounded-full overflow-hidden border border-white/5">
                                 <div
-                                    className="h-full bg-gradient-to-r from-[#cf6317] to-amber-500 rounded-full relative overflow-hidden"
+                                    className="h-full bg-gradient-to-r from-brand-accent to-amber-500 rounded-full relative overflow-hidden"
                                     style={{ width: `${percent}%` }}
                                 >
                                     <div className="absolute inset-0 bg-white/20 animate-[shimmer_2s_infinite]" />

@@ -18,7 +18,7 @@ export const AccentRecorder = () => {
                     className={`w-24 h-24 rounded-full flex items-center justify-center mb-6 transition-all duration-300 ${
                         isRecording
                             ? 'bg-red-500 animate-breathe-pulse shadow-[0_0_30px_rgba(239,68,68,0.5)]'
-                            : 'bg-[#cf6317] shadow-lg hover:scale-110 cursor-pointer'
+                            : 'bg-brand-accent shadow-lg hover:scale-110 cursor-pointer'
                     }`}
                     onClick={() => setIsRecording(!isRecording)}
                 >

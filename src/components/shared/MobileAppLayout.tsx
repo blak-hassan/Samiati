@@ -5,6 +5,7 @@ import { Screen } from "@/types";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AppSidebar } from "./AppSidebar";
+import { BottomTabBar } from "./BottomTabBar";
 
 interface MobileAppLayoutProps {
   children: React.ReactNode;
@@ -16,9 +17,12 @@ interface MobileAppLayoutProps {
   };
   onNavigate: (screen: Screen) => void;
   onNewSearch: () => void;
+  /** Screen currently displayed — highlights the matching bottom tab. */
+  activeScreen?: Screen;
   notificationCounts?: {
     contributions?: number;
     moderation?: number;
+    notifications?: number;
   };
   showHamburger?: boolean;
   headerRight?: React.ReactNode;
@@ -29,6 +33,7 @@ export const MobileAppLayout: React.FC<MobileAppLayoutProps> = ({
   user,
   onNavigate,
   onNewSearch,
+  activeScreen,
   notificationCounts,
   showHamburger = true,
   headerRight,
@@ -68,6 +73,16 @@ export const MobileAppLayout: React.FC<MobileAppLayoutProps> = ({
         <div className="flex-1 overflow-y-auto custom-scrollbar" id="main-content">
           {children}
         </div>
+
+        {/* Persistent mobile navigation. Placed in normal flow after the scroll
+            area so this flex column reserves its height — content is never
+            hidden behind a fixed overlay. Hidden at >=1024px, where AppSidebar's
+            persistent column takes over. */}
+        <BottomTabBar
+          activeScreen={activeScreen}
+          onNavigate={onNavigate}
+          counts={notificationCounts}
+        />
       </div>
     </div>
   );

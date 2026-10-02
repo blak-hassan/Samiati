@@ -120,7 +120,7 @@ export default function ValidationRunner({ languageCode, goBack }: ValidationRun
 
     if (done) {
         return (
-            <main className="min-h-screen bg-stone-50 px-4 py-12 dark:bg-stone-950">
+            <main className="min-h-screen bg-background px-4 py-12">
                 <Card className="mx-auto max-w-lg space-y-4 p-8 text-center">
                     <CheckCircle2 className="mx-auto size-12 text-emerald-600" />
                     <h1 className="text-2xl font-bold">Queue cleared</h1>
@@ -135,7 +135,7 @@ export default function ValidationRunner({ languageCode, goBack }: ValidationRun
     }
 
     return (
-        <main className="min-h-screen bg-stone-50 px-4 py-6 dark:bg-stone-950 sm:py-10">
+        <main className="min-h-screen bg-background px-4 py-6 sm:py-10">
             <div className="mx-auto max-w-xl space-y-5">
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold tracking-tight">Community review</h1>

@@ -359,7 +359,7 @@ export default function TaskContributionScreen({ task, onComplete }: TaskContrib
     }
 
     return (
-        <main className="min-h-screen bg-amber-50 px-4 py-6 dark:bg-stone-950 sm:py-12">
+        <main className="min-h-screen bg-background px-4 py-6 sm:py-12">
             <div className="mx-auto max-w-xl space-y-5">
                 <div className="flex items-center gap-2 text-sm font-medium text-amber-800 dark:text-amber-200">
                     <Sparkles className="size-4" />
@@ -527,7 +527,7 @@ function SubmitResult({ submissionId, onComplete, onRetry }: {
     const totalChecks = status?.processingRuns.length ?? 0;
 
     return (
-        <main className="min-h-screen bg-amber-50 px-4 py-12 dark:bg-stone-950">
+        <main className="min-h-screen bg-background px-4 py-12">
             <div className="mx-auto max-w-lg space-y-5">
                 <Card className="space-y-5 p-8 text-center">
                     {status === undefined ? (

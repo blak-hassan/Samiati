@@ -14,6 +14,7 @@ import { Source } from "@/components/search/SourceCard";
 import { Button } from "@/components/ui/button";
 import { Menu, SquarePen, ArrowDown, Compass } from "lucide-react";
 import { AppSidebar } from "@/components/shared/AppSidebar";
+import { BottomTabBar } from "@/components/shared/BottomTabBar";
 import FeedbackBar from "@/components/feedback/FeedbackBar";
 import { cn } from "@/lib/utils";
 import { trackEvent } from "@/lib/analytics";
@@ -775,6 +776,17 @@ const HomeSearchScreen: React.FC<Props> = ({
             </div>
           </>
         )}
+
+        {/* Persistent mobile navigation. Placed in normal flow after the
+            composer so this flex column reserves its height (the composer is
+            never covered), and hidden at >=1024px where AppSidebar's
+            persistent column takes over. Rendered for the welcome and
+            conversation states alike, so the hub is always one tap away. */}
+        <BottomTabBar
+          activeScreen={Screen.HOME_CHAT}
+          onNavigate={navigate}
+          counts={notificationCounts}
+        />
       </div>
     </div>
   );

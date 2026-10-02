@@ -15,9 +15,9 @@ export const DialectMapper = () => {
                     <input
                         type="text"
                         placeholder="Search location..."
-                        className="flex-1 px-4 py-2 rounded-lg bg-stone-100 dark:bg-black/20 border border-stone-200 dark:border-white/10 outline-none focus:ring-2 ring-[#cf6317]"
+                        className="flex-1 px-4 py-2 rounded-lg bg-stone-100 dark:bg-black/20 border border-stone-200 dark:border-white/10 outline-none focus:ring-2 ring-brand-accent"
                     />
-                    <button className="px-6 py-2 bg-[#cf6317] text-white font-bold rounded-lg hover:bg-[#b05210] transition-colors">
+                    <button className="px-6 py-2 bg-brand-accent text-white font-bold rounded-lg hover:bg-brand-accent-hover transition-colors">
                         Pin Location
                     </button>
                 </div>

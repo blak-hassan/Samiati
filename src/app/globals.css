@@ -40,6 +40,13 @@
   --color-error: var(--color-rasta-red);
   --color-warning: var(--color-rasta-gold);
 
+  /* Brand accent — the warm orange used for active/primary highlights across
+     the Changa and contribution surfaces. It was previously inlined as a raw
+     hex in 70+ utilities; centralising it here keeps the value in one place so
+     it can be re-tuned without a repo-wide search-and-replace. */
+  --color-brand-accent: #cf6317;
+  --color-brand-accent-hover: #b05210;
+
   /* Fonts — provided by next/font via the variable classes on <html>
      (src/app/fonts.ts). The tokens here just alias the variables so
      Tailwind utilities like font-body resolve at runtime. */
@@ -86,12 +93,12 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #cf6317;
+  background: var(--color-brand-accent);
   border-radius: 3px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #b05210;
+  background: var(--color-brand-accent-hover);
 }
 
 .dark .custom-scrollbar::-webkit-scrollbar-track {
@@ -127,12 +134,12 @@ body::-webkit-scrollbar-track {
 }
 
 body::-webkit-scrollbar-thumb {
-  background: #cf6317;
+  background: var(--color-brand-accent);
   border-radius: 3px;
 }
 
 body::-webkit-scrollbar-thumb:hover {
-  background: #b05210;
+  background: var(--color-brand-accent-hover);
 }
 
 .dark body::-webkit-scrollbar-track {
@@ -206,7 +213,11 @@ body::-webkit-scrollbar-thumb:hover {
   --muted-foreground: #5E5852;
   --accent: #E7E5E4;
   --accent-foreground: #42342b;
-  --destructive: #ea4335;
+  /* Aligned with `.dark` + `--color-error` + docs/design/tokens.md, which all
+     use the rasta red. Light mode previously used an off-brand Google red
+     while dark mode used the rasta red — the same "destructive" state rendered
+     in two different reds depending on theme. */
+  --destructive: var(--color-rasta-red);
   --border: #E7E5E4;
   --input: #E7E5E4;
   --ring: var(--active-accent);

@@ -158,7 +158,7 @@ const BatchTextEntry: React.FC<BatchTextEntryProps> = ({
                                     onChange={(e) => updateEntry(entry.id, e.target.value)}
                                     placeholder={`${placeholder} #${index + 1}`}
                                     rows={2}
-                                    className="flex-1 px-4 py-3 rounded-xl bg-white dark:bg-[#42342b] border border-stone-200 dark:border-white/10 outline-none focus:border-[#cf6317] text-stone-900 dark:text-white placeholder-stone-300 resize-none text-sm transition-colors"
+                                    className="flex-1 px-4 py-3 rounded-xl bg-white dark:bg-[#42342b] border border-stone-200 dark:border-white/10 outline-none focus:border-brand-accent text-stone-900 dark:text-white placeholder-stone-300 resize-none text-sm transition-colors"
                                 />
                                 {entries.length > 1 && (
                                     <button
@@ -174,7 +174,7 @@ const BatchTextEntry: React.FC<BatchTextEntryProps> = ({
 
                     <button
                         onClick={addEntry}
-                        className="w-full py-3 rounded-xl border-2 border-dashed border-stone-300 dark:border-white/20 text-stone-500 font-bold text-sm hover:border-[#cf6317] hover:text-[#cf6317] transition-colors flex items-center justify-center gap-2"
+                        className="w-full py-3 rounded-xl border-2 border-dashed border-stone-300 dark:border-white/20 text-stone-500 font-bold text-sm hover:border-brand-accent hover:text-brand-accent transition-colors flex items-center justify-center gap-2"
                     >
                         <span className="material-symbols-outlined text-lg">add</span>
                         Add Another Entry
@@ -185,7 +185,7 @@ const BatchTextEntry: React.FC<BatchTextEntryProps> = ({
             {!isSubmitting && validEntries.length > 0 && (
                 <button
                     onClick={submit}
-                    className="w-full bg-[#cf6317] hover:bg-[#b05210] text-white font-bold py-3 rounded-xl shadow-lg active:scale-[0.98] transition-all"
+                    className="w-full bg-brand-accent hover:bg-brand-accent-hover text-white font-bold py-3 rounded-xl shadow-lg active:scale-[0.98] transition-all"
                 >
                     {documentTitle && languageCode
                         ? `Import ${validEntries.length} Entries`

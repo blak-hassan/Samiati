@@ -64,7 +64,7 @@ export const QuickRecord: React.FC<QuickRecordProps> = ({
                     className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shrink-0 ${
                         isRecording
                             ? 'bg-red-500 animate-breathe-pulse'
-                            : 'bg-[#cf6317] hover:scale-110 cursor-pointer'
+                            : 'bg-brand-accent hover:scale-110 cursor-pointer'
                     }`}
                 >
                     <span className="material-symbols-outlined text-white text-lg">
@@ -78,7 +78,7 @@ export const QuickRecord: React.FC<QuickRecordProps> = ({
                     {isRecording && (
                         <div className="w-full bg-stone-200 dark:bg-white/10 rounded-full h-1 mt-1">
                             <div
-                                className="h-full bg-[#cf6317] rounded-full transition-all"
+                                className="h-full bg-brand-accent rounded-full transition-all"
                                 style={{ width: `${(duration / maxDuration) * 100}%` }}
                             />
                         </div>
@@ -106,7 +106,7 @@ export const QuickRecord: React.FC<QuickRecordProps> = ({
                     className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 ${
                         isRecording
                             ? 'bg-red-500 animate-breathe-pulse shadow-[0_0_30px_rgba(239,68,68,0.5)]'
-                            : 'bg-[#cf6317] shadow-lg hover:scale-110 cursor-pointer'
+                            : 'bg-brand-accent shadow-lg hover:scale-110 cursor-pointer'
                     }`}
                     onClick={handleToggle}
                 >

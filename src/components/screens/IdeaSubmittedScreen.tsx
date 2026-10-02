@@ -21,7 +21,7 @@ const IdeaSubmittedScreen: React.FC<Props> = ({ navigate }) => {
             <div className="flex flex-col gap-3 w-full max-w-xs">
                 <button
                     onClick={() => navigate(Screen.CONTRIBUTIONS, { initialTab: 'Challenges' })}
-                    className="w-full bg-[#cf6317] hover:bg-[#b05210] text-white font-bold py-3.5 rounded-xl shadow-lg transition-all"
+                    className="w-full bg-brand-accent hover:bg-brand-accent-hover text-white font-bold py-3.5 rounded-xl shadow-lg transition-all"
                 >
                     Find More Projects
                 </button>

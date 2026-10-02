@@ -110,7 +110,7 @@ const ChallengeWinnersScreen: React.FC<Props> = ({ navigate, goBack, onViewProfi
                     </p>
                     <button
                         onClick={goBack}
-                        className="bg-[#cf6317] hover:bg-[#b05210] text-white font-bold py-3 px-6 rounded-xl shadow-lg active:scale-[0.98] transition-all"
+                        className="bg-brand-accent hover:bg-brand-accent-hover text-white font-bold py-3 px-6 rounded-xl shadow-lg active:scale-[0.98] transition-all"
                     >
                         Go Back
                     </button>
@@ -155,7 +155,7 @@ const ChallengeWinnersScreen: React.FC<Props> = ({ navigate, goBack, onViewProfi
         return (
             <div
                 onClick={() => onViewProfile({ name: entry.name, avatar: '', isGuest: false })}
-                className={`${sizeClass} rounded-full border-2 ${ringClass} bg-[#cf6317] text-white flex items-center justify-center font-bold cursor-pointer`}
+                className={`${sizeClass} rounded-full border-2 ${ringClass} bg-brand-accent text-white flex items-center justify-center font-bold cursor-pointer`}
             >
                 {initialsOf(entry.name).toUpperCase()}
             </div>
@@ -174,7 +174,7 @@ const ChallengeWinnersScreen: React.FC<Props> = ({ navigate, goBack, onViewProfi
             <main className="flex-1 p-4 pb-24 space-y-6">
                 {/* Header Info */}
                 <div className="text-center space-y-2">
-                    <div className="w-20 h-20 mx-auto rounded-xl bg-gradient-to-br from-[#cf6317] to-amber-500 flex items-center justify-center shadow-lg">
+                    <div className="w-20 h-20 mx-auto rounded-xl bg-gradient-to-br from-brand-accent to-amber-500 flex items-center justify-center shadow-lg">
                         <span className="material-symbols-outlined text-white text-4xl">emoji_events</span>
                     </div>
                     <h2 className="text-2xl font-bold">{campaign.title}</h2>
@@ -238,7 +238,7 @@ const ChallengeWinnersScreen: React.FC<Props> = ({ navigate, goBack, onViewProfi
                         <div>
                             <p className="text-sm font-bold text-primary">Your Result</p>
                             <p className="text-stone-900 dark:text-white">
-                                You ranked <span className="font-bold text-[#cf6317]">#{myEntry.rank}</span> with {myEntry.submissionCount} contribution{myEntry.submissionCount === 1 ? '' : 's'}!
+                                You ranked <span className="font-bold text-brand-accent">#{myEntry.rank}</span> with {myEntry.submissionCount} contribution{myEntry.submissionCount === 1 ? '' : 's'}!
                             </p>
                         </div>
                         <span className="material-symbols-outlined text-3xl text-primary">emoji_events</span>
@@ -265,7 +265,7 @@ const ChallengeWinnersScreen: React.FC<Props> = ({ navigate, goBack, onViewProfi
                                 >
                                     <span className={`w-8 font-bold text-center text-lg ${entry.rank <= 3 ? 'text-primary' : 'text-stone-400'}`}>#{entry.rank}</span>
                                     <div
-                                        className="w-10 h-10 rounded-full bg-[#cf6317] text-white flex items-center justify-center font-bold text-sm shrink-0"
+                                        className="w-10 h-10 rounded-full bg-brand-accent text-white flex items-center justify-center font-bold text-sm shrink-0"
                                     >
                                         {initialsOf(entry.name).toUpperCase()}
                                     </div>

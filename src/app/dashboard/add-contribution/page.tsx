@@ -33,7 +33,7 @@ function AddContributionContent({ searchParams }: { searchParams: Promise<{ task
     const tasks = useQuery(api.changa.tasks.listAvailableTasks, { limit: 25 });
 
     if (tasks === undefined) {
-        return <div className="min-h-screen bg-amber-50 p-8 dark:bg-stone-950">Loading a Changa task…</div>;
+        return <div className="min-h-screen bg-background p-8">Loading a Changa task…</div>;
     }
 
     const textTasks = tasks.filter(isTextTask);
@@ -41,7 +41,7 @@ function AddContributionContent({ searchParams }: { searchParams: Promise<{ task
 
     if (!task) {
         return (
-            <main className="min-h-screen bg-amber-50 px-4 py-12 dark:bg-stone-950">
+            <main className="min-h-screen bg-background px-4 py-12">
                 <Card className="mx-auto max-w-lg space-y-4 p-8 text-center">
                     <h1 className="text-2xl font-bold">No text tasks are open right now</h1>
                     <p className="text-sm text-muted-foreground">New language tasks appear here as soon as a campaign needs them.</p>
@@ -59,7 +59,7 @@ function AddContributionContent({ searchParams }: { searchParams: Promise<{ task
 
 export default function AddContributionPage({ searchParams }: { searchParams: Promise<{ taskId?: string | string[] }> }) {
     return (
-        <Suspense fallback={<div className="min-h-screen bg-amber-50 p-8 dark:bg-stone-950">Loading a Changa task…</div>}>
+        <Suspense fallback={<div className="min-h-screen bg-background p-8">Loading a Changa task…</div>}>
             <AddContributionContent searchParams={searchParams} />
         </Suspense>
     );

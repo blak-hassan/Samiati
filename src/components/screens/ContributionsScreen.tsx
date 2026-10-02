@@ -823,13 +823,13 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                         <div className="flex border-b border-black/5 dark:border-white/5 mb-6">
                             <button
                                 onClick={() => setModerationView('dashboard')}
-                                className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${moderationView === 'dashboard' ? 'text-[#cf6317] border-[#cf6317]' : 'text-stone-500 dark:text-text-muted border-transparent hover:text-stone-700'}`}
+                                className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${moderationView === 'dashboard' ? 'text-brand-accent border-brand-accent' : 'text-stone-500 dark:text-text-muted border-transparent hover:text-stone-700'}`}
                             >
                                 Dashboard
                             </button>
                             <button
                                 onClick={() => setModerationView('history')}
-                                className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${moderationView === 'history' ? 'text-[#cf6317] border-[#cf6317]' : 'text-stone-500 dark:text-text-muted border-transparent hover:text-stone-700'}`}
+                                className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${moderationView === 'history' ? 'text-brand-accent border-brand-accent' : 'text-stone-500 dark:text-text-muted border-transparent hover:text-stone-700'}`}
                             >
                                 History
                             </button>
@@ -890,12 +890,12 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                         {/* Header Actions */}
                         <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center mb-6">
                             <div className="flex border-b border-black/5 dark:border-white/5">
-                                <button onClick={() => setActiveChallengeTab('active')} className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${activeChallengeTab === 'active' ? 'text-[#cf6317] border-[#cf6317]' : 'text-stone-500 dark:text-text-muted border-transparent hover:text-stone-700'}`}>Active Mutations</button>
-                                <button onClick={() => setActiveChallengeTab('past')} className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${activeChallengeTab === 'past' ? 'text-[#cf6317] border-[#cf6317]' : 'text-stone-500 dark:text-text-muted border-transparent hover:text-stone-700'}`}>Legacy Archive</button>
+                                <button onClick={() => setActiveChallengeTab('active')} className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${activeChallengeTab === 'active' ? 'text-brand-accent border-brand-accent' : 'text-stone-500 dark:text-text-muted border-transparent hover:text-stone-700'}`}>Active Mutations</button>
+                                <button onClick={() => setActiveChallengeTab('past')} className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${activeChallengeTab === 'past' ? 'text-brand-accent border-brand-accent' : 'text-stone-500 dark:text-text-muted border-transparent hover:text-stone-700'}`}>Legacy Archive</button>
                             </div>
                             <button
                                 onClick={() => navigate(Screen.ADD_CHALLENGE)}
-                                className="flex items-center gap-2 bg-[#cf6317] hover:bg-[#b05210] text-white px-5 py-2.5 rounded-full shadow-lg transition-all active:scale-[0.98]"
+                                className="flex items-center gap-2 bg-brand-accent hover:bg-brand-accent-hover text-white px-5 py-2.5 rounded-full shadow-lg transition-all active:scale-[0.98]"
                             >
                                 <IconRenderer name="add" size={20} /><span className="font-bold text-sm">Start a Movement</span>
                             </button>
@@ -931,7 +931,7 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                                     const searchStr = `${c.title} ${c.description} ${c.customConfig?.language || ''}`.toLowerCase();
                                     return searchStr.includes(selectedLanguage.toLowerCase());
                                 }).map((challenge) => (
-                                    <div key={challenge.id} className="group bg-white dark:bg-surface-dark border border-stone-200 dark:border-white/5 rounded-2xl overflow-hidden hover:shadow-xl transition-all hover:border-[#cf6317] flex flex-col">
+                                    <div key={challenge.id} className="group bg-white dark:bg-surface-dark border border-stone-200 dark:border-white/5 rounded-2xl overflow-hidden hover:shadow-xl transition-all hover:border-brand-accent flex flex-col">
                                         <div className="h-48 bg-cover bg-center relative shrink-0" style={{ backgroundImage: `url('${challenge.image}')` }}>
                                             <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors"></div>
                                             <span className="absolute top-4 left-4 bg-white/20 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-white/10 shadow-sm">
@@ -945,7 +945,7 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                                             )}
                                         </div>
                                         <div className="p-5 flex-1 flex flex-col">
-                                            <h3 className="font-bold text-lg text-stone-900 dark:text-white mb-2 group-hover:text-[#cf6317] transition-colors">{challenge.title}</h3>
+                                            <h3 className="font-bold text-lg text-stone-900 dark:text-white mb-2 group-hover:text-brand-accent transition-colors">{challenge.title}</h3>
                                             <p className="text-stone-600 dark:text-text-muted text-sm mb-4 line-clamp-2 flex-1">{challenge.description}</p>
 
                                             <div className="space-y-3">
@@ -954,12 +954,12 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                                                     <span>{Math.round((challenge.currentCount / challenge.goalCount) * 100)}%</span>
                                                 </div>
                                                 <div className="h-2 bg-stone-100 dark:bg-black/30 rounded-full overflow-hidden">
-                                                    <div className="h-full bg-[#cf6317]" style={{ width: `${(challenge.currentCount / challenge.goalCount) * 100}%` }}></div>
+                                                    <div className="h-full bg-brand-accent" style={{ width: `${(challenge.currentCount / challenge.goalCount) * 100}%` }}></div>
                                                 </div>
 
                                                 <button
                                                     onClick={() => navigate(Screen.CHALLENGE_DETAILS, { challenge })}
-                                                    className="w-full mt-2 py-2.5 bg-stone-50 dark:bg-white/5 hover:bg-[#cf6317] hover:text-white text-stone-700 dark:text-white font-bold rounded-xl transition-colors border border-stone-200 dark:border-white/10"
+                                                    className="w-full mt-2 py-2.5 bg-stone-50 dark:bg-white/5 hover:bg-brand-accent hover:text-white text-stone-700 dark:text-white font-bold rounded-xl transition-colors border border-stone-200 dark:border-white/10"
                                                 >
                                                     View Project Hub
                                                 </button>
@@ -980,7 +980,7 @@ const ContributionsScreen: React.FC<Props> = ({ navigate, goBack, initialTab = '
                                         <div className="flex-1 min-w-0 flex flex-col justify-center">
                                             <h3 className="font-bold text-stone-700 dark:text-white truncate">{challenge.title}</h3>
                                             <p className="text-xs text-stone-500 mb-2">{challenge.date}</p>
-                                            <span className="text-xs font-bold text-[#cf6317] flex items-center gap-1">
+                                            <span className="text-xs font-bold text-brand-accent flex items-center gap-1">
                                                 <IconRenderer name="emoji_events" size={14} />
                                                 {challenge.badge}
                                             </span>

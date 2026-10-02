@@ -107,7 +107,7 @@ const SubmitEntryScreen: React.FC<Props> = ({ navigate, goBack, challenge }) => 
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
         <div className="flex-1 text-center pr-10">
-          <p className="text-[#cf6317] text-xs font-bold uppercase tracking-widest">Contributing to</p>
+          <p className="text-brand-accent text-xs font-bold uppercase tracking-widest">Contributing to</p>
           <h2 className="text-lg font-bold text-stone-900 dark:text-white line-clamp-1">{activeChallenge.title}</h2>
         </div>
       </header>
@@ -144,11 +144,11 @@ const SubmitEntryScreen: React.FC<Props> = ({ navigate, goBack, challenge }) => 
         <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
           <div className="hidden sm:block">
             <p className="text-sm font-bold text-stone-900 dark:text-white">Reward</p>
-            <p className="text-xs text-[#cf6317] font-bold">+50 XP</p>
+            <p className="text-xs text-brand-accent font-bold">+50 XP</p>
           </div>
           <button
             onClick={handleSubmit}
-            className="flex-1 sm:flex-none sm:w-64 bg-[#cf6317] hover:bg-[#b05210] text-white font-bold py-4 rounded-xl shadow-lg shadow-[#cf6317]/20 transition-all active:scale-[0.98] flex justify-center items-center gap-2"
+            className="flex-1 sm:flex-none sm:w-64 bg-brand-accent hover:bg-brand-accent-hover text-white font-bold py-4 rounded-xl shadow-lg shadow-brand-accent/20 transition-all active:scale-[0.98] flex justify-center items-center gap-2"
           >
             Submit Entry <span className="material-symbols-outlined">send</span>
           </button>

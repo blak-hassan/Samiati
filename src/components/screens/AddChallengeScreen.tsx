@@ -120,14 +120,14 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
     <div className="flex flex-col min-h-screen bg-[#FAF9F6] dark:bg-[#2b1e19] text-stone-900 dark:text-white transition-colors duration-300 font-display">
       {/* Header */}
       <header className="flex items-center p-4 sticky top-0 bg-[#FAF9F6]/90 dark:bg-[#2b1e19]/90 backdrop-blur-md z-20">
-        <button onClick={step === 1 ? goBack : handleBack} className="p-2 -ml-2 text-stone-500 hover:text-[#cf6317] transition-colors">
+        <button onClick={step === 1 ? goBack : handleBack} className="p-2 -ml-2 text-stone-500 hover:text-brand-accent transition-colors">
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
         <div className="flex-1 text-center">
           <h1 className="text-lg font-bold">Start a Movement</h1>
           <div className="flex justify-center gap-1 mt-1">
             {[1, 2].map(i => (
-              <div key={i} className={`h-1 w-12 rounded-full transition-colors ${step >= i ? 'bg-[#cf6317]' : 'bg-stone-200 dark:bg-white/10'}`} />
+              <div key={i} className={`h-1 w-12 rounded-full transition-colors ${step >= i ? 'bg-brand-accent' : 'bg-stone-200 dark:bg-white/10'}`} />
             ))}
           </div>
           <p className="text-[10px] text-stone-400 mt-1 font-medium">{completionPercent}% complete</p>
@@ -152,16 +152,16 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
                   <button
                     key={t.type}
                     onClick={() => handleTypeSelect(t.type)}
-                    className="relative group overflow-hidden bg-white dark:bg-[#42342b] border border-stone-200 dark:border-white/5 p-6 rounded-2xl flex items-center gap-5 hover:border-[#cf6317] hover:shadow-lg transition-all text-left"
+                    className="relative group overflow-hidden bg-white dark:bg-[#42342b] border border-stone-200 dark:border-white/5 p-6 rounded-2xl flex items-center gap-5 hover:border-brand-accent hover:shadow-lg transition-all text-left"
                   >
                     <div className={`w-14 h-14 rounded-full ${t.color} bg-opacity-10 flex items-center justify-center group-hover:scale-110 transition-transform`}>
                       <span className={`material-symbols-outlined text-2xl ${t.color.replace('bg-', 'text-')}`}>{t.icon}</span>
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-bold text-lg text-stone-900 dark:text-white group-hover:text-[#cf6317] transition-colors">{t.label}</h3>
+                      <h3 className="font-bold text-lg text-stone-900 dark:text-white group-hover:text-brand-accent transition-colors">{t.label}</h3>
                       <p className="text-sm text-stone-500 dark:text-[#A8A29E] leading-relaxed">{t.desc}</p>
                     </div>
-                    <span className="material-symbols-outlined text-stone-300 group-hover:text-[#cf6317] transition-colors">chevron_right</span>
+                    <span className="material-symbols-outlined text-stone-300 group-hover:text-brand-accent transition-colors">chevron_right</span>
                   </button>
                 ))}
               </div>
@@ -180,7 +180,7 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
                 <input
                   type="text"
                   placeholder="Name your mission (e.g. Digital Museum)"
-                  className="flex-1 bg-white dark:bg-[#42342b] border border-stone-200 dark:border-white/10 rounded-xl p-4 text-stone-900 dark:text-white focus:border-[#cf6317] outline-none transition-colors"
+                  className="flex-1 bg-white dark:bg-[#42342b] border border-stone-200 dark:border-white/10 rounded-xl p-4 text-stone-900 dark:text-white focus:border-brand-accent outline-none transition-colors"
                   value={customMission}
                   onChange={(e) => setCustomMission(e.target.value)}
                   onKeyDown={(e) => {
@@ -216,7 +216,7 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   placeholder={getChallengeTitle()}
-                  className="w-full bg-white dark:bg-[#42342b] border-2 border-stone-200 dark:border-white/10 rounded-xl p-4 text-stone-900 dark:text-white placeholder-stone-300 focus:border-[#cf6317] outline-none transition-colors font-bold"
+                  className="w-full bg-white dark:bg-[#42342b] border-2 border-stone-200 dark:border-white/10 rounded-xl p-4 text-stone-900 dark:text-white placeholder-stone-300 focus:border-brand-accent outline-none transition-colors font-bold"
                 />
               </div>
 
@@ -228,7 +228,7 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
                     value={formData.goalDescription}
                     onChange={(e) => setFormData({ ...formData, goalDescription: e.target.value })}
                     placeholder="Describe what success looks like (e.g. We need 50 recordings of the elders in the village...)"
-                    className="w-full bg-white dark:bg-[#42342b] border-2 border-stone-200 dark:border-white/10 rounded-xl p-4 font-medium text-lg text-stone-900 dark:text-white placeholder-stone-300 focus:border-[#cf6317] outline-none transition-colors min-h-[120px] resize-y"
+                    className="w-full bg-white dark:bg-[#42342b] border-2 border-stone-200 dark:border-white/10 rounded-xl p-4 font-medium text-lg text-stone-900 dark:text-white placeholder-stone-300 focus:border-brand-accent outline-none transition-colors min-h-[120px] resize-y"
                   />
                 </div>
 
@@ -243,9 +243,9 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
                       step="10"
                       value={formData.goalCount}
                       onChange={(e) => setFormData({ ...formData, goalCount: parseInt(e.target.value) })}
-                      className="flex-1 accent-[#cf6317]"
+                      className="flex-1 accent-brand-accent"
                     />
-                    <span className="text-2xl font-extrabold text-[#cf6317] w-16 text-center">{formData.goalCount}</span>
+                    <span className="text-2xl font-extrabold text-brand-accent w-16 text-center">{formData.goalCount}</span>
                   </div>
                   <p className="text-xs text-stone-400 mt-1">Estimated time: ~{Math.ceil(formData.goalCount / 5)} days at 5 contributions/day</p>
                 </div>
@@ -277,7 +277,7 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
                                 newSchema[index].label = e.target.value;
                                 setFormData({ ...formData, inputSchema: newSchema });
                               }}
-                              className="font-bold text-stone-900 dark:text-white bg-transparent outline-none focus:underline decoration-[#cf6317]"
+                              className="font-bold text-stone-900 dark:text-white bg-transparent outline-none focus:underline decoration-brand-accent"
                             />
                             <span className="material-symbols-outlined text-stone-300 text-sm cursor-help" title="Click to rename">edit</span>
                           </div>
@@ -290,7 +290,7 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
                                 newSchema[index].required = !newSchema[index].required;
                                 setFormData({ ...formData, inputSchema: newSchema });
                               }}
-                              className={`${input.required ? 'text-[#cf6317]' : 'text-stone-300'} font-bold hover:underline`}
+                              className={`${input.required ? 'text-brand-accent' : 'text-stone-300'} font-bold hover:underline`}
                             >
                               {input.required ? 'Required' : 'Optional'}
                             </button>
@@ -325,7 +325,7 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
                             };
                             setFormData({ ...formData, inputSchema: [...formData.inputSchema, newField] });
                           }}
-                          className="px-3 py-2 rounded-lg border border-dashed border-stone-300 dark:border-white/20 text-xs font-bold text-stone-500 hover:bg-stone-50 dark:hover:bg-white/5 hover:text-[#cf6317] hover:border-[#cf6317] transition-all flex items-center gap-1"
+                          className="px-3 py-2 rounded-lg border border-dashed border-stone-300 dark:border-white/20 text-xs font-bold text-stone-500 hover:bg-stone-50 dark:hover:bg-white/5 hover:text-brand-accent hover:border-brand-accent transition-all flex items-center gap-1"
                         >
                           <span className="material-symbols-outlined text-[16px]">add</span>
                           {type}
@@ -359,7 +359,7 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
                           </div>
                           <span className="font-bold text-stone-700 dark:text-white">{user.name}</span>
                         </div>
-                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${user.selected ? 'bg-[#cf6317] border-[#cf6317]' : 'border-stone-300 dark:border-white/20'}`}>
+                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${user.selected ? 'bg-brand-accent border-brand-accent' : 'border-stone-300 dark:border-white/20'}`}>
                           {user.selected && <span className="material-symbols-outlined text-white text-sm">check</span>}
                         </div>
                       </div>
@@ -384,7 +384,7 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
                             key={idx}
                             className="snap-center shrink-0 w-28 bg-white dark:bg-[#42342b] border border-stone-200 dark:border-white/5 rounded-xl p-3 flex flex-col items-center gap-2 text-center shadow-sm"
                           >
-                            <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center font-bold text-[#cf6317] text-sm">
+                            <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center font-bold text-brand-accent text-sm">
                               {user.avatar}
                             </div>
                             <div>
@@ -416,7 +416,7 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
 
               <div className="bg-white dark:bg-[#42342b] border border-stone-200 dark:border-white/10 rounded-2xl overflow-hidden shadow-sm">
                 {/* Preview Header */}
-                <div className="bg-gradient-to-r from-[#cf6317] to-amber-500 p-4">
+                <div className="bg-gradient-to-r from-brand-accent to-amber-500 p-4">
                   <span className="inline-block px-2 py-0.5 bg-white/20 text-white text-[8px] font-bold rounded-full uppercase mb-2">
                     {selectedType || 'Type'}
                   </span>
@@ -435,10 +435,10 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
                   <div className="space-y-1">
                     <div className="flex justify-between text-[10px] font-bold">
                       <span className="text-stone-400">Progress</span>
-                      <span className="text-[#cf6317]">0 / {formData.goalCount}</span>
+                      <span className="text-brand-accent">0 / {formData.goalCount}</span>
                     </div>
                     <div className="w-full bg-stone-100 dark:bg-white/5 rounded-full h-1.5">
-                      <div className="h-full bg-[#cf6317] rounded-full" style={{ width: '0%' }} />
+                      <div className="h-full bg-brand-accent rounded-full" style={{ width: '0%' }} />
                     </div>
                   </div>
 
@@ -455,14 +455,14 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
                         </span>
                         <span className="text-xs text-stone-600 dark:text-stone-300">{input.label}</span>
                         {input.required && (
-                          <span className="text-[8px] text-[#cf6317] font-bold">Required</span>
+                          <span className="text-[8px] text-brand-accent font-bold">Required</span>
                         )}
                       </div>
                     ))}
                   </div>
 
                   {/* Preview CTA */}
-                  <button className="w-full py-2 bg-[#cf6317] text-white text-xs font-bold rounded-lg mt-2">
+                  <button className="w-full py-2 bg-brand-accent text-white text-xs font-bold rounded-lg mt-2">
                     Contribute (+50 XP)
                   </button>
                 </div>
@@ -510,7 +510,7 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
                 }
               }}
               disabled={isSubmitting}
-              className="flex-1 bg-[#cf6317] hover:bg-[#b05210] text-white font-bold py-4 rounded-xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="flex-1 bg-brand-accent hover:bg-brand-accent-hover text-white font-bold py-4 rounded-xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {isSubmitting ? 'Launching...' : 'Launch Project'}
               {!isSubmitting && <span className="material-symbols-outlined">rocket_launch</span>}

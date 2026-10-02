@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from 'react';
 interface Props {
@@ -47,7 +47,7 @@ const AllAchievementsScreen: React.FC<Props> = ({ goBack }) => {
   const earnedCount = ACHIEVEMENTS.filter(a => a.isUnlocked).length;
 
   return (
-    <div className="flex flex-col min-h-screen bg-stone-50 dark:bg-background-dark text-stone-900 dark:text-white transition-colors duration-300">
+    <div className="flex flex-col min-h-screen bg-background dark:bg-background-dark text-stone-900 dark:text-white transition-colors duration-300">
       <header className="flex items-center p-4 bg-white dark:bg-surface-dark sticky top-0 z-10 border-b border-stone-200 dark:border-white/5 transition-colors">
         <button onClick={goBack} className="p-2 -ml-2 text-stone-900 dark:text-white">
           <span className="material-symbols-outlined">arrow_back</span>

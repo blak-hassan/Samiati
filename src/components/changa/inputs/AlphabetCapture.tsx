@@ -29,7 +29,7 @@ export const AlphabetCapture: React.FC<AlphabetCaptureProps> = ({ onSubmit }) =>
                         value={symbol}
                         onChange={(e) => setSymbol(e.target.value)}
                         placeholder="Type or paste symbol here"
-                        className="w-full max-w-xs text-center px-4 py-3 rounded-xl bg-white dark:bg-[#42342b] border border-stone-200 dark:border-white/10 outline-none focus:border-[#cf6317] text-2xl text-stone-900 dark:text-white placeholder-stone-300"
+                        className="w-full max-w-xs text-center px-4 py-3 rounded-xl bg-white dark:bg-[#42342b] border border-stone-200 dark:border-white/10 outline-none focus:border-brand-accent text-2xl text-stone-900 dark:text-white placeholder-stone-300"
                     />
                 </div>
             </div>
@@ -42,7 +42,7 @@ export const AlphabetCapture: React.FC<AlphabetCaptureProps> = ({ onSubmit }) =>
                         value={unicode}
                         onChange={(e) => setUnicode(e.target.value)}
                         placeholder="e.g. U+1680"
-                        className="w-full px-4 py-3 rounded-xl bg-white dark:bg-[#42342b] border border-stone-200 dark:border-white/10 outline-none focus:border-[#cf6317] text-stone-900 dark:text-white placeholder-stone-300 font-mono text-sm"
+                        className="w-full px-4 py-3 rounded-xl bg-white dark:bg-[#42342b] border border-stone-200 dark:border-white/10 outline-none focus:border-brand-accent text-stone-900 dark:text-white placeholder-stone-300 font-mono text-sm"
                     />
                 </div>
                 <div>
@@ -52,7 +52,7 @@ export const AlphabetCapture: React.FC<AlphabetCaptureProps> = ({ onSubmit }) =>
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="e.g. Ogham Space Mark"
-                        className="w-full px-4 py-3 rounded-xl bg-white dark:bg-[#42342b] border border-stone-200 dark:border-white/10 outline-none focus:border-[#cf6317] text-stone-900 dark:text-white placeholder-stone-300"
+                        className="w-full px-4 py-3 rounded-xl bg-white dark:bg-[#42342b] border border-stone-200 dark:border-white/10 outline-none focus:border-brand-accent text-stone-900 dark:text-white placeholder-stone-300"
                     />
                 </div>
             </div>
@@ -63,7 +63,7 @@ export const AlphabetCapture: React.FC<AlphabetCaptureProps> = ({ onSubmit }) =>
             >
                 {hasImage ? (
                     <div className="text-center">
-                        <span className="material-symbols-outlined text-3xl text-[#cf6317] mb-2">check_circle</span>
+                        <span className="material-symbols-outlined text-3xl text-brand-accent mb-2">check_circle</span>
                         <h3 className="font-bold text-stone-900 dark:text-white">Reference Image Added</h3>
                         <p className="text-sm text-stone-500 dark:text-[#A8A29E]">Click to replace</p>
                     </div>
@@ -81,7 +81,7 @@ export const AlphabetCapture: React.FC<AlphabetCaptureProps> = ({ onSubmit }) =>
             {symbol.trim() && (
                 <button
                     onClick={() => onSubmit?.({ symbol, unicode, name })}
-                    className="w-full bg-[#cf6317] hover:bg-[#b05210] text-white font-bold py-3 rounded-xl shadow-lg active:scale-[0.98] transition-all"
+                    className="w-full bg-brand-accent hover:bg-brand-accent-hover text-white font-bold py-3 rounded-xl shadow-lg active:scale-[0.98] transition-all"
                 >
                     Save Symbol
                 </button>

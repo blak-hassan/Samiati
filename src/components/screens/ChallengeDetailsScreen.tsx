@@ -1,4 +1,4 @@
-﻿
+
 import React, { useState } from 'react';
 import { Challenge, NavigateFn, Screen, User } from '@/types';
 import { ProjectHero } from '@/components/changa/ProjectHero';
@@ -78,10 +78,10 @@ const ChallengeDetailsScreen: React.FC<Props> = ({ navigate, goBack, challenge }
                   <button
                     key={tab.label}
                     onClick={() => setActiveTab(tab.key)}
-                    className={`px-6 py-4 font-bold text-sm transition-colors relative ${isActive ? 'text-[#cf6317]' : 'text-stone-400 hover:text-stone-600 dark:hover:text-stone-200'}`}
+                    className={`px-6 py-4 font-bold text-sm transition-colors relative ${isActive ? 'text-brand-accent' : 'text-stone-400 hover:text-stone-600 dark:hover:text-stone-200'}`}
                   >
                     {tab.label}
-                    {isActive && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#cf6317]" />}
+                    {isActive && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-accent" />}
                   </button>
                 )
               })}
@@ -129,11 +129,11 @@ const ChallengeDetailsScreen: React.FC<Props> = ({ navigate, goBack, challenge }
 
           {/* Sidebar */}
           <div className="lg:col-span-1 space-y-6">
-            <div className="bg-[#cf6317] rounded-3xl p-6 text-white shadow-lg relative overflow-hidden">
+            <div className="bg-brand-accent rounded-3xl p-6 text-white shadow-lg relative overflow-hidden">
               <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
               <h3 className="font-bold text-2xl mb-1">Invite Collaborators</h3>
               <p className="text-white/80 text-sm mb-6">This project needs 5 more dialects mapped.</p>
-              <button className="w-full py-3 bg-white text-[#cf6317] font-extrabold rounded-xl shadow-md hover:bg-stone-50 transition-colors">
+              <button className="w-full py-3 bg-white text-brand-accent font-extrabold rounded-xl shadow-md hover:bg-stone-50 transition-colors">
                 Copy Invite Link
               </button>
             </div>

@@ -7,7 +7,7 @@ interface Props {
 
 const TermsOfServiceScreen: React.FC<Props> = ({ goBack }) => {
   return (
-    <div className="flex flex-col min-h-screen bg-stone-50 dark:bg-[#2b1e19] transition-colors duration-300">
+    <div className="flex flex-col min-h-screen bg-background dark:bg-[#2b1e19] transition-colors duration-300">
       <header className="flex items-center p-4 sticky top-0 bg-stone-50 dark:bg-[#2b1e19] z-10 border-b border-stone-200 dark:border-white/5">
         <button onClick={goBack} className="p-2 -ml-2 text-stone-900 dark:text-white rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
             <span className="material-symbols-outlined">arrow_back</span>

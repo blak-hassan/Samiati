@@ -90,8 +90,19 @@ if (minWidthCount === 0) {
   console.log(`ok  ${minWidthCount} min-width breakpoint(s) declared (mobile-first)`);
 }
 
-// 3. Hard-coded desktop widths in JSX.
+// 3. Hard-coded desktop widths + palette values in JSX.
+//    Widths: a literal >=768px width is a desktop-sized fixed dimension.
+//    Palette: design tokens live in globals.css (`@theme`), so a raw hex in a
+//    Tailwind arbitrary value (`bg-[#cf6317]`) or a full-screen background that
+//    isn't `bg-background` (`min-h-screen bg-amber-50`) both bypass the token
+//    layer — the first can't be re-tuned centrally, the second won't follow the
+//    dark-mode switch. Both are advisory: they need a design decision, not an
+//    automatic fix.
 const widthRe = /\b(?:w-|width:\s*)(\d{3,})px/g;
+const hexRe = /\[#[0-9a-fA-F]{3,8}\]/g;
+const pageBgRe = /\bmin-h-(?:screen|\[100dvh\])\s+bg-(?:stone|amber|zinc|neutral|gray|slate)-\d{2,3}\b/g;
+const MAX_HEX_WARNINGS = 10;
+let hexHits = 0;
 for (const file of files) {
   const rel = file.replace(ROOT + '\\', '').replace(ROOT + '/', '');
   const src = readFileSync(file, 'utf8');
@@ -102,6 +113,18 @@ for (const file of files) {
       warnings.push(`${rel}: hard-coded width ${px}px (desktop-sized)`);
     }
   }
+  for (const m of src.matchAll(hexRe)) {
+    hexHits++;
+    if (hexHits <= MAX_HEX_WARNINGS) {
+      warnings.push(`${rel}: hard-coded hex colour "${m[0]}" — use a token from globals.css @theme`);
+    }
+  }
+  for (const m of src.matchAll(pageBgRe)) {
+    warnings.push(`${rel}: page background "${m[0]}" bypasses bg-background (won't follow dark mode)`);
+  }
+}
+if (hexHits > MAX_HEX_WARNINGS) {
+  warnings.push(`... and ${hexHits - MAX_HEX_WARNINGS} more hard-coded hex colour(s)`);
 }
 
 console.log('Mobile-first audit');
