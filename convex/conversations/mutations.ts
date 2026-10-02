@@ -40,12 +40,19 @@ export const saveConversation = mutation({
             .withIndex("by_user_clientId", (q) => q.eq("userId", user._id).eq("clientId", args.id))
             .first();
 
+        // Title is user-controlled (renames, AI-suggested titles, first-message
+        // truncation) and the metadata mutation already caps at 200. Apply the
+        // same cap here so a full save cannot write an unbounded title — the
+        // Sessions list renders it as a heading and exports it into filenames.
+        const safeTitle = args.title.trim().slice(0, 200) || "Untitled session";
+
         const conversationData = {
-            title: args.title,
+            title: safeTitle,
             date: args.date,
-            messageCount: args.messageCount,
             isPinned: args.isPinned,
-            isArchived: args.isArchived,
+            // Always persist an explicit boolean so `isArchived` is queryable in
+            // secondary indexes; legacy rows left it undefined.
+            isArchived: args.isArchived ?? existing?.isArchived ?? false,
             lastActive: args.lastActive,
             userId: user._id,
             category: args.category,
@@ -53,7 +60,6 @@ export const saveConversation = mutation({
         };
 
         if (existing) {
-            await ctx.db.patch(existing._id, conversationData);
             const existingMessages = await ctx.db
                 .query("messages")
                 .withIndex("by_conversation", (q) => q.eq("conversationId", existing._id))
@@ -67,26 +73,44 @@ export const saveConversation = mutation({
             // instead we union the two sets (upsert below).
             const isStale = (existing.lastActive ?? 0) > (args.lastActive ?? 0);
 
-            for (const m of existingMessages) {
-                if (!incomingIds.has(m.clientId) && !isStale) {
-                    await ctx.db.delete(m._id);
-                }
-            }
+            await ctx.db.patch(existing._id, {
+                ...conversationData,
+                // A stale offline snapshot must never *lower* the stored count.
+                // The message union below can only add, so take the higher of the
+                // two; this also repairs counts that drifted historically.
+                messageCount: isStale
+                    ? Math.max(existing.messageCount ?? 0, args.messages.length)
+                    : args.messages.length,
+            });
 
-            for (const msg of args.messages) {
-                const existingMsg = existingMessages.find(m => m.clientId === msg.id);
-                if (existingMsg) {
-                    await ctx.db.patch(existingMsg._id, {
-                        sender: msg.sender,
-                        text: msg.text,
-                        translatedText: msg.translatedText,
-                        targetLanguage: msg.targetLanguage,
-                        timestamp: msg.timestamp,
-                        feedback: msg.feedback,
-                        comments: msg.comments,
-                    });
-                } else {
-                    await ctx.db.insert("messages", {
+            // Batch the deletes. A sequential await per message both serialized
+            // the writes and multiplied the mutation's time budget, which is the
+            // real ceiling on long transcripts.
+            await Promise.all(
+                existingMessages
+                    .filter((m) => !incomingIds.has(m.clientId) && !isStale)
+                    .map((m) => ctx.db.delete(m._id))
+            );
+
+            // Index existing rows by clientId: the previous `.find()` inside the
+            // loop made the upsert O(n²) over the transcript.
+            const existingByClientId = new Map(existingMessages.map((m) => [m.clientId, m]));
+
+            await Promise.all(
+                args.messages.map((msg) => {
+                    const existingMsg = existingByClientId.get(msg.id);
+                    if (existingMsg) {
+                        return ctx.db.patch(existingMsg._id, {
+                            sender: msg.sender,
+                            text: msg.text,
+                            translatedText: msg.translatedText,
+                            targetLanguage: msg.targetLanguage,
+                            timestamp: msg.timestamp,
+                            feedback: msg.feedback,
+                            comments: msg.comments,
+                        });
+                    }
+                    return ctx.db.insert("messages", {
                         conversationId: existing._id,
                         clientId: msg.id,
                         sender: msg.sender,
@@ -97,26 +121,31 @@ export const saveConversation = mutation({
                         feedback: msg.feedback,
                         comments: msg.comments,
                     });
-                }
-            }
+                })
+            );
 
             return existing._id;
         } else {
-            const conversationId = await ctx.db.insert("conversations", conversationData);
+            const conversationId = await ctx.db.insert("conversations", {
+                ...conversationData,
+                messageCount: args.messages.length,
+            });
 
-            for (const msg of args.messages) {
-                await ctx.db.insert("messages", {
-                    conversationId,
-                    clientId: msg.id,
-                    sender: msg.sender,
-                    text: msg.text,
-                    translatedText: msg.translatedText,
-                    targetLanguage: msg.targetLanguage,
-                    timestamp: msg.timestamp,
-                    feedback: msg.feedback,
-                    comments: msg.comments,
-                });
-            }
+            await Promise.all(
+                args.messages.map((msg) =>
+                    ctx.db.insert("messages", {
+                        conversationId,
+                        clientId: msg.id,
+                        sender: msg.sender,
+                        text: msg.text,
+                        translatedText: msg.translatedText,
+                        targetLanguage: msg.targetLanguage,
+                        timestamp: msg.timestamp,
+                        feedback: msg.feedback,
+                        comments: msg.comments,
+                    })
+                )
+            );
 
             return conversationId;
         }
@@ -187,10 +216,10 @@ export const deleteConversationByClientId = mutation({
             .withIndex("by_conversation", (q) => q.eq("conversationId", conversation._id))
             .collect();
 
-        for (const msg of messages) {
-            await ctx.db.delete(msg._id);
-        }
-
+        // Batched: a sequential await per message serialized the writes and
+        // multiplied the mutation's time budget, which is the actual ceiling on
+        // long transcripts (a 500-message chat would time out).
+        await Promise.all(messages.map((msg) => ctx.db.delete(msg._id)));
         await ctx.db.delete(conversation._id);
         return { success: true, deleted: messages.length + 1 };
     },
@@ -215,9 +244,7 @@ export const deleteConversation = mutation({
             .withIndex("by_conversation", (q) => q.eq("conversationId", args.conversationId))
             .collect();
 
-        for (const msg of messages) {
-            await ctx.db.delete(msg._id);
-        }
+        await Promise.all(messages.map((msg) => ctx.db.delete(msg._id)));
 
         await ctx.db.delete(args.conversationId);
         return { success: true };

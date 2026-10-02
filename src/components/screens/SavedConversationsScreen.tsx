@@ -1,11 +1,12 @@
 ﻿"use client";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { Screen, Conversation } from '@/types';
 import { useFuzzySearch } from '@/hooks/useFuzzySearch';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useToast } from '@/hooks/useToast';
 import { formatRelativeTime, formatAbsoluteTime } from '@/lib/formatTime';
-import { exportConversationAsJSON, exportConversationAsMarkdown } from '@/lib/exportConversation';
+import { exportConversationAsJSON, exportConversationAsMarkdown, isBodyMissing } from '@/lib/exportConversation';
 import { writeChangaSeed, pickSeedText } from '@/lib/changaSeed';
 import {
     ArrowLeft,
@@ -50,7 +51,6 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import SessionCategoryBadge from '@/components/changa/SessionCategoryBadge';
-import { localConversationService } from '@/services/localConversationService';
 import { useUser } from '@clerk/nextjs';
 
 const ACTIVE_TAB_KEY = "samiati_sessions_active_tab";
@@ -72,7 +72,13 @@ interface Props {
     navigate: (screen: Screen, params?: Record<string, unknown>) => void;
     goBack: () => void;
     conversations: Conversation[];
-    setConversations: (conversations: Conversation[]) => void;
+    /**
+     * Accepts either a new list or an updater function. The updater form is
+     * required for safe optimistic toggles: deriving the next list from the
+     * `conversations` prop snapshot can drop an earlier change when two toggles
+     * land in the same tick.
+     */
+    setConversations: (conversations: Conversation[] | ((prev: Conversation[]) => Conversation[])) => void;
     onChatSelect: (id: string) => void;
     onRename?: (id: string, newTitle: string) => void;
     onPin?: (id: string, isPinned: boolean) => void;
@@ -88,6 +94,13 @@ interface Props {
     onExportAll?: () => void;
     /** Parse & merge a JSON session file; returns the number imported. */
     onImportSessions?: (file: File) => Promise<number>;
+    /**
+     * Fetch the next page of server-backed sessions. Fired when the virtualized
+     * list scrolls near its end (docs/perf.md §3).
+     */
+    onLoadMore?: () => void;
+    /** True while the server still has more pages beyond what is loaded. */
+    canLoadMore?: boolean;
 }
 
 const SavedConversationsScreen: React.FC<Props> = ({
@@ -108,15 +121,28 @@ const SavedConversationsScreen: React.FC<Props> = ({
     hasAnyConversation,
     onExportAll,
     onImportSessions,
+    onLoadMore,
+    canLoadMore = false,
 }) => {
-    const { isSignedIn } = useUser();
+    const { isSignedIn: clerkIsSignedIn } = useUser();
+    // Clerk types `isSignedIn` as optional, so it can be undefined while auth is
+    // resolving. Coerce once here rather than at every card call site.
+    const isSignedIn = !!clerkIsSignedIn;
     const { toast } = useToast();
     const [searchQuery, setSearchQuery] = useState('');
     const debouncedQuery = useDebouncedValue(searchQuery, 150);
-    const [activeTab, setActiveTab] = useState<Tab>(() => {
-        if (typeof window === "undefined") return "all";
-        return TAB_FROM_STORAGE[window.localStorage.getItem(ACTIVE_TAB_KEY) ?? ""] ?? "all";
-    });
+    // Persisted tab. Starts at the SSR-safe default and hydrates from
+    // localStorage in an effect: reading storage inside the useState initializer
+    // produced a server/client mismatch (server rendered "all", client rendered
+    // the stored tab), which React reports as a hydration error. Reads are also
+    // wrapped because localStorage throws outright in some privacy modes.
+    const [activeTab, setActiveTab] = useState<Tab>('all');
+    useEffect(() => {
+        try {
+            const stored = window.localStorage.getItem(ACTIVE_TAB_KEY);
+            if (stored && TAB_FROM_STORAGE[stored]) setActiveTab(TAB_FROM_STORAGE[stored]);
+        } catch { /* storage unavailable — keep the default tab */ }
+    }, []);
     const [sortMode, setSortMode] = useState<SortMode>('recent');
     const [languageFilter, setLanguageFilter] = useState<string | null>(null);
     const [selectionMode, setSelectionMode] = useState<SelectionMode>('idle');
@@ -172,22 +198,34 @@ const SavedConversationsScreen: React.FC<Props> = ({
             .map(([lang, count]) => ({ lang, count }));
     }, [conversations]);
 
-    // The "recent" cutoff is sampled into state once on mount and then
-    // refreshed when the tab regains focus. Sampling it during render would
-    // call the impure Date.now() function on every commit.
-    const [now, setNow] = useState(() => Date.now());
+    // "Recent" is relative to a wall-clock sample. It starts at a constant so the
+    // first client render matches the server (Date.now() differs between the two
+    // and would flip the Recent tab's contents mid-hydration), then syncs to the
+    // real clock once mounted. A slow interval keeps "2h ago" labels honest in a
+    // long-open tab — visibilitychange alone is not enough.
+    const [now, setNow] = useState(0);
     useEffect(() => {
+        setNow(Date.now());
+        const tick = () => setNow(Date.now());
         const onVisible = () => {
             if (document.visibilityState === 'visible') setNow(Date.now());
         };
+        const timer = window.setInterval(tick, 60_000);
         document.addEventListener('visibilitychange', onVisible);
-        return () => document.removeEventListener('visibilitychange', onVisible);
+        return () => {
+            window.clearInterval(timer);
+            document.removeEventListener('visibilitychange', onVisible);
+        };
     }, []);
 
-    const recentCutoff = now - RECENT_WINDOW_MS;
+    // Before the clock syncs, fall back to "now" so the Recent tab still shows
+    // a sensible window instead of an empty list.
+    const effectiveNow = now || Date.now();
+
+    const recentCutoff = effectiveNow - RECENT_WINDOW_MS;
     const tabCounts = useMemo(() => ({
         all: conversations.filter((c) => !c.isArchived).length,
-        pinned: conversations.filter((c) => c.isPinned).length,
+        pinned: conversations.filter((c) => c.isPinned && !c.isArchived).length,
         recent: conversations.filter((c) => !c.isArchived && c.lastActive >= recentCutoff).length,
         archived: conversations.filter((c) => c.isArchived).length,
     }), [conversations, recentCutoff]);
@@ -216,33 +254,41 @@ const SavedConversationsScreen: React.FC<Props> = ({
     const handleDelete = useCallback((id: string) => setPendingDelete({ id }), []);
     const handleDeleteMany = useCallback((ids: string[]) => setPendingDelete({ ids }), []);
 
+    // Deletion is routed entirely through the parent callbacks, which own the
+    // single local+server write path (page.tsx -> syncDeleteMany). Previously
+    // this also called deleteConversations + a full setConversations rewrite,
+//    so localStorage was written three times for one delete.
     const confirmDelete = useCallback(() => {
         if (!pendingDelete) return;
         if (pendingDelete.ids && pendingDelete.ids.length > 0) {
             const ids = pendingDelete.ids;
-            localConversationService.deleteConversations(ids);
-            const remaining = conversations.filter((c) => !ids.includes(c.id));
-            setConversations(remaining);
             onDeleteMany?.(ids);
             setSelectedIds(new Set());
             setSelectionMode('idle');
             toast(`Deleted ${ids.length} session${ids.length === 1 ? "" : "s"}`, "success");
         } else if (pendingDelete.id) {
-            const id = pendingDelete.id;
-            localConversationService.deleteConversation(id);
-            setConversations(conversations.filter((c) => c.id !== id));
-            onDeleteOne?.(id);
+            onDeleteOne?.(pendingDelete.id);
             toast("Session deleted", "success");
         }
         setPendingDelete(null);
-    }, [pendingDelete, conversations, onDeleteMany, onDeleteOne, setConversations, toast]);
+    }, [pendingDelete, onDeleteMany, onDeleteOne, toast]);
+
+    // Leaving selection mode is centralised so every bulk action — not just
+    // delete — clears the sticky bar. Pinning used to leave the bar open with
+    // the same ids selected, which looked like the button had done nothing.
+    const exitSelectionMode = useCallback(() => {
+        setSelectedIds(new Set());
+        setSelectionMode('idle');
+    }, []);
 
     const handleTogglePin = useCallback((e: React.MouseEvent, id: string) => {
         e.stopPropagation();
         const target = conversations.find((c) => c.id === id);
         if (!target) return;
         const next = !target.isPinned;
-        setConversations(conversations.map((c) => (c.id === id ? { ...c, isPinned: next } : c)));
+        // Functional update: two taps in quick succession must not drop the
+        // first change (a `conversations.map` snapshot can go stale).
+        setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, isPinned: next } : c)));
         onPin?.(id, next);
     }, [conversations, setConversations, onPin]);
 
@@ -251,7 +297,7 @@ const SavedConversationsScreen: React.FC<Props> = ({
         const target = conversations.find((c) => c.id === id);
         if (!target) return;
         const next = !target.isArchived;
-        setConversations(conversations.map((c) => (c.id === id ? { ...c, isArchived: next } : c)));
+        setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, isArchived: next } : c)));
         onArchive?.(id, next);
         toast(next ? "Archived" : "Restored", "info");
     }, [conversations, setConversations, onArchive, toast]);
@@ -262,13 +308,13 @@ const SavedConversationsScreen: React.FC<Props> = ({
         toast("Generating a title…", "info");
         const title = await onSuggestTitle(id);
         if (title) {
-            const conv = conversations.find((c) => c.id === id);
-            if (conv) onRename?.(id, title);
+            // onSuggestTitle already persists the new title (page.tsx). Calling
+            // onRename here as well queued the same metadata op a second time.
             toast(`Renamed to "${title.slice(0, 40)}${title.length > 40 ? "…" : ""}"`, "success");
         } else {
             toast("Couldn't generate a title right now", "error");
         }
-    }, [onSuggestTitle, onRename, conversations, toast]);
+    }, [onSuggestTitle, toast]);
 
     const handlePromoteToChanga = useCallback((e: React.MouseEvent, id: string) => {
         e.stopPropagation();
@@ -293,14 +339,34 @@ const SavedConversationsScreen: React.FC<Props> = ({
         e.stopPropagation();
         const conv = conversations.find((c) => c.id === id);
         if (!conv) return;
+        // A session synced from another device hydrates with metadata only until
+        // it is opened once. Exporting then yields a file with no message body,
+        // so warn instead of handing back an empty-looking export.
+        if (isBodyMissing(conv)) {
+            toast("Open this session once to load its messages, then export", "info");
+            return;
+        }
         if (format === 'json') exportConversationAsJSON(conv);
         else exportConversationAsMarkdown(conv);
         toast(`Exported as ${format.toUpperCase()}`, "success");
     }, [conversations, toast]);
 
     const handleExportAll = useCallback(() => {
+        const all = conversations;
+        if (all.length === 0) {
+            toast("Nothing to export yet", "info");
+            return;
+        }
+        // Only sessions with a locally-cached body export faithfully; say so
+        // rather than implying a complete archive.
+        const incomplete = all.filter(isBodyMissing).length;
         onExportAll?.();
-        toast(`${conversations.length} session${conversations.length === 1 ? "" : "s"} exported`, "success");
+        toast(
+            incomplete > 0
+                ? `${all.length} sessions exported · ${incomplete} not yet downloaded (open them to include their messages)`
+                : `${all.length} session${all.length === 1 ? "" : "s"} exported`,
+            "success"
+        );
     }, [onExportAll, conversations, toast]);
 
     const handleImportFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -327,25 +393,152 @@ const SavedConversationsScreen: React.FC<Props> = ({
         });
     }, []);
 
+    // True when the current view is narrower than the full list, so the header
+    // can report "Showing X of Y" instead of the static counts.
+    const isFiltering =
+        !!searchQuery.trim() || !!languageFilter || activeTab !== 'all';
+
+    const visibleIds = useMemo(
+        () => displayedConversations.map((c) => c.id),
+        [displayedConversations]
+    );
+    const allVisibleSelected =
+        visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
+
+    const toggleSelectAllVisible = useCallback(() => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (allVisibleSelected) visibleIds.forEach((id) => next.delete(id));
+            else visibleIds.forEach((id) => next.add(id));
+            return next;
+        });
+    }, [allVisibleSelected, visibleIds]);
+
+    // Bulk Pin/Archive are toggle-aware: on the Pinned tab they unpin, on the
+    // Archived tab they restore. They used to hardcode `true`, which made "Pin"
+    // a no-op inside Pinned and left no way to bulk-unpin/unarchive at all.
+    const selectedList = useMemo(
+        () => conversations.filter((c) => selectedIds.has(c.id)),
+        [conversations, selectedIds]
+    );
+    const allSelectedPinned = selectedList.length > 0 && selectedList.every((c) => c.isPinned);
+    const allSelectedArchived = selectedList.length > 0 && selectedList.every((c) => c.isArchived);
+
+    const handleBulkPin = useCallback(() => {
+        const ids = Array.from(selectedIds);
+        if (ids.length === 0) return;
+        onPinMany?.(ids, !allSelectedPinned);
+        toast(allSelectedPinned ? "Unpinned" : "Pinned", "success");
+        exitSelectionMode();
+    }, [selectedIds, onPinMany, allSelectedPinned, exitSelectionMode, toast]);
+
+    const handleBulkArchive = useCallback(() => {
+        const ids = Array.from(selectedIds);
+        if (ids.length === 0) return;
+        onArchiveMany?.(ids, !allSelectedArchived);
+        toast(allSelectedArchived ? "Restored" : "Archived", "success");
+        exitSelectionMode();
+    }, [selectedIds, onArchiveMany, allSelectedArchived, exitSelectionMode, toast]);
+
     const handleShareStory = useCallback(() => navigate(Screen.ADD_CONTRIBUTION), [navigate]);
 
     const continueLast = onContinueLast ?? (() => {
-        const last = [...conversations].sort((a, b) => b.lastActive - a.lastActive)[0];
+        // Fallback path (no onContinueLast wired): skip archived so the CTA
+        // never resumes a hidden session.
+        const last = [...conversations]
+            .filter((c) => !c.isArchived)
+            .sort((a, b) => b.lastActive - a.lastActive)[0];
         if (last) onChatSelect(last.id);
     });
 
     const pinnedFirst = displayedConversations.filter((c) => c.isPinned);
     const others = displayedConversations.filter((c) => !c.isPinned);
 
+    /**
+     * Flatten the two visually-grouped sections (Pinned / rest) into one ordered
+     * row model so a single virtualizer can render both. Section labels become
+     * real rows rather than sitting outside the scroll window, which is what
+     * kept the pinned group and the list from sharing one scroll position.
+     */
+    type ListRow =
+        | { kind: 'header'; id: string; title: string }
+        | { kind: 'card'; id: string; conversation: Conversation; index: number };
+
+    const rows = useMemo<ListRow[]>(() => {
+        const out: ListRow[] = [];
+        const showPinnedGroup = pinnedFirst.length > 0 && activeTab !== 'pinned';
+
+        if (showPinnedGroup) {
+            out.push({ kind: 'header', id: 'hdr-pinned', title: 'Pinned' });
+            pinnedFirst.forEach((c, i) =>
+                out.push({ kind: 'card', id: c.id, conversation: c, index: i })
+            );
+        }
+        if (others.length > 0) {
+            if (showPinnedGroup) {
+                out.push({
+                    kind: 'header',
+                    id: 'hdr-others',
+                    title:
+                        activeTab === 'recent'
+                            ? 'Last 7 days'
+                            : activeTab === 'archived'
+                                ? 'Archived'
+                                : 'All conversations',
+                });
+            }
+            others.forEach((c, i) =>
+                out.push({ kind: 'card', id: c.id, conversation: c, index: i })
+            );
+        }
+        return out;
+    }, [pinnedFirst, others, activeTab]);
+
+    const scrollRef = useRef<HTMLDivElement>(null);
+    // Height is measured (not estimated) because cards vary: a one-line title
+    // and a truncated preview differ enough that a fixed estimate visibly
+    // jumps the scrollbar as rows mount.
+    const rowVirtualizer = useVirtualizer({
+        count: rows.length,
+        getScrollElement: () => scrollRef.current,
+        estimateSize: () => 148,
+        overscan: 6,
+        getItemKey: (i) => rows[i]?.id ?? i,
+    });
+    const virtualRows = rowVirtualizer.getVirtualItems();
+
+    // Infinite scroll: pull the next server page as the tail comes into view.
+    // Guarded by canLoadMore + a ref so the same tail can't fire twice while a
+    // page is in flight.
+    const loadingMoreRef = useRef(false);
+    useEffect(() => {
+        const last = virtualRows[virtualRows.length - 1];
+        if (!last) return;
+        if (last.index < rows.length - 3) return;
+        if (!canLoadMore || !onLoadMore || loadingMoreRef.current) return;
+        loadingMoreRef.current = true;
+        onLoadMore();
+        // Release once the row count has actually grown.
+        const t = window.setTimeout(() => { loadingMoreRef.current = false; }, 400);
+        return () => window.clearTimeout(t);
+    }, [virtualRows, rows.length, canLoadMore, onLoadMore]);
+
     return (
-        <div className="flex flex-col min-h-screen bg-background relative overflow-hidden font-body motion-safe:animate-in motion-safe:fade-in">
+        <div className="flex flex-col h-[100dvh] bg-background relative overflow-hidden font-body motion-safe:animate-in motion-safe:fade-in">
+            {/* The scroll container is the virtualizer's scroll element, so it must
+                be a bounded flex child (h-[100dvh] + min-h-0). A `min-h-screen`
+                document-scroller leaves the virtualizer no element to measure
+                against and the measured rows collapse. */}
             {/* Abstract Background Shapes */}
             <div className="absolute top-[-5%] left-[-5%] w-[50%] h-[30%] bg-primary/5 blur-[100px] rounded-full pointer-events-none" />
             <div className="absolute bottom-[-5%] right-[-5%] w-[50%] h-[30%] bg-primary/10 blur-[100px] rounded-full pointer-events-none" />
 
-            {/* Header */}
+            {/* Header. The inner row is capped to the same max-w-2xl column as the list
+                below; previously the title row spanned the full viewport width
+                while the content was centered, so on wide screens the controls
+                drifted away from the content they act on. */}
             <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-lg px-4 py-4">
-                <div className="flex items-center justify-between gap-3">
+                <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                         <Button
                             variant="ghost"
@@ -358,19 +551,24 @@ const SavedConversationsScreen: React.FC<Props> = ({
                         </Button>
                         <div className="min-w-0">
                             <h1 className="text-xl font-black tracking-tight text-foreground truncate">Sessions</h1>
+                            {/* Result feedback: "showing X of Y" makes an empty
+                                result set (or a filtered view) unambiguous instead
+                                of leaving the list looking broken. */}
                             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground truncate">
-                                {tabCounts.all} active · {tabCounts.pinned} pinned · {tabCounts.archived} archived
+                                {isFiltering
+                                    ? `Showing ${displayedConversations.length} of ${conversations.length}`
+                                    : `${tabCounts.all} active · ${tabCounts.pinned} pinned · ${tabCounts.archived} archived`}
                             </p>
                         </div>
                     </div>
                     {selectionMode === 'selecting' ? (
                         <div className="flex items-center gap-1 shrink-0">
                             <span className="text-xs font-bold text-foreground px-2">{selectedIds.size} selected</span>
-                            <Button size="icon" variant="ghost" onClick={() => { setSelectionMode('idle'); setSelectedIds(new Set()); }} aria-label="Cancel selection">
+                            <Button size="icon" variant="ghost" onClick={exitSelectionMode} aria-label="Cancel selection">
                                 <X className="w-4 h-4" />
                             </Button>
                         </div>
-                    ) : (
+                    ) : displayedConversations.length > 0 ? (
                         <Button
                             size="sm"
                             variant="outline"
@@ -379,12 +577,15 @@ const SavedConversationsScreen: React.FC<Props> = ({
                         >
                             Select
                         </Button>
-                    )}
+                    ) : null}
                 </div>
             </header>
 
             {/* Main Content */}
-            <main className="flex-1 relative z-10 p-4 max-w-2xl mx-auto w-full space-y-6 overflow-y-auto no-scrollbar pb-32">
+            <main
+                ref={scrollRef}
+                className="flex-1 min-h-0 relative z-10 p-4 max-w-2xl mx-auto w-full space-y-6 overflow-y-auto no-scrollbar pb-32"
+            >
 
                 {/* Search Bar */}
                 <div className="relative group motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-4 duration-500">
@@ -392,7 +593,7 @@ const SavedConversationsScreen: React.FC<Props> = ({
                     <Input
                         ref={searchInputRef}
                         type="text"
-                        placeholder="Search by word, language, or proverb…"
+                        placeholder="Search titles, messages, languages…"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="h-12 pl-12 pr-12 rounded-2xl bg-card/50 backdrop-blur-xl border-border/50 focus:bg-background transition-all shadow-sm"
@@ -447,16 +648,28 @@ const SavedConversationsScreen: React.FC<Props> = ({
                     </div>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button size="icon" variant="ghost" className="rounded-xl text-muted-foreground shrink-0" aria-label="Sort options">
+                            {/* The label names the active sort so the control is
+                                self-describing, and the menu marks the current
+                                choice (previously the trigger icon was the only
+                                cue and the menu gave no confirmation). */}
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                className="rounded-xl text-muted-foreground shrink-0"
+                                aria-label={`Sort: ${sortMode === 'recent' ? 'most recent first' : 'A to Z by title'}`}
+                                title={sortMode === 'recent' ? 'Most recent first' : 'A → Z by title'}
+                            >
                                 {sortMode === 'recent' ? <Clock className="w-4 h-4" /> : <ArrowDownAZ className="w-4 h-4" />}
                             </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuContent align="end" className="w-52">
                             <DropdownMenuItem onClick={() => setSortMode('recent')} className="font-bold text-xs">
                                 <Clock className="mr-2 h-4 w-4" /> Most recent first
+                                {sortMode === 'recent' && <Check className="ml-auto h-4 w-4 text-primary" aria-hidden />}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setSortMode('az')} className="font-bold text-xs">
                                 <ArrowDownAZ className="mr-2 h-4 w-4" /> A → Z by title
+                                {sortMode === 'az' && <Check className="ml-auto h-4 w-4 text-primary" aria-hidden />}
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
@@ -524,88 +737,131 @@ const SavedConversationsScreen: React.FC<Props> = ({
                     </div>
                 )}
 
-                {/* Conversation List */}
-                <div className="space-y-4">
-                    {pinnedFirst.length > 0 && activeTab !== 'pinned' && (
-                        <div className="space-y-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 duration-500">
-                            <div className="flex items-center gap-2 px-1">
-                                <Pin className="w-4 h-4 text-primary fill-primary" />
-                                <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Pinned</h2>
-                            </div>
-                            {pinnedFirst.map((c, idx) => (
-                                <ConversationCard
-                                    key={c.id}
-                                    conversation={c}
-                                    onClick={() => onChatSelect(c.id)}
-                                    onTogglePin={(e) => handleTogglePin(e, c.id)}
-                                    onDelete={(e) => { e.stopPropagation(); handleDelete(c.id); }}
-                                    onArchive={(e) => handleToggleArchive(e, c.id)}
-                                    onRename={onRename}
-                                    onSuggestTitle={(e) => handleSuggestTitle(e, c.id)}
-                                    onPromoteToChanga={(e) => handlePromoteToChanga(e, c.id)}
-                                    onExport={handleExport}
-                                    index={idx}
-                                    selectionMode={selectionMode}
-                                    isSelected={selectedIds.has(c.id)}
-                                    onToggleSelect={() => toggleSelected(c.id)}
-                                />
-                            ))}
-                        </div>
-                    )}
-
-                    {others.length > 0 && (
-                        <div className="space-y-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 duration-700">
-                            {pinnedFirst.length > 0 && activeTab !== 'pinned' && (
-                                <div className="flex items-center gap-2 px-1 mt-6">
-                                    <Clock className="w-4 h-4 text-muted-foreground" />
-                                    <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
-                                        {activeTab === 'recent' ? 'Last 7 days' : activeTab === 'archived' ? 'Archived' : 'All conversations'}
-                                    </h2>
+                {/* Conversation List — virtualized (docs/perf.md §3: lists >50 rows
+                    must virtualize). Only the visible window of rows is mounted,
+                    so card animations, Fuse results and the dropdown menus stay
+                    bounded regardless of how many sessions exist. */}
+                {rows.length > 0 ? (
+                    <div
+                        style={{ height: rowVirtualizer.getTotalSize(), width: '100%' }}
+                        className="relative"
+                    >
+                        {virtualRows.map((vr) => {
+                            const row = rows[vr.index];
+                            if (!row) return null;
+                            return (
+                                <div
+                                    key={vr.key}
+                                    data-index={vr.index}
+                                    ref={rowVirtualizer.measureElement}
+                                    style={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        width: '100%',
+                                        transform: `translateY(${vr.start}px)`,
+                                    }}
+                                >
+                                    {row.kind === 'header' ? (
+                                        <div
+                                            className="flex items-center gap-2 px-1 pt-2 pb-1"
+                                            aria-hidden={false}
+                                        >
+                                            {row.id === 'hdr-pinned' ? (
+                                                <Pin className="w-4 h-4 text-primary fill-primary" />
+                                            ) : (
+                                                <Clock className="w-4 h-4 text-muted-foreground" />
+                                            )}
+                                            <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+                                                {row.title}
+                                            </h2>
+                                        </div>
+                                    ) : (
+                                        <div className="pb-4">
+                                            <ConversationCard
+                                                conversation={row.conversation}
+                                                onClick={() => onChatSelect(row.id)}
+                                                onTogglePin={(e) => handleTogglePin(e, row.id)}
+                                                onDelete={(e) => { e.stopPropagation(); handleDelete(row.id); }}
+                                                onArchive={(e) => handleToggleArchive(e, row.id)}
+                                                onRename={onRename}
+                                                onSuggestTitle={(e) => handleSuggestTitle(e, row.id)}
+                                                onPromoteToChanga={(e) => handlePromoteToChanga(e, row.id)}
+                                                onExport={handleExport}
+                                                index={row.index}
+                                                selectionMode={selectionMode}
+                                                isSelected={selectedIds.has(row.id)}
+                                                isSignedIn={isSignedIn}
+                                                onToggleSelect={() => toggleSelected(row.id)}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
-                            )}
-                            {others.map((c, idx) => (
-                                <ConversationCard
-                                    key={c.id}
-                                    conversation={c}
-                                    onClick={() => onChatSelect(c.id)}
-                                    onTogglePin={(e) => handleTogglePin(e, c.id)}
-                                    onDelete={(e) => { e.stopPropagation(); handleDelete(c.id); }}
-                                    onArchive={(e) => handleToggleArchive(e, c.id)}
-                                    onRename={onRename}
-                                    onSuggestTitle={(e) => handleSuggestTitle(e, c.id)}
-                                    onPromoteToChanga={(e) => handlePromoteToChanga(e, c.id)}
-                                    onExport={handleExport}
-                                    index={idx}
-                                    selectionMode={selectionMode}
-                                    isSelected={selectedIds.has(c.id)}
-                                    onToggleSelect={() => toggleSelected(c.id)}
-                                />
-                            ))}
-                        </div>
-                    )}
+                            );
+                        })}
+                    </div>
+                ) : (
+                    /* Empty State — rendered outside the virtualizer since there
+                       are no rows to virtualize. */
+                    <EmptyState
+                        hasAnyConversation={hasAnyConversation}
+                        searchQuery={searchQuery}
+                        activeTab={activeTab}
+                        languageFilter={languageFilter}
+                        onShareStory={handleShareStory}
+                        onContinueLast={continueLast}
+                    />
+                )}
 
-                    {/* Empty State */}
-                    {displayedConversations.length === 0 && (
-                        <EmptyState
-                            hasAnyConversation={hasAnyConversation}
-                            searchQuery={searchQuery}
-                            onShareStory={handleShareStory}
-                            onContinueLast={continueLast}
-                        />
-                    )}
-                </div>
+                {/* Server pagination affordance for keyboard / AT users who don't
+                    scroll near the tail. */}
+                {canLoadMore && rows.length > 0 && (
+                    <div className="flex justify-center py-4">
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-xl text-xs font-bold"
+                            onClick={() => onLoadMore?.()}
+                        >
+                            Load more sessions
+                        </Button>
+                    </div>
+                )}
             </main>
 
             {/* Bulk-action bar */}
             {selectionMode === 'selecting' && (
                 <div className="fixed bottom-4 inset-x-4 max-w-2xl mx-auto z-30 bg-card/95 backdrop-blur-xl border border-border/50 rounded-2xl p-3 shadow-2xl flex items-center gap-2 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4">
                     <span className="text-xs font-bold text-foreground px-2">{selectedIds.size} selected</span>
-                    <div className="flex-1" />
-                    <Button size="sm" variant="ghost" className="rounded-xl text-xs font-bold" onClick={() => onPinMany?.(Array.from(selectedIds), true)} disabled={selectedIds.size === 0}>
-                        <Pin className="w-3.5 h-3.5 mr-1" /> Pin
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className="rounded-xl text-xs font-bold"
+                        onClick={toggleSelectAllVisible}
+                        disabled={visibleIds.length === 0}
+                    >
+                        {allVisibleSelected ? "Clear" : "Select all"}
                     </Button>
-                    <Button size="sm" variant="ghost" className="rounded-xl text-xs font-bold" onClick={() => onArchiveMany?.(Array.from(selectedIds), true)} disabled={selectedIds.size === 0}>
-                        <Archive className="w-3.5 h-3.5 mr-1" /> Archive
+                    <div className="flex-1" />
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className="rounded-xl text-xs font-bold"
+                        onClick={handleBulkPin}
+                        disabled={selectedIds.size === 0}
+                    >
+                        {allSelectedPinned ? <PinOff className="w-3.5 h-3.5 mr-1" /> : <Pin className="w-3.5 h-3.5 mr-1" />}
+                        {allSelectedPinned ? "Unpin" : "Pin"}
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className="rounded-xl text-xs font-bold"
+                        onClick={handleBulkArchive}
+                        disabled={selectedIds.size === 0}
+                    >
+                        {allSelectedArchived ? <ArchiveRestore className="w-3.5 h-3.5 mr-1" /> : <Archive className="w-3.5 h-3.5 mr-1" />}
+                        {allSelectedArchived ? "Restore" : "Archive"}
                     </Button>
                     <Button
                         size="sm"
@@ -657,6 +913,8 @@ interface CardProps {
     index: number;
     selectionMode: SelectionMode;
     isSelected: boolean;
+    /** Drives the sync badge copy ("Pending" vs "Local"). */
+    isSignedIn: boolean;
     onToggleSelect: () => void;
 }
 
@@ -673,6 +931,7 @@ const ConversationCard: React.FC<CardProps> = ({
     index,
     selectionMode,
     isSelected,
+    isSignedIn,
     onToggleSelect,
 }) => {
     const [isEditing, setIsEditing] = useState(false);
@@ -734,10 +993,17 @@ const ConversationCard: React.FC<CardProps> = ({
     return (
         <div
             onClick={handleCardClick}
-            role="button"
+            /* In selection mode the card is a checkbox, not a button: the action
+               toggles membership rather than navigating, and screen readers
+               announce "checked" far better than a pressed button. */
+            role={selectionMode === 'selecting' ? 'checkbox' : 'button'}
             tabIndex={0}
-            aria-label={`Open session ${conversation.title}`}
-            aria-pressed={selectionMode === 'selecting' ? isSelected : undefined}
+            aria-checked={selectionMode === 'selecting' ? isSelected : undefined}
+            aria-label={
+                selectionMode === 'selecting'
+                    ? `Select session ${conversation.title}`
+                    : `Open session ${conversation.title}`
+            }
             onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
@@ -814,25 +1080,44 @@ const ConversationCard: React.FC<CardProps> = ({
                             <Clock className="w-3 h-3" />
                             {lastActiveLabel}
                         </span>
-                        {conversation.syncedToConvex === false && (
-                            <span className="flex items-center gap-1 text-warning" title="Saved locally only — sign in to sync across devices">
+                        {/* Sync status. Three distinct states, because "Local — sign in to sync"
+                            was shown to already-signed-in users whose upload was
+                            merely still queued (e.g. right after an import or
+                            while offline). */}
+                        {conversation.syncedToConvex === false ? (
+                            <span
+                                className="flex items-center gap-1 text-warning"
+                                title={
+                                    isSignedIn
+                                        ? "Saved on this device — pending upload to your account"
+                                        : "Saved locally only — sign in to sync across devices"
+                                }
+                            >
                                 <CloudOff className="w-3 h-3" />
-                                Local
+                                {isSignedIn ? "Pending" : "Local"}
                             </span>
-                        )}
-                        {conversation.syncedToConvex && (
+                        ) : conversation.syncedToConvex ? (
                             <span className="flex items-center gap-1 text-rasta-green" title="Synced to your account">
                                 <Cloud className="w-3 h-3" />
                                 Synced
                             </span>
-                        )}
+                        ) : null}
                     </div>
                     <p className="text-xs text-muted-foreground truncate opacity-70">
                         {lastMessage}
                     </p>
                 </div>
 
-                <div className="flex items-center gap-1 ml-2 relative z-30" onClick={(e) => e.stopPropagation()}>
+                {/* stopPropagation on BOTH click and keydown: this container sits inside a
+                    role="button"/"checkbox" card. Without the keydown guard,
+                    pressing Enter or Space on the nested menu trigger (or the
+                    rename input) bubbled up to the card and ALSO opened the
+                    session / toggled its selection. */}
+                <div
+                    className="flex items-center gap-1 ml-2 relative z-30"
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                >
                     {isEditing ? (
                         <>
                             <button
@@ -933,11 +1218,20 @@ const ConversationCard: React.FC<CardProps> = ({
 interface EmptyStateProps {
     hasAnyConversation: boolean;
     searchQuery: string;
+    activeTab: Tab;
+    languageFilter: string | null;
     onShareStory: () => void;
     onContinueLast: () => void;
 }
 
-const EmptyState: React.FC<EmptyStateProps> = ({ hasAnyConversation, searchQuery, onShareStory, onContinueLast }) => {
+const EmptyState: React.FC<EmptyStateProps> = ({
+    hasAnyConversation,
+    searchQuery,
+    activeTab,
+    languageFilter,
+    onShareStory,
+    onContinueLast,
+}) => {
     if (searchQuery) {
         return (
             <div className="flex flex-col items-center justify-center py-20 px-6 text-center motion-safe:animate-in motion-safe:zoom-in duration-500">
@@ -947,6 +1241,34 @@ const EmptyState: React.FC<EmptyStateProps> = ({ hasAnyConversation, searchQuery
                 <h3 className="text-xl font-black text-foreground mb-2">No sessions match your search</h3>
                 <p className="text-muted-foreground text-sm max-w-[280px]">
                     Try a different word, language, or proverb. Search looks inside conversation messages too.
+                </p>
+            </div>
+        );
+    }
+
+    // A tab or language filter that excludes everything gets a specific,
+    // actionable state. Previously these fell through to "Pick up where you
+    // left off", which wrongly implied other sessions existed off-screen and
+    // offered to resume a session the current view had just excluded.
+    if (activeTab !== 'all' || languageFilter) {
+        return (
+            <div className="flex flex-col items-center justify-center py-20 px-6 text-center motion-safe:animate-in motion-safe:zoom-in duration-500">
+                <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+                    <Filter className="w-10 h-10 text-primary" />
+                </div>
+                <h3 className="text-xl font-black text-foreground mb-2">
+                    {languageFilter
+                        ? `No ${languageFilter} sessions here`
+                        : `No ${TAB_LABELS[activeTab].toLowerCase()} sessions`}
+                </h3>
+                <p className="text-muted-foreground text-sm max-w-[280px]">
+                    {languageFilter
+                        ? `Nothing in this view matches the ${languageFilter} filter yet.`
+                        : activeTab === 'archived'
+                            ? "Sessions you archive are kept here and out of your way."
+                            : activeTab === 'pinned'
+                                ? "Pin a session to keep it at the top of your list."
+                                : "Sessions you've used in the past week show up here."}
                 </p>
             </div>
         );

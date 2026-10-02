@@ -9,12 +9,34 @@
 
 import { query } from "../_generated/server";
 import { v } from "convex/values";
+import { readWaitlistCount } from "./counter";
 
 export const getCount = query({
     args: {},
+    handler: async (ctx) => readWaitlistCount(ctx),
+});
+
+/**
+ * Whether the *current* visitor has already joined.
+ *
+ * Public (no auth required) so the landing page can render the correct
+ * starting state for both anonymous and signed-in visitors without branching
+ * on two different data sources. Returns `isSubscribed: false` for anonymous
+ * callers — they have no account to match a row against.
+ */
+export const getMyStatus = query({
+    args: {},
     handler: async (ctx) => {
-        const docs = await ctx.db.query("waitlist").collect();
-        return docs.length;
+        const { getCurrentUser } = await import("../users/utils");
+        const user = await getCurrentUser(ctx);
+        if (!user) return { isSubscribed: false };
+
+        const entry = await ctx.db
+            .query("waitlist")
+            .withIndex("by_user", (q) => q.eq("userId", user._id))
+            .first();
+
+        return { isSubscribed: !!entry };
     },
 });
 

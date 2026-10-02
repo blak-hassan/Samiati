@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 /**
  * Changa-aware Convex hooks with a non-production fallback.
@@ -34,44 +34,57 @@
  * e2e empty-state expectations keep passing.
  */
 
-import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import {
-    useMutation,
-    useQuery,
-    type OptionalRestArgsOrSkip,
-    type ReactMutation,
-} from "convex/react";
-import type {
-    FunctionReference,
-    FunctionReturnType,
-    OptionalRestArgs,
-} from "convex/server";
-import { useAppUser } from "@/hooks/useAppUser";
+  useMutation,
+  useQuery,
+  type OptionalRestArgsOrSkip,
+  type ReactMutation,
+} from 'convex/react';
+import type { FunctionReference, FunctionReturnType, OptionalRestArgs } from 'convex/server';
+import { useAppUser } from '@/hooks/useAppUser';
 import {
-    DEMO_BADGES,
-    DEMO_CAMPAIGNS,
-    DEMO_CURATED_EXAMPLES,
-    DEMO_INVITE_CODE,
-    DEMO_LEADERBOARD,
-    DEMO_PROFILE,
-    DEMO_SUBMISSIONS,
-    DEMO_TASKS,
-    DEMO_USER_STATS,
-    DEMO_VALIDATION_QUEUE,
-    demoLanguageStats,
-    demoSubmissionStatus,
-} from "@/lib/changaDemoData";
+  DEMO_BADGES,
+  DEMO_CAMPAIGNS,
+  DEMO_CURATED_EXAMPLES,
+  DEMO_INVITE_CODE,
+  DEMO_LEADERBOARD,
+  DEMO_PROFILE,
+  DEMO_SUBMISSIONS,
+  DEMO_TASKS,
+  DEMO_USER_STATS,
+  DEMO_VALIDATION_QUEUE,
+  demoLanguageStats,
+  demoSubmissionStatus,
+} from '@/lib/changaDemoData';
+import {
+  CHANGA_TEST_CAMPAIGN_PROPOSALS,
+  CHANGA_TEST_CAMPAIGNS,
+  CHANGA_TEST_CUSTOM_TEMPLATES,
+  CHANGA_TEST_DOCUMENT_ENTRIES,
+  CHANGA_TEST_DOCUMENTS,
+  CHANGA_TEST_EVALUATION_SETS,
+  CHANGA_TEST_INVITE_STATS,
+  CHANGA_TEST_PLATFORM_STATS,
+  CHANGA_TEST_PROCESSING_RUNS,
+  CHANGA_TEST_RAW_CAMPAIGN_LEADERBOARD,
+  CHANGA_TEST_RELEASE_MEMBERS,
+  CHANGA_TEST_SUBMISSIONS,
+  CHANGA_TEST_SUBMISSION_ASSETS,
+  CHANGA_TEST_TASK_CLAIMS,
+  CHANGA_TEST_XP_PROFILES,
+} from '@/lib/changaTestData';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyFn = any;
 
-export const changaFallbackAllowed: boolean = process.env.NODE_ENV !== "production";
+export const changaFallbackAllowed: boolean = process.env.NODE_ENV !== 'production';
 const BACKEND_TIMEOUT_MS = 3000;
 
 // Convex tags every function reference with this global-registry symbol
 // (`Symbol.for("functionName")` in `convex/server`), so we can resolve the
 // canonical name without importing the server bundle at runtime.
-const CONVEX_FUNCTION_NAME = Symbol.for("functionName");
+const CONVEX_FUNCTION_NAME = Symbol.for('functionName');
 
 /**
  * Read the canonical Convex function name (e.g. `"changa/tasks:claimTask"`).
@@ -81,13 +94,13 @@ const CONVEX_FUNCTION_NAME = Symbol.for("functionName");
  * identity-keyed maps would never match.
  */
 function describeFunction(reference: unknown): string {
-    try {
-        const name = (reference as Record<symbol, unknown> | null)?.[CONVEX_FUNCTION_NAME];
-        if (typeof name === "string") return name;
-    } catch {
-        // Reading the symbol off an incomplete api path (e.g. `api.changa`) throws.
-    }
-    return typeof reference === "string" ? reference : "unknown-function";
+  try {
+    const name = (reference as Record<symbol, unknown> | null)?.[CONVEX_FUNCTION_NAME];
+    if (typeof name === 'string') return name;
+  } catch {
+    // Reading the symbol off an incomplete api path (e.g. `api.changa`) throws.
+  }
+  return typeof reference === 'string' ? reference : 'unknown-function';
 }
 
 // ---------------------------------------------------------------------------
@@ -95,100 +108,98 @@ function describeFunction(reference: unknown): string {
 // screen, so only the first wrapped hook pays for it.
 // ---------------------------------------------------------------------------
 
-type BackendStatus = "unknown" | "ok" | "down";
+type BackendStatus = 'unknown' | 'ok' | 'down';
 
-let backendStatus: BackendStatus = "unknown";
+let backendStatus: BackendStatus = 'unknown';
 const statusListeners = new Set<() => void>();
 
 function setBackendStatus(next: BackendStatus): void {
-    if (backendStatus === next) return;
-    backendStatus = next;
-    for (const listener of statusListeners) listener();
+  if (backendStatus === next) return;
+  backendStatus = next;
+  for (const listener of statusListeners) listener();
 }
 
 function subscribeBackendStatus(onChange: () => void) {
-    statusListeners.add(onChange);
-    return () => {
-        statusListeners.delete(onChange);
-    };
+  statusListeners.add(onChange);
+  return () => {
+    statusListeners.delete(onChange);
+  };
 }
 
 // A public, argument-less query used purely as a liveness probe: on a healthy
 // deployment it returns the badge catalog without requiring auth.
-const PROBE_FUNCTION_PATH = "changa/badges:listBadges";
+const PROBE_FUNCTION_PATH = 'changa/badges:listBadges';
 
 let probePromise: Promise<void> | null = null;
 
 function probeChangaBackend(): Promise<void> {
-    if (probePromise) return probePromise;
+  if (probePromise) return probePromise;
 
-    probePromise = (async () => {
-        if (!changaFallbackAllowed) {
-            setBackendStatus("ok");
-            return;
-        }
+  probePromise = (async () => {
+    if (!changaFallbackAllowed) {
+      setBackendStatus('ok');
+      return;
+    }
 
-        const url = process.env.NEXT_PUBLIC_CONVEX_URL;
-        if (!url) {
-            setBackendStatus("down");
-            console.warn(
-                "[changa] NEXT_PUBLIC_CONVEX_URL is not set — serving the Changa demo dataset.",
-            );
-            return;
-        }
+    const url = process.env.NEXT_PUBLIC_CONVEX_URL;
+    if (!url) {
+      setBackendStatus('down');
+      console.warn('[changa] NEXT_PUBLIC_CONVEX_URL is not set — serving the Changa demo dataset.');
+      return;
+    }
 
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), BACKEND_TIMEOUT_MS);
-        try {
-            const response = await fetch(`${url.replace(/\/+$/, "")}/api/query`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ path: PROBE_FUNCTION_PATH, args: {}, format: "json" }),
-                signal: controller.signal,
-            });
-            const payload = (await response.json().catch(() => null)) as {
-                status?: string;
-                errorMessage?: string;
-            } | null;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), BACKEND_TIMEOUT_MS);
+    try {
+      const response = await fetch(`${url.replace(/\/+$/, '')}/api/query`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: PROBE_FUNCTION_PATH, args: {}, format: 'json' }),
+        signal: controller.signal,
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        status?: string;
+        errorMessage?: string;
+      } | null;
 
-            if (response.ok && payload?.status === "success") {
-                setBackendStatus("ok");
-                return;
-            }
+      if (response.ok && payload?.status === 'success') {
+        setBackendStatus('ok');
+        return;
+      }
 
-            setBackendStatus("down");
-            console.warn(
-                `[changa] Convex backend returned ${response.status} — serving the Changa demo dataset (non-production only).`,
-                payload?.errorMessage ?? "",
-            );
-        } catch (error) {
-            setBackendStatus("down");
-            console.warn(
-                "[changa] Convex backend unreachable — serving the Changa demo dataset (non-production only).",
-                error,
-            );
-        } finally {
-            clearTimeout(timer);
-        }
-    })();
+      setBackendStatus('down');
+      console.warn(
+        `[changa] Convex backend returned ${response.status} — serving the Changa demo dataset (non-production only).`,
+        payload?.errorMessage ?? ''
+      );
+    } catch (error) {
+      setBackendStatus('down');
+      console.warn(
+        '[changa] Convex backend unreachable — serving the Changa demo dataset (non-production only).',
+        error
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+  })();
 
-    return probePromise;
+  return probePromise;
 }
 
 function useBackendStatus(): BackendStatus {
-    const status = useSyncExternalStore(
-        subscribeBackendStatus,
-        () => backendStatus,
-        // Server snapshot: keeps hydration clean (the probe only runs in an
-        // effect). Production short-circuits to "ok" below regardless.
-        () => "unknown" as BackendStatus,
-    );
+  const status = useSyncExternalStore(
+    subscribeBackendStatus,
+    () => backendStatus,
+    // Server snapshot: keeps hydration clean (the probe only runs in an
+    // effect). Production short-circuits to "ok" below regardless.
+    () => 'unknown' as BackendStatus
+  );
 
-    useEffect(() => {
-        if (changaFallbackAllowed) void probeChangaBackend();
-    }, []);
+  useEffect(() => {
+    if (changaFallbackAllowed) void probeChangaBackend();
+  }, []);
 
-    return changaFallbackAllowed ? status : "ok";
+  return changaFallbackAllowed ? status : 'ok';
 }
 
 // ---------------------------------------------------------------------------
@@ -203,107 +214,269 @@ const dynamicSubmissions: AnyFn[] = [];
 const votedSubmissionIds = new Set<string>();
 
 const QUERY_MOCKS = new Map<string, (args: AnyFn, isSignedIn: boolean) => AnyFn>([
-    ["changa/tasks:listAvailableTasks", (args) => {
-        const tasks = DEMO_TASKS.filter(
-            (task) => !args?.languageCode || task.languageCode === args.languageCode,
-        );
-        return tasks.slice(0, args?.limit ?? 25);
-    }],
-    ["changa/tasks:getTask", (args) =>
-        DEMO_TASKS.find((task) => task._id === args?.taskId) ?? null],
-    ["changa/submissions:listUserSubmissions", (args, isSignedIn) => {
-        if (!isSignedIn) return [];
-        return [...dynamicSubmissions, ...DEMO_SUBMISSIONS]
-            .sort((left, right) => right.updatedAt - left.updatedAt)
-            .slice(0, args?.limit ?? 50);
-    }],
-    ["changa/submissions:listAllSubmissions", (_args, isSignedIn) =>
-        isSignedIn ? [...dynamicSubmissions, ...DEMO_SUBMISSIONS] : []],
-    ["changa/campaigns:listActiveCampaigns", (args) =>
-        DEMO_CAMPAIGNS.filter(
-            (campaign) => !args?.languageCode || campaign.languageCode === args.languageCode,
-        ).slice(0, args?.limit ?? 20)],
-    ["changa/campaigns:getCampaignWithLeaderboard", () => DEMO_LEADERBOARD],
-    ["changa/badges:listBadges", () => DEMO_BADGES],
-    ["changa/stats:getUserContributionStats", (_args, isSignedIn) =>
-        isSignedIn ? DEMO_USER_STATS : null],
-    ["changa/stats:getLanguageProgressStats", (args) =>
-        demoLanguageStats(args?.languageCode ?? "sheng")],
-    ["changa/invites:getMyInviteCode", (_args, isSignedIn) =>
-        isSignedIn ? DEMO_INVITE_CODE : null],
-    ["users/queries:getProfile", (_args, isSignedIn) =>
-        isSignedIn ? DEMO_PROFILE : null],
-    ["changa/validation:listValidationQueue", (_args, isSignedIn) => {
-        if (!isSignedIn) return [];
-        return DEMO_VALIDATION_QUEUE.filter(
-            (item) => !votedSubmissionIds.has(item._id),
-        );
-    }],
-    ["changa/validation:getValidationBundle", (args) => {
-        const submission = DEMO_SUBMISSIONS.find((s) => s._id === args?.submissionId);
-        return submission ? { ...submission, assets: [], votes: [] } : null;
-    }],
-    ["changa/validation:getSubmissionAssetUrl", () => null],
-    ["changa/processing:getSubmissionStatus", (args) =>
-        demoSubmissionStatus(String(args?.submissionId ?? ""))],
-    ["changa/curation:listCuratedCandidates", (_args, isSignedIn) =>
-        isSignedIn
-            ? [...dynamicSubmissions, ...DEMO_SUBMISSIONS].filter(
-                  (s) => s.status === "validated",
-              )
-            : []],
-    ["changa/curation:listDatasetReleaseCandidates", (_args, isSignedIn) =>
-        isSignedIn ? DEMO_CURATED_EXAMPLES : []],
+  [
+    'changa/tasks:listAvailableTasks',
+    (args) => {
+      const tasks = DEMO_TASKS.filter(
+        (task) => !args?.languageCode || task.languageCode === args.languageCode
+      );
+      return tasks.slice(0, args?.limit ?? 25);
+    },
+  ],
+  ['changa/tasks:getTask', (args) => DEMO_TASKS.find((task) => task._id === args?.taskId) ?? null],
+  [
+    'changa/submissions:listUserSubmissions',
+    (args, isSignedIn) => {
+      if (!isSignedIn) return [];
+      // Only submissions created in THIS session belong to the signed-in demo
+      // user. DEMO_SUBMISSIONS are owned by the three seeded contributors, while
+      // the real query filters by the current user; returning them here made
+      // every visitor look like an established contributor, which pinned
+      // `isNewContributor` to false in ChangaHome and permanently suppressed the
+      // new-contributor empty state asserted by e2e/changa.spec.ts.
+      // `dynamicSubmissions` starts empty (so the empty state renders) and fills
+      // as the tester submits through the mocked mutations, which flips ChangaHome
+      // to its contributor view — i.e. the claim -> contribute flow is observable.
+      return [...dynamicSubmissions]
+        .sort((left, right) => right.updatedAt - left.updatedAt)
+        .slice(0, args?.limit ?? 50);
+    },
+  ],
+  [
+    'changa/submissions:listAllSubmissions',
+    (_args, isSignedIn) => (isSignedIn ? [...dynamicSubmissions, ...DEMO_SUBMISSIONS] : []),
+  ],
+  [
+    'changa/campaigns:listActiveCampaigns',
+    (args) =>
+      DEMO_CAMPAIGNS.filter(
+        (campaign) => !args?.languageCode || campaign.languageCode === args.languageCode
+      ).slice(0, args?.limit ?? 20),
+  ],
+  ['changa/campaigns:getCampaignWithLeaderboard', () => DEMO_LEADERBOARD],
+  ['changa/badges:listBadges', () => DEMO_BADGES],
+  [
+    'changa/stats:getUserContributionStats',
+    (_args, isSignedIn) => (isSignedIn ? DEMO_USER_STATS : null),
+  ],
+  [
+    'changa/stats:getLanguageProgressStats',
+    (args) => demoLanguageStats(args?.languageCode ?? 'sheng'),
+  ],
+  ['changa/invites:getMyInviteCode', (_args, isSignedIn) => (isSignedIn ? DEMO_INVITE_CODE : null)],
+  ['users/queries:getProfile', (_args, isSignedIn) => (isSignedIn ? DEMO_PROFILE : null)],
+  [
+    'changa/validation:listValidationQueue',
+    (_args, isSignedIn) => {
+      if (!isSignedIn) return [];
+      return DEMO_VALIDATION_QUEUE.filter((item) => !votedSubmissionIds.has(item._id));
+    },
+  ],
+  [
+    'changa/validation:getValidationBundle',
+    (args) => {
+      const submission = DEMO_SUBMISSIONS.find((s) => s._id === args?.submissionId);
+      return submission ? { ...submission, assets: [], votes: [] } : null;
+    },
+  ],
+  ['changa/validation:getSubmissionAssetUrl', () => null],
+  [
+    'changa/processing:getSubmissionStatus',
+    (args) => demoSubmissionStatus(String(args?.submissionId ?? '')),
+  ],
+  [
+    'changa/curation:listCuratedCandidates',
+    (_args, isSignedIn) =>
+      isSignedIn
+        ? [...dynamicSubmissions, ...DEMO_SUBMISSIONS].filter((s) => s.status === 'validated')
+        : [],
+  ],
+  [
+    'changa/curation:listDatasetReleaseCandidates',
+    (_args, isSignedIn) => (isSignedIn ? DEMO_CURATED_EXAMPLES : []),
+  ],
+
+  // -------------------------------------------------------------------------
+  // Changa test fixtures (src/lib/changaTestData.ts).
+  // ADDITIVE: these queries previously had NO mock, so every existing key above
+  // is untouched. Guest gating mirrors each real handler's `getCurrentUser`
+  // contract (and its `[]` / `null` empty shape), so signed-out visitors keep
+  // the empty states the existing e2e assertions expect. Moderator-only queries
+  // are gated on `isSignedIn`, matching how the two curation mocks above gate.
+  // -------------------------------------------------------------------------
+  // Annotated param: `t_campaign_multi` intentionally omits `languageCode`, so
+  // reading that property off the raw union is not type-narrowing safe.
+  [
+    'changa/campaigns:listEndedCampaigns',
+    (args) =>
+      CHANGA_TEST_CAMPAIGNS.filter(
+        (campaign: { status?: string; languageCode?: string }) =>
+          (campaign.status === 'completed' || campaign.status === 'archived') &&
+          (!args?.languageCode || campaign.languageCode === args.languageCode)
+      ).slice(0, args?.limit ?? 20),
+  ],
+  [
+    'changa/campaigns:listCampaignProposals',
+    (args, isSignedIn) =>
+      isSignedIn
+        ? CHANGA_TEST_CAMPAIGN_PROPOSALS.filter(
+            (proposal) => !args?.status || proposal.status === args.status
+          ).slice(0, args?.limit ?? 20)
+        : [],
+  ],
+  ['changa/campaigns:getCampaignLeaderboard', () => CHANGA_TEST_RAW_CAMPAIGN_LEADERBOARD],
+  [
+    'changa/tasks:getActiveTaskClaim',
+    (_args, isSignedIn) =>
+      isSignedIn
+        ? (CHANGA_TEST_TASK_CLAIMS.find((claim) => claim.status === 'active') ?? null)
+        : null,
+  ],
+  [
+    'changa/submissions:getSubmission',
+    (args, isSignedIn) => {
+      if (!isSignedIn) return null;
+      const submission = CHANGA_TEST_SUBMISSIONS.find((s) => s._id === args?.submissionId);
+      if (!submission) return null;
+      return {
+        ...submission,
+        assets: CHANGA_TEST_SUBMISSION_ASSETS.filter((a) => a.submissionId === submission._id),
+      };
+    },
+  ],
+  [
+    'changa/submissions:getSubmissionProcessingRuns',
+    (args, isSignedIn) =>
+      isSignedIn
+        ? CHANGA_TEST_PROCESSING_RUNS.filter((run) => run.submissionId === args?.submissionId)
+        : [],
+  ],
+  [
+    'changa/documents:listUserDocuments',
+    (args, isSignedIn) => (isSignedIn ? CHANGA_TEST_DOCUMENTS.slice(0, args?.limit ?? 50) : []),
+  ],
+  [
+    'changa/documents:getDocument',
+    (args, isSignedIn) => {
+      if (!isSignedIn) return null;
+      const document = CHANGA_TEST_DOCUMENTS.find((d) => d._id === args?.documentId);
+      if (!document) return null;
+      return {
+        document,
+        entries: CHANGA_TEST_DOCUMENT_ENTRIES.filter((e) => e.documentId === document._id),
+      };
+    },
+  ],
+  // Annotated param: `t_custom_tpl_2` is standalone and omits `campaignId`.
+  [
+    'changa/customTasks:listCustomTemplatesForCampaign',
+    (args) =>
+      CHANGA_TEST_CUSTOM_TEMPLATES.filter(
+        (template: { campaignId?: string }) => template.campaignId === args?.campaignId
+      ),
+  ],
+  [
+    'changa/evaluation:listEvaluationSets',
+    (args, isSignedIn) =>
+      isSignedIn
+        ? CHANGA_TEST_EVALUATION_SETS.filter(
+            (set) => !args?.languageCode || set.languageCode === args.languageCode
+          ).slice(0, args?.limit ?? 50)
+        : [],
+  ],
+  [
+    'changa/evaluation:listReleaseMembers',
+    (args, isSignedIn) =>
+      isSignedIn
+        ? CHANGA_TEST_RELEASE_MEMBERS.filter((member) => member.releaseId === args?.releaseId)
+        : [],
+  ],
+  ['changa/stats:getPlatformStats', () => CHANGA_TEST_PLATFORM_STATS],
+  [
+    'changa/invites:getInviteStats',
+    (_args, isSignedIn) => (isSignedIn ? CHANGA_TEST_INVITE_STATS : null),
+  ],
+  [
+    'changa/xp:getMyXPProfile',
+    (_args, isSignedIn) => (isSignedIn ? CHANGA_TEST_XP_PROFILES.midLevel : null),
+  ],
+  [
+    'changa/reputation:getMyChangaRole',
+    (_args, isSignedIn) => (isSignedIn ? 'community_reviewer' : null),
+  ],
 ]);
 
 const MUTATION_MOCKS = new Map<string, (args: AnyFn) => AnyFn>([
-    ["changa/tasks:claimTask", () => ({ claimId: "demo_claim_1" })],
-    ["changa/tasks:skipTask", (args) => args?.claimId ?? null],
-    ["changa/submissions:startClaimedSubmission", () => {
-        mockSubmissionCounter += 1;
-        return `demo_new_sub_${mockSubmissionCounter}`;
-    }],
-    ["changa/submissions:submitSubmission", (args) => {
-        mockSubmissionCounter += 1;
-        const submissionId = args?.submissionId ?? `demo_new_sub_${mockSubmissionCounter}`;
-        dynamicSubmissions.push({
-            _id: String(submissionId),
-            taskId: "demo_task_1",
-            submissionType: "phrase_translation",
-            languageCode: "sheng",
-            sourceText: "Demo task",
-            targetText: args?.targetText ?? undefined,
-            transcriptText: args?.transcriptText ?? undefined,
-            consent: { isGranted: true, allowTraining: true, allowResearch: false, allowPublicAttribution: false, grantedAt: Date.now() },
-            consentPolicyVersion: "changa-pilot-v1",
-            license: "community",
-            status: "submitted",
-            submittedAt: Date.now(),
-            updatedAt: Date.now(),
-        });
-        return submissionId;
-    }],
-    ["changa/submissions:attachSubmissionAsset", () => "demo_asset_1"],
-    ["changa/invites:generateInviteCode", () => DEMO_INVITE_CODE],
-    ["changa/seedSheng:triggerSeedSheng", () => ({ success: true })],
-    ["changa/validation:submitValidationVote", (args) => {
-        if (args?.submissionId) votedSubmissionIds.add(String(args.submissionId));
-        return "demo_vote_1";
-    }],
-    ["changa/validation:escalateSubmission", () => "demo_assignment_1"],
-    ["changa/campaigns:createCampaign", () => "demo_campaign_new"],
-    ["changa/campaigns:submitCampaignProposal", () => "demo_proposal_1"],
-    ["changa/curation:promoteSubmissionToCuratedExample", () => "demo_curated_new"],
-    ["changa/curation:approveCuratedExample", (args) => args?.exampleId ?? null],
-    ["changa/customTasks:createCustomTemplate", () => "demo_custom_template_1"],
-    ["changa/customTasks:submitCustomSubmission", () => {
-        mockSubmissionCounter += 1;
-        return { submissionId: `demo_new_sub_${mockSubmissionCounter}`, xp: { baseXp: 8, bonusXp: 0, totalXp: 8 } };
-    }],
-    ["changa/documents:createQuickLink", () => "demo_document_1"],
-    ["changa/documents:createDocument", () => "demo_document_2"],
-    ["changa/documents:bulkAddDocumentEntries", (args) =>
-        Array.isArray(args?.entries) ? args.entries.length : 0],
+  ['changa/tasks:claimTask', () => ({ claimId: 'demo_claim_1' })],
+  ['changa/tasks:skipTask', (args) => args?.claimId ?? null],
+  [
+    'changa/submissions:startClaimedSubmission',
+    () => {
+      mockSubmissionCounter += 1;
+      return `demo_new_sub_${mockSubmissionCounter}`;
+    },
+  ],
+  [
+    'changa/submissions:submitSubmission',
+    (args) => {
+      mockSubmissionCounter += 1;
+      const submissionId = args?.submissionId ?? `demo_new_sub_${mockSubmissionCounter}`;
+      dynamicSubmissions.push({
+        _id: String(submissionId),
+        taskId: 'demo_task_1',
+        submissionType: 'phrase_translation',
+        languageCode: 'sheng',
+        sourceText: 'Demo task',
+        targetText: args?.targetText ?? undefined,
+        transcriptText: args?.transcriptText ?? undefined,
+        consent: {
+          isGranted: true,
+          allowTraining: true,
+          allowResearch: false,
+          allowPublicAttribution: false,
+          grantedAt: Date.now(),
+        },
+        consentPolicyVersion: 'changa-pilot-v1',
+        license: 'community',
+        status: 'submitted',
+        submittedAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      return submissionId;
+    },
+  ],
+  ['changa/submissions:attachSubmissionAsset', () => 'demo_asset_1'],
+  ['changa/invites:generateInviteCode', () => DEMO_INVITE_CODE],
+  ['changa/seedSheng:triggerSeedSheng', () => ({ success: true })],
+  [
+    'changa/validation:submitValidationVote',
+    (args) => {
+      if (args?.submissionId) votedSubmissionIds.add(String(args.submissionId));
+      return 'demo_vote_1';
+    },
+  ],
+  ['changa/validation:escalateSubmission', () => 'demo_assignment_1'],
+  ['changa/campaigns:createCampaign', () => 'demo_campaign_new'],
+  ['changa/campaigns:submitCampaignProposal', () => 'demo_proposal_1'],
+  ['changa/curation:promoteSubmissionToCuratedExample', () => 'demo_curated_new'],
+  ['changa/curation:approveCuratedExample', (args) => args?.exampleId ?? null],
+  ['changa/customTasks:createCustomTemplate', () => 'demo_custom_template_1'],
+  [
+    'changa/customTasks:submitCustomSubmission',
+    () => {
+      mockSubmissionCounter += 1;
+      return {
+        submissionId: `demo_new_sub_${mockSubmissionCounter}`,
+        xp: { baseXp: 8, bonusXp: 0, totalXp: 8 },
+      };
+    },
+  ],
+  ['changa/documents:createQuickLink', () => 'demo_document_1'],
+  ['changa/documents:createDocument', () => 'demo_document_2'],
+  [
+    'changa/documents:bulkAddDocumentEntries',
+    (args) => (Array.isArray(args?.entries) ? args.entries.length : 0),
+  ],
 ]);
 
 // ---------------------------------------------------------------------------
@@ -311,56 +484,63 @@ const MUTATION_MOCKS = new Map<string, (args: AnyFn) => AnyFn>([
 // on Changa screens (same call signature, so call sites only swap imports).
 // ---------------------------------------------------------------------------
 
-export function useChangaQuery<Query extends FunctionReference<"query">>(
-    query: Query,
-    ...args: OptionalRestArgsOrSkip<Query>
+export function useChangaQuery<Query extends FunctionReference<'query'>>(
+  query: Query,
+  ...args: OptionalRestArgsOrSkip<Query>
 ): FunctionReturnType<Query> | undefined {
-    const status = useBackendStatus();
-    const fallback = status === "down";
-    const { isSignedIn } = useAppUser();
+  const status = useBackendStatus();
+  const fallback = status === 'down';
+  const { isSignedIn } = useAppUser();
 
-    // Never subscribe to a backend we already know is broken: `useQuery`
-    // throws during render on an error result, which would take the whole
-    // Changa section down with it. `"skip"` is a real Convex arg and is safe
-    // for every generated reference (see `OptionalRestArgsOrSkip`).
-    const skip = fallback && args[0] !== "skip";
-    const real = useQuery(query, ...((skip ? ["skip"] : args) as OptionalRestArgs<Query>));
+  // Never subscribe to a backend we already know is broken: `useQuery`
+  // throws during render on an error result, which would take the whole
+  // Changa section down with it. `"skip"` is a real Convex arg and is safe
+  // for every generated reference (see `OptionalRestArgsOrSkip`).
+  const skip = fallback && args[0] !== 'skip';
+  const real = useQuery(query, ...((skip ? ['skip'] : args) as OptionalRestArgs<Query>));
 
-    const name = useMemo(() => describeFunction(query), [query]);
-    const resolver = fallback && !skip ? QUERY_MOCKS.get(name) : undefined;
-    const argsKey = JSON.stringify(args[0] ?? null);
+  const name = useMemo(() => describeFunction(query), [query]);
+  // `skip` is true exactly when we did NOT subscribe to the (possibly broken)
+  // backend — that is precisely when the caller is owed a mock. Deriving the
+  // resolver from `skip` rather than `!skip` is what makes the demo dataset
+  // reachable: with the previous `fallback && !skip` guard `skip` was always
+  // true in fallback mode, so `resolver` was always `undefined` and the guard
+  // below returned `real` (the skipped query) for every call — i.e. all mocks
+  // were dead code and the section stayed on skeletons forever.
+  const resolver = skip ? QUERY_MOCKS.get(name) : undefined;
+  const argsKey = JSON.stringify(args[0] ?? null);
 
-    return useMemo(() => {
-        if (!fallback) return real;
-        if (skip || !resolver) return real;
-        return resolver(args[0], isSignedIn) as FunctionReturnType<Query>;
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [fallback, skip, resolver, name, argsKey, isSignedIn, real]);
+  return useMemo(() => {
+    if (!fallback) return real;
+    if (resolver) return resolver(args[0], isSignedIn) as FunctionReturnType<Query>;
+    // No mock registered for this query: surface the skipped query's
+    // `undefined` so the caller keeps its existing loading/empty state.
+    return real;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fallback, skip, resolver, name, argsKey, isSignedIn, real]);
 }
 
-export function useChangaMutation<Mutation extends FunctionReference<"mutation">>(
-    mutation: Mutation,
+export function useChangaMutation<Mutation extends FunctionReference<'mutation'>>(
+  mutation: Mutation
 ): ReactMutation<Mutation> {
-    const real = useMutation(mutation);
-    const fallback = useBackendStatus() === "down";
-    const name = useMemo(() => describeFunction(mutation), [mutation]);
+  const real = useMutation(mutation);
+  const fallback = useBackendStatus() === 'down';
+  const name = useMemo(() => describeFunction(mutation), [mutation]);
 
-    return useMemo(() => {
-        if (!fallback) return real;
+  return useMemo(() => {
+    if (!fallback) return real;
 
-        const mocked = async (args?: AnyFn): Promise<AnyFn> => {
-            const mock = MUTATION_MOCKS.get(name);
-            if (mock) return mock(args);
-            console.warn("[changa] mocked mutation with no result shape:", name);
-            return null;
-        };
+    const mocked = async (args?: AnyFn): Promise<AnyFn> => {
+      const mock = MUTATION_MOCKS.get(name);
+      if (mock) return mock(args);
+      console.warn('[changa] mocked mutation with no result shape:', name);
+      return null;
+    };
 
-        // Mutations are only ever called, so we keep `withOptimisticUpdate`
-        // working (a no-op cache patch for this mutation) and cast the rest.
-        return Object.assign(mocked, {
-            withOptimisticUpdate: () => mocked,
-        }) as unknown as ReactMutation<Mutation>;
-    }, [fallback, real, name]);
+    // Mutations are only ever called, so we keep `withOptimisticUpdate`
+    // working (a no-op cache patch for this mutation) and cast the rest.
+    return Object.assign(mocked, {
+      withOptimisticUpdate: () => mocked,
+    }) as unknown as ReactMutation<Mutation>;
+  }, [fallback, real, name]);
 }
-
-

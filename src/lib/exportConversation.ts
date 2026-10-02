@@ -16,6 +16,19 @@ function safeFilename(s: string): string {
     return s.replace(/[^a-z0-9-_]+/gi, "_").replace(/^_+|_+$/g, "").slice(0, 60) || "session";
 }
 
+/**
+ * True when a conversation reports messages it cannot render locally.
+ *
+ * `listConversations` returns metadata only, so a session synced from another
+ * device and not yet opened hydrates with `messages: []` while keeping a
+ * non-zero `messageCount` (see `mapConvexConversation`). Exporting in that state
+ * silently produces a body-less file, so callers check this first and tell the
+ * user to open the session once so its messages hydrate.
+ */
+export function isBodyMissing(conversation: Conversation): boolean {
+    return (conversation.messages?.length ?? 0) === 0 && (conversation.messageCount ?? 0) > 0;
+}
+
 export function exportConversationAsJSON(conversation: Conversation): void {
     const blob = new Blob([JSON.stringify(conversation, null, 2)], { type: "application/json" });
     triggerDownload(blob, `samiati-${safeFilename(conversation.title)}.json`);

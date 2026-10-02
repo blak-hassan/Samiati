@@ -12,11 +12,30 @@ import { mutation } from "../_generated/server";
 import { v } from "convex/values";
 import { checkRateLimit } from "../lib/rateLimit";
 import type { MutationCtx } from "../_generated/server";
+import type { Id } from "../_generated/dataModel";
+import { incrementWaitlistCount } from "./counter";
+
+/**
+ * The subset of the `users` document the waitlist needs. Narrower than the
+ * full schema type so unit tests can pass a plain object literal.
+ */
+export interface WaitlistUser {
+    _id: Id<"users">;
+    name: string;
+    email?: string;
+}
 
 export interface SubscribeArgs {
     email: string;
     name?: string;
     source?: string;
+    /**
+     * Convex document id of the signed-in user, resolved server-side from the
+     * auth token (never accepted from the client) by the `subscribe` mutation.
+     * The exported handler takes it directly so unit tests can exercise the
+     * linking path without a live auth context.
+     */
+    userId?: Id<"users">;
 }
 
 export interface SubscribeResult {
@@ -38,6 +57,13 @@ export async function subscribeHandler(
     if (existing) {
         // Idempotent: returning ok avoids erroring on double-submits
         // from the same browser.
+        //
+        // Backfill the account link when an anonymous visitor who already
+        // entered their email later signs in and joins. The row already exists,
+        // so the counter must NOT move — only the link is new.
+        if (args.userId && existing.userId !== args.userId) {
+            await ctx.db.patch(existing._id, { userId: args.userId });
+        }
         return { ok: true, alreadySubscribed: true };
     }
 
@@ -53,10 +79,15 @@ export async function subscribeHandler(
         email,
         name: args.name?.trim() || undefined,
         source: args.source || undefined,
+        userId: args.userId,
         subscribedAt: Date.now(),
         isNotified: false,
         notifiedAt: undefined,
     });
+
+    // Same transaction as the insert, so the public counter can never drift
+    // from the actual subscriber count.
+    await incrementWaitlistCount(ctx, 1);
 
     return { ok: true, alreadySubscribed: false };
 }
@@ -79,7 +110,85 @@ export const subscribe = mutation({
     //
     // An inline handler makes `args` infer from the validators, so the client
     // sees the real shape. `subscribeHandler` stays exported for unit tests.
-    handler: async (ctx, args) => subscribeHandler(ctx, args),
+    handler: async (ctx, args) => {
+        // Resolve the signed-in user server-side. `getCurrentUser` returns null
+        // for anonymous visitors, so the public email path keeps working. The
+        // client never sends a userId — it would be trivially forgeable.
+        const { getCurrentUser } = await import("../users/utils");
+        const user = await getCurrentUser(ctx);
+        return subscribeHandler(ctx, {
+            ...args,
+            userId: user?._id,
+        });
+    },
+});
+
+export interface JoinAuthenticatedArgs {
+    source?: string;
+}
+
+/**
+ * One-click join for an already-authenticated visitor.
+ *
+ * The email is never taken from the client: it comes from the synced `users`
+ * document, so a signed-in visitor cannot subscribe (or silently re-target the
+ * notification email of) somebody else's address. The userId is stored on the
+ * row so the subscription is attributable to an account.
+ */
+export async function joinAuthenticatedHandler(
+    ctx: MutationCtx,
+    args: JoinAuthenticatedArgs & { user: WaitlistUser },
+): Promise<SubscribeResult> {
+    const { user } = args;
+    const email = user.email?.trim().toLowerCase();
+
+    if (!email) {
+        // Clerk identities without a primary email (e.g. OAuth-only or
+        // phone-first accounts) have nothing to notify. Fall back to the
+        // anonymous form rather than inserting an unnotifiable row.
+        throw new Error(
+            "Your account has no email address on file. Please use the email form instead.",
+        );
+    }
+
+    // One subscription per account, regardless of which email it was made
+    // with. by_user is O(1) and is the stronger invariant: it also catches the
+    // case where the user changed their email after subscribing anonymously.
+    const existingByUser = await ctx.db
+        .query("waitlist")
+        .withIndex("by_user", (q) => q.eq("userId", user._id))
+        .first();
+    if (existingByUser) {
+        return { ok: true, alreadySubscribed: true };
+    }
+
+    return subscribeHandler(ctx, {
+        email,
+        name: user.name,
+        source: args.source,
+        userId: user._id,
+    });
+}
+
+export const joinAuthenticated = mutation({
+    args: {
+        source: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+        const { getCurrentUser } = await import("../users/utils");
+        const user = await getCurrentUser(ctx);
+        if (!user) {
+            throw new Error("You must be signed in to join the waitlist.");
+        }
+        return joinAuthenticatedHandler(ctx, {
+            source: args.source,
+            user: {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+            },
+        });
+    },
 });
 
 // Admin-only: mark subscribers as notified after a launch/release.

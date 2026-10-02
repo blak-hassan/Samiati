@@ -21,23 +21,39 @@ export default function SavedConversationsPage() {
         setConversations,
         readConversations,
         updateConversation,
-        syncMetadata,
-        syncDelete,
+        syncMetadataMany,
+        syncDeleteMany,
         uploadConversations,
-    } = useSyncedConversations({ isSignedIn: !!clerkUser });
+        loadMoreServerConversations,
+        serverListStatus,
+    } = useSyncedConversations({
+        isSignedIn: !!clerkUser,
+        // Guests have no server rows; skip the query entirely rather than
+        // paginating over an empty set.
+        fetchServerList: !!clerkUser,
+        initialNumItems: 30,
+    });
 
+    // Single rename path: apply locally AND queue the server write once.
     const handleRenameConversation = useCallback((id: string, newTitle: string) => {
         updateConversation(id, { title: newTitle });
-        syncMetadata(id, { title: newTitle });
-    }, [updateConversation, syncMetadata]);
+        syncMetadataMany([id], { title: newTitle });
+    }, [updateConversation, syncMetadataMany]);
 
-    const handlePin = useCallback((id: string, isPinned: boolean) => {
-        syncMetadata(id, { isPinned });
-    }, [syncMetadata]);
+    // Bulk operations go through syncMetadataMany, which updates the local
+    // cache optimistically *and* queues one server op per id. Previously these
+    // only queued server writes, so the list never visibly changed.
+    const handleArchiveMany = useCallback((ids: string[], isArchived: boolean) => {
+        syncMetadataMany(ids, { isArchived });
+    }, [syncMetadataMany]);
 
-    const handleArchive = useCallback((id: string, isArchived: boolean) => {
-        syncMetadata(id, { isArchived });
-    }, [syncMetadata]);
+    const handlePinMany = useCallback((ids: string[], isPinned: boolean) => {
+        syncMetadataMany(ids, { isPinned });
+    }, [syncMetadataMany]);
+
+    const handleDeleteMany = useCallback((ids: string[]) => {
+        syncDeleteMany(ids);
+    }, [syncDeleteMany]);
 
     const handleSuggestTitle = useCallback(async (id: string): Promise<string | null> => {
         const conversation = readConversations().find((c) => c.id === id);
@@ -50,8 +66,11 @@ export default function SavedConversationsPage() {
                 })),
             });
             if (result?.title) {
+                // Persist once here. The screen shows the returned title but does
+                // NOT re-apply it via onRename — that used to double-queue the
+                // same metadata op.
                 updateConversation(id, { title: result.title });
-                syncMetadata(id, { title: result.title });
+                syncMetadataMany([id], { title: result.title });
                 return result.title;
             }
             return null;
@@ -59,26 +78,18 @@ export default function SavedConversationsPage() {
             console.error("Failed to suggest title:", err);
             return null;
         }
-    }, [readConversations, clerkUser, suggestTitleAction, updateConversation, syncMetadata]);
+    }, [readConversations, clerkUser, suggestTitleAction, updateConversation, syncMetadataMany]);
 
     const handleDeleteOne = useCallback((id: string) => {
-        syncDelete(id);
-    }, [syncDelete]);
+        syncDeleteMany([id]);
+    }, [syncDeleteMany]);
 
-    const handleDeleteMany = useCallback((ids: string[]) => {
-        for (const id of ids) syncDelete(id);
-    }, [syncDelete]);
-
-    const handleArchiveMany = useCallback((ids: string[], isArchived: boolean) => {
-        for (const id of ids) syncMetadata(id, { isArchived });
-    }, [syncMetadata]);
-
-    const handlePinMany = useCallback((ids: string[], isPinned: boolean) => {
-        for (const id of ids) syncMetadata(id, { isPinned });
-    }, [syncMetadata]);
-
+    // Only continue into the most recent NON-archived session so the empty-state
+    // CTA can never drop the user into an archived chat.
     const handleContinueLast = useCallback(() => {
-        const last = [...conversations].sort((a, b) => b.lastActive - a.lastActive)[0];
+        const last = [...conversations]
+            .filter((c) => !c.isArchived)
+            .sort((a, b) => b.lastActive - a.lastActive)[0];
         if (last) navigate(Screen.HOME_CHAT, { chatId: last.id });
     }, [conversations, navigate]);
 
@@ -104,17 +115,22 @@ export default function SavedConversationsPage() {
             setConversations={setConversations}
             onChatSelect={(id: string) => navigate(Screen.HOME_CHAT, { chatId: id })}
             onRename={handleRenameConversation}
-            onPin={handlePin}
-            onArchive={handleArchive}
+            onPin={(id, isPinned) => syncMetadataMany([id], { isPinned })}
+            onArchive={(id, isArchived) => syncMetadataMany([id], { isArchived })}
             onSuggestTitle={isLoaded && clerkUser ? handleSuggestTitle : undefined}
             onDeleteOne={handleDeleteOne}
             onDeleteMany={handleDeleteMany}
             onArchiveMany={handleArchiveMany}
             onPinMany={handlePinMany}
             onContinueLast={handleContinueLast}
-            hasAnyConversation={conversations.length > 0}
+            // Only sessions the user can actually resume should light up the
+            // empty-state "Continue last session" CTA (archived ones are hidden
+            // from the All tab).
+            hasAnyConversation={conversations.some((c) => !c.isArchived)}
             onExportAll={handleExportAll}
             onImportSessions={handleImport}
+            onLoadMore={loadMoreServerConversations}
+            canLoadMore={serverListStatus === "CanLoadMore"}
         />
     );
 }

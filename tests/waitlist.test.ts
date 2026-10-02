@@ -10,8 +10,25 @@
 // The real-time counter behaviour is covered by e2e/journey.spec.ts.
 
 import { describe, it, expect } from 'vitest';
-import { subscribeHandler } from '../convex/waitlist/mutations';
-import type { MutationCtx } from '../convex/_generated/server';
+import { subscribeHandler, joinAuthenticatedHandler } from '../convex/waitlist/mutations';
+import { readWaitlistCount } from '../convex/waitlist/counter';
+import type { MutationCtx, QueryCtx } from '../convex/_generated/server';
+import type { Id } from '../convex/_generated/dataModel';
+
+type Tables = Map<string, Map<string, Record<string, unknown>>>;
+
+function readTables(ctx: unknown): Tables {
+  return (ctx as { db: { _tables: Tables } }).db._tables;
+}
+
+function readWaitlistRows(ctx: unknown): Array<Record<string, unknown>> {
+  return [...(readTables(ctx).get('waitlist')?.values() ?? [])];
+}
+
+function readCounter(ctx: unknown): number | undefined {
+  const row = [...(readTables(ctx).get('waitlistCounters')?.values() ?? [])][0];
+  return row?.count as number | undefined;
+}
 
 // Minimal mock of MutationCtx["db"] scoped per table. It supports the
 // `.query(table).withIndex(name, builderCb)` + `.first()` surface used by
@@ -73,6 +90,14 @@ function makeDb(
           builderCb: (b: { eq: (f: string, v: unknown) => void }) => void,
         ) {
           return runQuery(table, builderCb);
+        },
+        // Unindexed access, used by the counter's backfill scan
+        // (`ctx.db.query("waitlist").collect()`).
+        collect() {
+          return [...tableMap(table).values()];
+        },
+        take(n: number) {
+          return [...tableMap(table).values()].slice(0, n);
         },
       };
     },
@@ -164,5 +189,102 @@ describe('waitlist subscribe', () => {
     await expect(subscribeHandler(ctx, { email: 'a@example.com' })).rejects.toThrow(
       /Too many submissions/,
     );
+  });
+});
+
+describe('waitlist public counter', () => {
+  it('starts at 0 and increments once per new subscriber', async () => {
+    const ctx = makeCtx();
+    expect(await readWaitlistCount(ctx as unknown as QueryCtx)).toBe(0);
+
+    await subscribeHandler(ctx, { email: 'a@example.com' });
+    expect(readCounter(ctx)).toBe(1);
+
+    await subscribeHandler(ctx, { email: 'b@example.com' });
+    expect(readCounter(ctx)).toBe(2);
+  });
+
+  it('does not increment for a duplicate submission', async () => {
+    const ctx = makeCtx();
+    await subscribeHandler(ctx, { email: 'a@example.com' });
+    const res = await subscribeHandler(ctx, { email: 'a@example.com' });
+
+    expect(res.alreadySubscribed).toBe(true);
+    // A second click must not inflate the social-proof number.
+    expect(readCounter(ctx)).toBe(1);
+  });
+
+  it('reads the stored counter rather than re-scanning the table', async () => {
+    const ctx = makeCtx([
+      { table: 'waitlist', doc: { email: 'a@example.com' } },
+      { table: 'waitlist', doc: { email: 'b@example.com' } },
+      { table: 'waitlistCounters', doc: { key: 'waitlist', count: 2 } },
+    ]);
+    expect(await readWaitlistCount(ctx as unknown as QueryCtx)).toBe(2);
+  });
+});
+
+describe('waitlist one-click join for signed-in users', () => {
+  const user = {
+    _id: 'user_1' as Id<'users'>,
+    name: 'Ada Lovelace',
+    email: 'Ada@Example.com',
+  };
+
+  it('inserts a row linking the userId and the user email', async () => {
+    const ctx = makeCtx();
+    const res = await joinAuthenticatedHandler(ctx, { user, source: 'mushenee' });
+
+    expect(res).toEqual({ ok: true, alreadySubscribed: false });
+    const rows = readWaitlistRows(ctx);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].userId).toBe('user_1');
+    // Normalised so it dedupes against the anonymous signup path.
+    expect(rows[0].email).toBe('ada@example.com');
+    expect(rows[0].source).toBe('mushenee');
+    expect(readCounter(ctx)).toBe(1);
+  });
+
+  it('is idempotent — a second click neither duplicates nor re-increments', async () => {
+    const ctx = makeCtx();
+    await joinAuthenticatedHandler(ctx, { user });
+    const res = await joinAuthenticatedHandler(ctx, { user });
+
+    expect(res.alreadySubscribed).toBe(true);
+    expect(readWaitlistRows(ctx)).toHaveLength(1);
+    expect(readCounter(ctx)).toBe(1);
+  });
+
+  it('backfills the userId onto a pre-existing anonymous signup', async () => {
+    // Visitor entered their email while signed out, then signed in and used
+    // the one-click button. They must not end up with two rows.
+    const ctx = makeCtx([
+      { table: 'waitlist', doc: { email: 'ada@example.com', isNotified: false } },
+    ]);
+
+    const res = await joinAuthenticatedHandler(ctx, { user });
+
+    expect(res.alreadySubscribed).toBe(true);
+    const rows = readWaitlistRows(ctx);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].userId).toBe('user_1');
+    // Backfill only — the row was already counted.
+    expect(readCounter(ctx)).toBeUndefined();
+  });
+
+  it('links the account when a signed-in user submits the email form', async () => {
+    const ctx = makeCtx();
+    await subscribeHandler(ctx, { email: 'ada@example.com', userId: user._id });
+
+    expect(readWaitlistRows(ctx)[0].userId).toBe('user_1');
+    expect(readCounter(ctx)).toBe(1);
+  });
+
+  it('throws for an account with no email on file', async () => {
+    const ctx = makeCtx();
+    await expect(
+      joinAuthenticatedHandler(ctx, { user: { ...user, email: undefined } }),
+    ).rejects.toThrow(/no email address/);
+    expect(readWaitlistRows(ctx)).toHaveLength(0);
   });
 });

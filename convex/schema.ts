@@ -106,7 +106,16 @@ export default defineSchema({
         clientId: v.string(), // Client-generated ID for stable sync
         // Participants could be added here for multi-user
         userId: v.string(), // Owner/Participant
-    }).index("by_user", ["userId"]).index("by_clientId", ["clientId"]).index("by_user_clientId", ["userId", "clientId"]),
+    })
+        .index("by_user", ["userId"])
+        .index("by_clientId", ["clientId"])
+        .index("by_user_clientId", ["userId", "clientId"])
+        // Bounded, correctly-ordered session reads (docs/perf.md §2). The plain
+        // `by_user` index orders by _creationTime, so `.order("desc")` on it
+        // returned the 100 *newest-created* rows — not the 100 most recently
+        // *active*. Equality field first, sort field second, per the compound
+        // index rule. Used by listConversations (paginated).
+        .index("by_user_lastActive", ["userId", "lastActive"]),
 
     messages: defineTable({
         conversationId: v.id("conversations"),
@@ -182,12 +191,29 @@ export default defineSchema({
         email: v.string(),
         name: v.optional(v.string()),
         source: v.optional(v.string()), // "landing", "pricing", etc.
+        // Set when the subscriber was signed in at join time. Anonymous
+        // signups leave it undefined; a later one-click join backfills it by
+        // matching on email, so the row stops being "orphaned" from the account.
+        userId: v.optional(v.id("users")),
         subscribedAt: v.number(),
         isNotified: v.boolean(),
         notifiedAt: v.optional(v.number()),
     })
         .index("by_email", ["email"])
+        .index("by_user", ["userId"])
         .index("by_subscribedAt", ["subscribedAt"]),
+
+    // O(1) public counter for the landing page. The `waitlist` table has no
+    // COUNT primitive in Convex, and `.collect()` on every subscriber would
+    // read the whole table for every anonymous page view. Instead we keep a
+    // single row keyed "waitlist" and mutate it inside the same transaction as
+    // the insert, so the counter is always exactly consistent with the table
+    // and `getCount` is a single indexed document read.
+    waitlistCounters: defineTable({
+        key: v.string(),
+        count: v.number(),
+        updatedAt: v.number(),
+    }).index("by_key", ["key"]),
 
     contributions: defineTable({
         userId: v.id("users"),

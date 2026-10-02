@@ -85,6 +85,8 @@ describe('parseImportedConversations', () => {
             parseImportedConversations(JSON.stringify([{ id: 'ok' }, { id: 'bad', messageCount: 'many' }]))
         ).toThrow(/Session 2 is invalid/);
     });
+});
+
 describe('mergeImportedMessages', () => {
     it('unions by id and prefers the newer message', () => {
         const a: Message[] = [{ id: 'm1', sender: 'user', text: 'old', timestamp: new Date(1) }];
@@ -154,5 +156,4 @@ describe('mergeImportedConversations', () => {
         const merged = mergeImportedConversations([existing], [incoming]);
         expect(merged[0].title).toBe('fresher local');
     });
-});
 });

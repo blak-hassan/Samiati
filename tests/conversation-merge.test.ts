@@ -156,3 +156,43 @@ describe('mergeActiveConversation', () => {
         expect(merged[0].syncedToConvex).toBe(true);
     });
 });
+// Paginated hydration (docs/perf.md §2): the Sessions page feeds successive
+// server pages through mergeConversationList as the user scrolls. These cases
+// cover the properties that paging must not break.
+describe('mergeConversationList with paginated server pages', () => {
+    it('accumulates rows across successive pages without dropping earlier ones', () => {
+        const page1 = [serverConversation({ clientId: 'chat_1', lastActive: 300 })];
+        const page2 = [serverConversation({ clientId: 'chat_2', lastActive: 200 })];
+
+        // Simulates the hook's merge effect firing once per page arrival.
+        const afterPage1 = mergeConversationList(page1, []);
+        const afterPage2 = mergeConversationList(page2, afterPage1);
+
+        expect(afterPage2.map((c) => c.id).sort()).toEqual(['chat_1', 'chat_2']);
+    });
+
+    it('keeps local-only conversations visible while pages are still loading', () => {
+        const local = [localConversation({ id: 'chat_local' })];
+        const merged = mergeConversationList([serverConversation({ clientId: 'chat_1' })], local);
+        expect(merged.map((c) => c.id)).toContain('chat_local');
+        expect(merged.map((c) => c.id)).toContain('chat_1');
+    });
+
+    it('is idempotent when the same page re-delivers (query re-run / refetch)', () => {
+        const page = [
+            serverConversation({ clientId: 'chat_1' }),
+            serverConversation({ clientId: 'chat_2' }),
+        ];
+        const once = mergeConversationList(page, []);
+        const twice = mergeConversationList(page, once);
+        expect(twice).toHaveLength(once.length);
+        expect(twice.map((c) => c.id)).toEqual(once.map((c) => c.id));
+    });
+
+    it('does not resurrect a conversation deleted locally while paging', () => {
+        const local = [localConversation({ id: 'chat_1' })];
+        // Server page still lists chat_1 because the delete has not flushed yet.
+        const merged = mergeConversationList([serverConversation({ clientId: 'chat_1' })], local);
+        expect(merged.map((c) => c.id)).toEqual(['chat_1']);
+    });
+});
