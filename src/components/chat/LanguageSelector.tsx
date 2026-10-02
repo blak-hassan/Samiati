@@ -15,76 +15,14 @@ import {
 import { cn } from "@/lib/utils";
 import { trackEvent } from "@/lib/analytics";
 
-export interface Language {
-    code: string;
-    nllbCode: string;
-    name: string;
-    score: number; // 0-100 used to determine level
-}
+// The language table now lives in a plain data module so Server Components can
+// read it (src/lib/languages.ts). Re-exported here so every existing
+// `import { Language, LANGUAGES } from "@/components/chat/LanguageSelector"`
+// keeps working unchanged.
+import { LANGUAGES, type Language } from "@/lib/languages";
 
-// =============================================================================
-// LANGUAGES CONFIGURATION
-// =============================================================================
-// Prioritizing Kenyan languages as per user request.
-// NLLB (via Hugging Face) is the translation engine.
-export const LANGUAGES: Language[] = [
-    // --- KENYAN LANGUAGES (PRIORITY) ---
-    {
-        code: 'sw',
-        nllbCode: 'swh_Latn',
-        name: 'Swahili',
-        score: 98
-    },
-    {
-        code: 'ki',
-        nllbCode: 'kik_Latn',
-        name: 'Kikuyu',
-        score: 88
-    },
-    {
-        code: 'luo',
-        nllbCode: 'luo_Latn',
-        name: 'Luo',
-        score: 85
-    },
-    {
-        code: 'kam',
-        nllbCode: 'kam_Latn',
-        name: 'Kamba',
-        score: 80
-    },
-    {
-        code: 'kln',
-        nllbCode: 'kln_Latn',
-        name: 'Kalenjin',
-        score: 78
-    },
-    {
-        code: 'luy',
-        nllbCode: 'luy_Latn',
-        name: 'Luhya',
-        score: 82
-    },
-    {
-        code: 'mer',
-        nllbCode: 'mer_Latn',
-        name: 'Meru',
-        score: 75
-    },
-    {
-        code: 'mas',
-        nllbCode: 'mas_Latn',
-        name: 'Maasai',
-        score: 70
-    },
-    // --- INTERNATIONAL ---
-    {
-        code: 'en',
-        nllbCode: 'eng_Latn',
-        name: 'English',
-        score: 100
-    },
-];
+export { LANGUAGES };
+export type { Language };
 
 interface LanguageSelectorProps {
     selectedLanguage: Language;

@@ -24,18 +24,19 @@ export const getSourceDomain = (url: string): string => {
   }
 };
 
-const getFaviconUrl = (url: string): string => {
-  try {
-    const domain = new URL(url).hostname;
-    return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
-  } catch {
-    return "";
-  }
-};
+// A favicon badge derived locally from the domain's first letter.
+//
+// This used to request `https://www.google.com/s2/favicons?domain=…` per
+// source, which (a) leaked every visited source domain to Google — awkward for
+// a product whose landing page advertises "we never sell your information" and
+// has a full cookie-consent flow, (b) added a blocking third-party request per
+// citation, and (c) made the CSP brittle. A local letter badge is instant,
+// dependency-free and privacy-safe.
+const getDomainInitial = (domain: string): string =>
+  (domain.replace(/^www\./, "")[0] ?? "?").toUpperCase();
 
 const SourceCard: React.FC<SourceCardProps> = ({ source, index, variant = "chip" }) => {
   const domain = getSourceDomain(source.url);
-  const favicon = getFaviconUrl(source.url);
 
   return (
     <a
@@ -55,25 +56,19 @@ const SourceCard: React.FC<SourceCardProps> = ({ source, index, variant = "chip"
       </div>
 
       <div className="flex-1 min-w-0">
-        {/* Domain + favicon */}
+        {/* Domain + initial badge */}
         <div className="flex items-center gap-1.5 mb-1">
-          {favicon && (
-            // Decorative favicon — the adjacent domain text conveys the
-            // information, so the image is aria-hidden and alt-less.
-            <img
-              src={favicon}
-              alt=""
-              aria-hidden="true"
-              className="w-3.5 h-3.5 rounded-sm"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = "none";
-              }}
-              loading="lazy" decoding="async" />
-          )}
+          {/* Decorative — the adjacent domain text conveys the information. */}
+          <span
+            aria-hidden="true"
+            className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm bg-primary/15 text-[9px] font-black leading-none text-primary"
+          >
+            {getDomainInitial(domain)}
+          </span>
           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate">
             {domain}
           </span>
-          <ExternalLink className="w-3 h-3 text-muted-foreground/0 group-hover:text-muted-foreground/60 transition-colors shrink-0" />
+          <ExternalLink className="w-3 h-3 text-muted-foreground/0 group-hover:text-muted-foreground/60 transition-colors shrink-0" aria-hidden="true" />
         </div>
 
         {/* Title */}

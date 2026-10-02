@@ -1,5 +1,9 @@
-import { cn } from '@/lib/utils';
 import { LANDING_PLANS } from '@/lib/plans';
+import {
+  FAQS as faqs,
+  LANDING_STATS,
+} from '@/lib/landingContent';
+import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from '@/lib/seo';
 import Link from 'next/link';
 import SamiatiLogo from '@/components/SamiatiLogo';
 import Navbar from '@/components/landing/Navbar';
@@ -11,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { CookieSettingsLink } from '@/components/cookie-consent';
 import { HeroCta } from '@/components/landing/HeroCta';
+import { PricingCard } from '@/components/PricingCard';
 import { WaitlistForm } from '@/components/WaitlistForm';
 import {
   MessageSquare,
@@ -81,34 +86,6 @@ const testimonials = [
   },
 ];
 
-const faqs = [
-  {
-    question: 'Is Samiati free to use?',
-    answer:
-      'Yes! The Explorer plan is free forever with no credit card required. You get 10 AI messages per day, 5 translations per day, and 2 voice messages per day. Paid plans unlock higher limits and additional features.',
-  },
-  {
-    question: 'Which languages are supported?',
-    answer:
-      'Samiati currently supports Swahili, Kikuyu, Luo, Kamba, Kalenjin, Luhya, Meru, Maasai, and English. We prioritise Kenyan languages in this release and are expanding based on community demand — if there is a language you want to see, let us know — we are building the roadmap with community input.',
-  },
-  {
-    question: 'How does the Changa contribution system work?',
-    answer:
-      'Changa is our community-driven contribution platform. Users can submit new words, validate existing entries, and participate in challenges. Contributions earn XP and help improve the platform for everyone.',
-  },
-  {
-    question: 'Can I use Samiati offline?',
-    answer:
-      'Some features work offline — you can review your saved conversations and any content you have downloaded locally. AI chat and real-time translation need an internet connection.',
-  },
-  {
-    question: 'Is my data private?',
-    answer:
-      'Yes. We take privacy seriously. Your personal data is encrypted, and we never sell your information to third parties. You can delete your account and all associated data at any time.',
-  },
-];
-
 export default function Home() {
   return (
     <main
@@ -152,11 +129,14 @@ export default function Home() {
               </span>
             </div>
 
-            {/* Waitlist signup — live counter updates in real time. */}
+            {/* Product-updates capture, not a launch waitlist: the primary CTA
+                above is "Get Started Free", so a "join the waitlist for launch"
+                form underneath it was sending first-time visitors down two
+                competing paths. */}
             <WaitlistForm
               source="hero"
-              title="Join the waitlist"
-              description="Get early access and launch announcements."
+              title="Get product updates"
+              description="Occasional emails when we add a new language or ship a feature. No spam."
             />
           </div>
         </div>
@@ -166,12 +146,7 @@ export default function Home() {
       <section className="border-y border-border/50 bg-card/50">
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 gap-8 text-center sm:grid-cols-4">
-            {[
-              { value: '10,000+', label: 'Words Preserved' },
-              { value: '50+', label: 'Languages' },
-              { value: '100,000+', label: 'Contributions' },
-              { value: '30+', label: 'African Countries' },
-            ].map((stat) => (
+            {LANDING_STATS.map((stat) => (
               <div key={stat.label}>
                 <p className="text-2xl font-bold text-gold sm:text-3xl">{stat.value}</p>
                 <p className="mt-1 text-xs text-muted-foreground sm:text-sm">{stat.label}</p>
@@ -182,7 +157,9 @@ export default function Home() {
       </section>
 
       {/* Features */}
-      <section id="features" className="py-20 sm:py-32">
+      {/* `scroll-mt-16` offsets anchor jumps by the sticky navbar height so a
+          linked section's heading isn't hidden behind the header. */}
+      <section id="features" className="scroll-mt-16 py-20 sm:py-32">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center space-y-4">
             <Badge variant="outline" className="border-gold/50 text-gold">
@@ -260,7 +237,7 @@ export default function Home() {
       <Separator className="bg-border/50" />
 
       {/* Pricing Preview */}
-      <section id="pricing" className="py-20 sm:py-32">
+      <section id="pricing" className="scroll-mt-16 py-20 sm:py-32">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center space-y-4">
             <Badge variant="outline" className="border-gold/50 text-gold">
@@ -274,58 +251,28 @@ export default function Home() {
               you are ready.
             </p>
           </div>
-          <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Exactly 3 landing plans: stepping to 3 columns at `lg` left the
+              third card orphaned on its own row across the whole 640–1023px
+              range. `md` keeps 2-up only for the narrow 640–767px band.
+
+              This previously re-implemented the pricing card inline (including
+              its own hand-rolled checkmark svg), which drifted from the
+              /pricing page. It now renders the shared <PricingCard>, so the two
+              surfaces stay identical; ctaLocation keeps the CTA instrumented. */}
+          <div className="mt-16 grid gap-6 sm:grid-cols-2 md:grid-cols-3">
             {LANDING_PLANS.map((plan) => (
-              <div
+              <PricingCard
                 key={plan.title}
-                className={cn(
-                  'rounded-2xl border bg-card p-6 flex flex-col',
-                  plan.popular && 'border-gold shadow-lg'
-                )}
-              >
-                {plan.popular && (
-                  <div className="mb-4">
-                    <span className="inline-flex items-center rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground">
-                      Most Popular
-                    </span>
-                  </div>
-                )}
-                <div>
-                  <h3 className="text-xl font-bold">{plan.title}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">{plan.description}</p>
-                </div>
-                <div className="mt-4">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-bold">{plan.price}</span>
-                    {plan.priceSuffix && (
-                      <span className="text-sm text-muted-foreground">/{plan.priceSuffix}</span>
-                    )}
-                  </div>
-                </div>
-                <ul className="mt-6 flex-1 space-y-3">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2 text-sm">
-                      <svg
-                        className="mt-0.5 h-4 w-4 shrink-0 text-gold"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Button
-                  className="mt-6 w-full"
-                  variant={plan.popular ? 'default' : 'outline'}
-                  asChild
-                >
-                  <Link href={plan.href}>{plan.cta}</Link>
-                </Button>
-              </div>
+                title={plan.title}
+                price={plan.price}
+                priceSuffix={plan.priceSuffix}
+                description={plan.description}
+                features={plan.features}
+                cta={plan.cta}
+                popular={plan.popular}
+                href={plan.href}
+                ctaLocation="pricing"
+              />
             ))}
           </div>
         </div>
@@ -344,7 +291,9 @@ export default function Home() {
               Loved by language enthusiasts
             </h2>
           </div>
-          <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {/* 3 testimonials — see the pricing grid note: 3 columns start at
+              `md` so the last card isn't orphaned across the sm range. */}
+          <div className="mt-16 grid gap-6 sm:grid-cols-2 md:grid-cols-3">
             {testimonials.map((item) => (
               <TestimonialCard
                 key={item.name}
@@ -360,7 +309,7 @@ export default function Home() {
       <Separator className="bg-border/50" />
 
       {/* FAQ */}
-      <section id="faq" className="py-20 sm:py-32">
+      <section id="faq" className="scroll-mt-16 py-20 sm:py-32">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <div className="text-center space-y-4">
             <Badge variant="outline" className="border-gold/50 text-gold">
@@ -427,6 +376,63 @@ export default function Home() {
           </div>
         </div>
       </footer>
+
+      {/* ------------------------------------------------------------------
+          Structured data. The homepage previously emitted none, while
+          not-found.tsx already used this exact pattern — so the FAQ section
+          was invisible to rich results. Built from the same `faqs` array the
+          accordion renders, so schema and visible copy cannot drift.
+          `<` is escaped to prevent a `</script>` break-out from any
+          future user-supplied copy.
+      ------------------------------------------------------------------ */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@graph': [
+              {
+                '@type': 'Organization',
+                '@id': `${SITE_URL}/#organization`,
+                name: SITE_NAME,
+                url: SITE_URL,
+                description: SITE_DESCRIPTION,
+                logo: `${SITE_URL}/samiati-logo.svg`,
+              },
+              {
+                '@type': 'WebSite',
+                '@id': `${SITE_URL}/#website`,
+                name: SITE_NAME,
+                url: SITE_URL,
+                description: SITE_DESCRIPTION,
+                publisher: { '@id': `${SITE_URL}/#organization` },
+                inLanguage: 'en',
+              },
+              {
+                '@type': 'SoftwareApplication',
+                name: SITE_NAME,
+                url: SITE_URL,
+                applicationCategory: 'EducationalApplication',
+                operatingSystem: 'Web',
+                offers: {
+                  '@type': 'Offer',
+                  price: '0',
+                  priceCurrency: 'USD',
+                },
+              },
+              {
+                '@type': 'FAQPage',
+                '@id': `${SITE_URL}/#faq`,
+                mainEntity: faqs.map((f) => ({
+                  '@type': 'Question',
+                  name: f.question,
+                  acceptedAnswer: { '@type': 'Answer', text: f.answer },
+                })),
+              },
+            ],
+          }).replace(/</g, '\\u003c'),
+        }}
+      />
     </main>
   );
 }

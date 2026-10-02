@@ -27,12 +27,22 @@ interface WaitlistFormProps {
   title?: string;
   /** Optional subheading override. */
   description?: string;
+  /**
+   * Confirmation shown after a successful submit.
+   *
+   * Default wording is deliberately launch-agnostic. It previously read
+   * "We'll notify you as soon as we launch", which contradicted the rest of
+   * the landing page (live pricing, sign-up, checkout) and split the funnel
+   * between "sign up now" and "wait for launch".
+   */
+  successMessage?: string;
 }
 
 export function WaitlistForm({
   source = 'landing',
-  title = 'Join the waitlist',
-  description = 'Be the first to know when we launch.',
+  title = 'Stay in the loop',
+  description = 'Occasional email updates on new languages and features.',
+  successMessage = "You're subscribed! We'll keep you posted.",
 }: WaitlistFormProps) {
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
@@ -152,8 +162,8 @@ export function WaitlistForm({
             aria-live="polite"
             className="rounded-lg bg-success/10 p-3 text-sm text-success flex items-start gap-2"
           >
-            <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
-            <span>You&apos;re on the list! We&apos;ll notify you as soon as we launch.</span>
+            <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" aria-hidden="true" />
+            <span>{successMessage}</span>
           </div>
         )}
 

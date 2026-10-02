@@ -16,8 +16,14 @@ const SearchPhaseIndicator: React.FC<SearchPhaseIndicatorProps> = ({
   if (!isSearching) return null;
 
   return (
-    <div className={cn("flex items-center gap-2 py-3", className)}>
-      <Loader2 className="w-4 h-4 animate-spin text-primary" />
+    // Announced politely: previously the status text appeared and disappeared
+    // silently, so screen-reader users got no signal that a search had begun.
+    <div
+      role="status"
+      aria-live="polite"
+      className={cn("flex items-center gap-2 py-3", className)}
+    >
+      <Loader2 className="w-4 h-4 animate-spin text-primary" aria-hidden="true" />
       <span className="text-xs font-bold text-muted-foreground animate-pulse">
         Searching...
       </span>

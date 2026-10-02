@@ -9,6 +9,7 @@
  * Events tracked:
  * - language_selected
  * - translation_started / completed / failed
+ * - search_started / completed / failed
  * - voice_started / completed
  * - changa_opened / started / submitted
  * - feedback_given
@@ -22,6 +23,9 @@ export type AnalyticsEvent =
   | 'translation_started'
   | 'translation_completed'
   | 'translation_failed'
+  | 'search_started'
+  | 'search_completed'
+  | 'search_failed'
   | 'voice_started'
   | 'voice_completed'
   | 'changa_opened'

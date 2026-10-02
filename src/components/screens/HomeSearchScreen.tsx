@@ -17,6 +17,25 @@ import { AppSidebar } from "@/components/shared/AppSidebar";
 import FeedbackBar from "@/components/feedback/FeedbackBar";
 import { cn } from "@/lib/utils";
 import { trackEvent } from "@/lib/analytics";
+import { useToast } from "@/hooks/useToast";
+import * as Sentry from "@sentry/nextjs";
+
+/**
+ * Forward a caught error to Sentry without ever letting the reporter itself
+ * break the UI (it can throw in restricted/offline environments). Mirrors the
+ * swallow-and-continue pattern in src/components/shared/BrokenLinkReporter.tsx.
+ */
+function reportError(message: string, err: unknown) {
+  try {
+    Sentry.captureMessage(message, {
+      level: "error",
+      extra: { error: err instanceof Error ? err.message : String(err) },
+      tags: { kind: "home-search" },
+    });
+  } catch {
+    // Sentry unavailable (demo mode / offline) — swallow.
+  }
+}
 
 interface Props {
   user?: {
@@ -90,6 +109,11 @@ const HomeSearchScreen: React.FC<Props> = ({
   const searchAction = useAction(api.sunflower.search);
   const transcribeAction = useAction(api.asr.transcribeAudio);
   const ttsAction = useAction(api.tts.synthesizeSpeech);
+
+  // App-wide toast for user-facing failures. Native alert() was blocking,
+  // unstyled and not reliably announced by assistive tech; the ToastProvider
+  // renders an aria-live="polite" region instead (see src/hooks/useToast.tsx).
+  const { toast } = useToast();
 
   // Language
   const [selectedLanguage, setSelectedLanguage] = useState<Language>(
@@ -187,8 +211,8 @@ const HomeSearchScreen: React.FC<Props> = ({
         return;
       }
 
-      // Track search/translation start for analytics (no PII)
-      trackEvent("translation_started", {
+      // Track search start for analytics (no PII)
+      trackEvent("search_started", {
         languageCode: selectedLanguage.code,
         service: "search",
         location: "home_search",
@@ -214,6 +238,17 @@ const HomeSearchScreen: React.FC<Props> = ({
         setIsSearching(false);
         setSearchComplete(true);
         setError("Still working — this can take longer on slower connections. Tap to retry.");
+        // Reported here, at the only point where `timedOut` is actually true —
+        // the catch block below returns early on timeout and would otherwise
+        // always mislabel timeouts as generic errors.
+        trackEvent("search_failed", {
+          languageCode: selectedLanguage.code,
+          service: "search",
+          status: "error",
+          errorType: "timeout",
+          durationMs: Date.now() - startTime,
+          location: "home_search",
+        });
       }, 12_000);
 
       try {
@@ -260,7 +295,7 @@ const HomeSearchScreen: React.FC<Props> = ({
 
         // Track successful search completion
         const durationMs = Date.now() - startTime;
-        trackEvent("translation_completed", {
+        trackEvent("search_completed", {
           languageCode: selectedLanguage.code,
           service: "search",
           status: "success",
@@ -288,14 +323,16 @@ const HomeSearchScreen: React.FC<Props> = ({
       } catch (err) {
         if (timedOut) return;
         clearTimeout(timeoutId);
-        console.error("Search failed:", err);
+        reportError("Search action failed", err);
 
-        // Track failed search
-        trackEvent("translation_failed", {
+        // Track failed search. Timeouts are reported by the timeout handler
+        // above, so reaching here always means a genuine action error.
+        trackEvent("search_failed", {
           languageCode: selectedLanguage.code,
           service: "search",
           status: "error",
-          errorType: timedOut ? "timeout" : "unknown",
+          errorType: "unknown",
+          durationMs: Date.now() - startTime,
           location: "home_search",
         });
 
@@ -330,7 +367,7 @@ const HomeSearchScreen: React.FC<Props> = ({
       });
 
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        alert("Microphone access is not supported. Please use a secure connection (HTTPS) or localhost.");
+        toast("Microphone unavailable — try HTTPS or localhost.", "error");
         return;
       }
 
@@ -366,11 +403,13 @@ const HomeSearchScreen: React.FC<Props> = ({
               if (response.text) {
                 setQuery((prev) => (prev ? `${prev} ${response.text}` : response.text ?? ''));
               } else if (response.error) {
-                console.error("Transcription error:", response.error);
+                reportError("Transcription returned an error", response.error);
+                toast("Couldn't transcribe that recording.", "error");
               }
             }
           } catch (err) {
-            console.error("Transcription failed:", err);
+            reportError("Transcription failed", err);
+            toast("Couldn't transcribe that recording.", "error");
           } finally {
             setIsTranscribing(false);
           }
@@ -382,8 +421,8 @@ const HomeSearchScreen: React.FC<Props> = ({
       mediaRecorder.start();
       setIsRecording(true);
     } catch (err) {
-      console.error("Failed to start recording:", err);
-      alert("Could not access microphone.");
+      reportError("Failed to start recording", err);
+      toast("Could not access microphone.", "error");
     }
   };
 
@@ -427,10 +466,12 @@ const HomeSearchScreen: React.FC<Props> = ({
         audio.play();
         setIsPlaying(true);
       } else if (result.error) {
-        console.error("TTS error:", result.error);
+        reportError("TTS returned an error", result.error);
+        toast("Couldn't play the audio for that answer.", "error");
       }
     } catch (err) {
-      console.error("Failed to play audio:", err);
+      reportError("Failed to play answer audio", err);
+      toast("Couldn't play the audio for that answer.", "error");
     }
   };
 
@@ -440,7 +481,7 @@ const HomeSearchScreen: React.FC<Props> = ({
     if (!file) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      alert("Document is too large (max 2MB).");
+      toast("Document is too large (max 2MB).", "error");
       return;
     }
 
@@ -528,7 +569,11 @@ const HomeSearchScreen: React.FC<Props> = ({
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* `relative` establishes the containing block for the scroll-to-bottom
+          FAB further down, so it anchors to the chat column's right edge
+          instead of the full shell (which is 260px wider once the sidebar
+          is visible on desktop). */}
+      <div className="flex-1 flex flex-col min-w-0 relative">
         {/* Header — floating, no border */}
         <header className="sticky top-0 z-30 shrink-0">
           <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
@@ -568,8 +613,9 @@ const HomeSearchScreen: React.FC<Props> = ({
                   onClick={() => navigate(Screen.DISCOVER)}
                   className="rounded-full"
                   title="Discover"
+                  aria-label="Discover"
                 >
-                  <Compass className="w-5 h-5" />
+                  <Compass className="w-5 h-5" aria-hidden="true" />
                 </Button>
               )}
               {!user && (
@@ -588,13 +634,20 @@ const HomeSearchScreen: React.FC<Props> = ({
 
         {/* Welcome Mode — centered hero with input */}
         {welcomeMode ? (
-          <main className="flex-1 relative overflow-y-auto">
-            {/* Logo + search bar — one tight hero group, raised above the
-                vertical center so the search bar sits roughly where the logo
-                used to be, with the logo directly on top of it. */}
-            <div className="absolute top-[42%] left-0 right-0 -translate-y-1/2 flex flex-col items-center px-4 gap-4 animate-in fade-in duration-500">
-              <div className="hover:scale-105 transition-transform duration-300 shrink-0">
-                <SamiatiLogo size={72} className="scale-110" />
+          <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden">
+            {/* Logo + search bar + sign-in hint form ONE centred hero group.
+                Laid out in normal flow (min-h-full + justify-center) instead of
+                absolute top-[42%] centering: on short viewports — landscape
+                phones, small laptop windows, or the mobile keyboard shrinking
+                the view via `interactiveWidget: resizes-content` — absolute
+                positioning pushed the search bar under the sign-in hint and
+                clipped it, with no way to scroll (the app shell is
+                overflow-hidden). Flow layout can always scroll. */}
+            <div className="min-h-full flex flex-col items-center justify-center gap-4 px-4 py-10 animate-in fade-in duration-500">
+              <div className="shrink-0 transition-transform duration-300 hover:scale-105">
+                {/* Single scale factor — the wrapper's hover:scale-105 was
+                    previously compounded by the logo's own scale-110 (1.16x). */}
+                <SamiatiLogo size={72} />
               </div>
               <SearchHero
                 value={query}
@@ -611,12 +664,11 @@ const HomeSearchScreen: React.FC<Props> = ({
                 onAttachImage={() => imageInputRef.current?.click()}
                 onRemoveAttachment={handleRemoveAttachment}
               />
-            </div>
 
-            {/* Sign-in hint — sits below the search bar, near the bottom */}
-            {!user && (
-              <div className="absolute bottom-10 left-0 right-0 flex justify-center px-4">
-                <p className="text-sm text-muted-foreground text-center">
+              {/* Sign-in hint — in the flow beneath the search bar so it can
+                  never collide with it on a short viewport. */}
+              {!user && (
+                <p className="pt-2 text-sm text-muted-foreground text-center max-w-sm">
                   Sign in to search, use voice, and save your conversations —{" "}
                   <button
                     onClick={() => navigate(Screen.SIGN_IN)}
@@ -625,8 +677,8 @@ const HomeSearchScreen: React.FC<Props> = ({
                     it&apos;s free
                   </button>
                 </p>
-              </div>
-            )}
+              )}
+            </div>
           </main>
         ) : (
           <>

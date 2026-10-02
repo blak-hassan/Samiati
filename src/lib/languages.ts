@@ -250,3 +250,41 @@ export const LANGUAGE_PAGE_SLUGS = LANGUAGE_PAGES.map((l) => l.slug);
 export function getLanguageBySlug(slug: string): LanguagePageData | undefined {
   return LANGUAGE_PAGES.find((l) => l.slug === slug);
 }
+
+// =============================================================================
+// IN-APP SUPPORTED LANGUAGES (the LanguageSelector table)
+// =============================================================================
+// This is a different set from LANGUAGE_PAGES above: those are the languages
+// that have a public /languages/<slug> page, whereas these are the languages
+// the AI/translation engine can actually operate on (hence Maasai and Meru
+// here, Somali/Sheng there, and English only here).
+//
+// These definitions moved out of src/components/chat/LanguageSelector.tsx,
+// which is a Client Component. Server Components (the landing page, via
+// src/lib/landingContent.ts) need to read LANGUAGES to keep the marketing copy
+// truthful — importing it from the "use client" module pulled the whole client
+// graph into the server bundle and broke `next build`. LanguageSelector
+// re-exports both symbols, so existing imports are unaffected.
+
+export interface Language {
+  code: string;
+  nllbCode: string;
+  name: string;
+  score: number; // 0-100 used to determine level
+}
+
+// Prioritizing Kenyan languages as per user request.
+// NLLB (via Hugging Face) is the translation engine.
+export const LANGUAGES: Language[] = [
+  // --- KENYAN LANGUAGES (PRIORITY) ---
+  { code: 'sw', nllbCode: 'swh_Latn', name: 'Swahili', score: 98 },
+  { code: 'ki', nllbCode: 'kik_Latn', name: 'Kikuyu', score: 88 },
+  { code: 'luo', nllbCode: 'luo_Latn', name: 'Luo', score: 85 },
+  { code: 'kam', nllbCode: 'kam_Latn', name: 'Kamba', score: 80 },
+  { code: 'kln', nllbCode: 'kln_Latn', name: 'Kalenjin', score: 78 },
+  { code: 'luy', nllbCode: 'luy_Latn', name: 'Luhya', score: 82 },
+  { code: 'mer', nllbCode: 'mer_Latn', name: 'Meru', score: 75 },
+  { code: 'mas', nllbCode: 'mas_Latn', name: 'Maasai', score: 70 },
+  // --- INTERNATIONAL ---
+  { code: 'en', nllbCode: 'eng_Latn', name: 'English', score: 100 },
+];

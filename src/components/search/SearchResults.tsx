@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import FeedbackBar, { type FeedbackContext } from "@/components/feedback/FeedbackBar";
+import { useToast } from "@/hooks/useToast";
 
 interface SearchResultsProps {
   answer: string;
@@ -69,19 +70,79 @@ const SearchResults: React.FC<SearchResultsProps> = ({
   const [highlighted, setHighlighted] = React.useState<number | null>(null);
   const [shared, setShared] = React.useState(false);
   const highlightTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resetTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tabRefs = React.useRef<Partial<Record<ResultTab, HTMLButtonElement | null>>>({});
+  const { toast } = useToast();
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(answer);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  // Clear pending timers so we never setState after unmount.
+  React.useEffect(() => {
+    const timers = [highlightTimerRef, resetTimerRef];
+    return () => {
+      timers.forEach((t) => {
+        if (t.current) clearTimeout(t.current);
+      });
+    };
+  }, []);
+
+  /**
+   * Clipboard writes reject on insecure origins (plain http) and when the
+   * user denies permission. The old fire-and-forget calls left an unhandled
+   * rejection and still flipped the button to its success state, so users were
+   * told "Copied" when nothing had been copied.
+   */
+  const copyWithFeedback = async (
+    text: string,
+    setFlag: React.Dispatch<React.SetStateAction<boolean>>,
+    failureMessage: string,
+  ) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setFlag(true);
+      if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = setTimeout(() => setFlag(false), 2000);
+    } catch {
+      toast(failureMessage, "error");
+    }
   };
 
+  const handleCopy = () =>
+    void copyWithFeedback(answer, setCopied, "Couldn't copy the answer.");
+
   // Share: copy a formatted snippet for WhatsApp/Twitter
-  const handleShare = () => {
-    const snippet = `🔎 ${answer.slice(0, 200)}${answer.length > 200 ? '...' : ''}\n\n— Samiati`;
-    navigator.clipboard.writeText(snippet);
-    setShared(true);
-    setTimeout(() => setShared(false), 2000);
+  const handleShare = () =>
+    void copyWithFeedback(
+      `🔎 ${answer.slice(0, 200)}${answer.length > 200 ? "..." : ""}\n\n— Samiati`,
+      setShared,
+      "Couldn't copy the shareable snippet.",
+    );
+
+  /** Roving-tabindex keyboard support for the Answer / Images / Links tabs. */
+  const handleTabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    const order: ResultTab[] = ["answer", "images", "links"];
+    const current = order.indexOf(activeTab);
+    let next: number;
+    switch (event.key) {
+      case "ArrowRight":
+      case "ArrowDown":
+        next = (current + 1) % order.length;
+        break;
+      case "ArrowLeft":
+      case "ArrowUp":
+        next = (current - 1 + order.length) % order.length;
+        break;
+      case "Home":
+        next = 0;
+        break;
+      case "End":
+        next = order.length - 1;
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    const nextTab = order[next];
+    setActiveTab(nextTab);
+    tabRefs.current[nextTab]?.focus();
   };
 
   // Jump to the source card and flash-highlight it (Perplexity behavior)
@@ -131,23 +192,56 @@ const SearchResults: React.FC<SearchResultsProps> = ({
 
   return (
     <div className="w-full max-w-2xl space-y-4 animate-in fade-in duration-500">
-      {/* Tab bar */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+      {/* Result-arrival announcement. This component mounts only once a search
+          resolves, and its content otherwise changes silently inside a
+          tabpanel — so screen-reader users previously got no signal that the
+          answer had arrived. */}
+      <p className="sr-only" role="status" aria-live="polite">
+        {error
+          ? "Search failed."
+          : `Answer ready.${
+              sources.length > 0
+                ? ` ${sources.length} source${sources.length === 1 ? "" : "s"} available.`
+                : ""
+            }${images.length > 0 ? ` ${images.length} images available.` : ""}`}
+      </p>
+
+      {/* Tab bar. Previously plain buttons with only an onClick — no tab roles,
+          no selected state, and no keyboard support, so screen readers
+          announced "Answer / Images / Links, button" with no grouping or
+          relationship to the content they control. */}
+      <div
+        role="tablist"
+        aria-label="Search result views"
+        className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide"
+      >
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
+              ref={(el) => {
+                tabRefs.current[tab.id] = el;
+              }}
+              type="button"
+              role="tab"
+              id={`tab-${tab.id}`}
+              aria-selected={isActive}
+              aria-controls={`tabpanel-${tab.id}`}
+              // Roving tabindex: only the selected tab is in the tab order.
+              tabIndex={isActive ? 0 : -1}
               onClick={() => setActiveTab(tab.id)}
+              onKeyDown={handleTabKeyDown}
               className={cn(
                 "flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all duration-200 shrink-0",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 isActive
                   ? "bg-card border border-border/60 text-foreground shadow-sm"
                   : "border border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40"
               )}
             >
-              <Icon className={cn("w-3.5 h-3.5", isActive && "text-primary")} />
+              <Icon className={cn("w-3.5 h-3.5", isActive && "text-primary")} aria-hidden="true" />
               {tab.label}
               {tab.count !== null && (
                 <span
@@ -166,7 +260,13 @@ const SearchResults: React.FC<SearchResultsProps> = ({
 
       {/* Answer Tab */}
       {activeTab === "answer" && (
-        <div className="space-y-5">
+        <div
+          role="tabpanel"
+          id="tabpanel-answer"
+          aria-labelledby="tab-answer"
+          tabIndex={0}
+          className="space-y-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl"
+        >
           {/* Error State — visually distinct from a real answer */}
           {error ? (
             <div className="flex flex-col items-center text-center py-8 px-4 rounded-2xl bg-destructive/5 border border-destructive/20">
@@ -229,6 +329,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({
                           : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                       )}
                       title={isPlaying ? "Stop audio" : "Listen to answer"}
+                      aria-label={isPlaying ? "Stop audio" : "Listen to answer"}
                     >
                       {isPlaying ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -244,6 +345,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({
                     onClick={handleCopy}
                     className="h-7 w-7 rounded-full hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-all"
                     title="Copy answer"
+                    aria-label="Copy answer"
                   >
                     {copied ? (
                       <Check className="w-3.5 h-3.5 text-green-500" />
@@ -259,6 +361,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({
                     onClick={handleShare}
                     className="h-7 w-7 rounded-full hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-all"
                     title="Copy shareable snippet"
+                    aria-label="Copy shareable snippet"
                   >
                     {shared ? (
                       <Check className="w-3.5 h-3.5 text-green-500" />
@@ -291,7 +394,12 @@ const SearchResults: React.FC<SearchResultsProps> = ({
       {/* Images Tab */}
       {activeTab === "images" &&
         (images.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div
+            role="tabpanel"
+            id="tabpanel-images"
+            aria-labelledby="tab-images"
+            className="grid grid-cols-2 sm:grid-cols-3 gap-3"
+          >
             {images.map((img, i) => (
               <a
                 key={i}
@@ -333,7 +441,12 @@ const SearchResults: React.FC<SearchResultsProps> = ({
       {/* Links Tab */}
       {activeTab === "links" &&
         (sources.length > 0 ? (
-          <div className="space-y-2.5">
+          <div
+            role="tabpanel"
+            id="tabpanel-links"
+            aria-labelledby="tab-links"
+            className="space-y-2.5"
+          >
             {sources.map((source, i) => (
               <SourceCard key={i} source={source} index={i} variant="list" />
             ))}

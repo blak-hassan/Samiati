@@ -89,11 +89,24 @@ export default function RootLayout({
     <html lang="en" className={`${fontClassName}`} style={{ viewTransitionName: 'root' }}>
       <head>
         <meta name="theme-color" content="#2b1e19" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="sitemap" type="application/xml" href="/sitemap.xml" title="Samiati sitemap" />
         {/* Material Symbols Outlined — icon font used across the app.
             Loaded as a plain stylesheet (no JS) so it works during
-            prerender and doesn't block the first paint. */}
+            prerender and doesn't block the first paint.
+
+            NOTE: the only preconnect for this feature was to fonts.gstatic.com
+            (the font *files*), while the render-blocking request below goes to
+            fonts.googleapis.com (the *stylesheet*). Preconnecting gstatic
+            alone left the critical-path request paying DNS + TLS, so both
+            origins are preconnected.
+
+            This link cannot simply move into src/app/dashboard/layout.tsx even
+            though only dashboard/Changa screens use these glyphs:
+            src/app/auth/[slug]/page.tsx renders ResetPasswordFlow, which uses
+            material-symbols-outlined too. Before relocating it, audit the
+            non-dashboard routes (or self-host a subsetted icon font). */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="sitemap" type="application/xml" href="/sitemap.xml" title="Samiati sitemap" />
         <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"

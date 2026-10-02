@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { cva, type VariantProps } from "class-variance-authority";
+import { track } from "@vercel/analytics";
 import { cn } from "@/lib/utils";
 
 const cardVariants = cva(
@@ -33,6 +35,20 @@ export interface PricingCardProps
     current?: boolean;
     onSelect?: () => void;
     loading?: boolean;
+    /**
+     * When provided the CTA renders as a real link (Next <Link>, or a plain
+     * <a> for mailto:/external) instead of a <button> wired to `onSelect`.
+     * The landing page needs a navigable CTA; /pricing keeps using onSelect
+     * for its checkout flow.
+     */
+    href?: string;
+    /**
+     * When set, the link CTA reports a `cta_click` funnel event with this
+     * location (e.g. "pricing"). A plain string rather than a callback so the
+     * card stays usable from a Server Component — function props cannot cross
+     * the server/client boundary.
+     */
+    ctaLocation?: string;
 }
 
 const PricingCard = React.forwardRef<HTMLDivElement, PricingCardProps>(
@@ -50,10 +66,33 @@ const PricingCard = React.forwardRef<HTMLDivElement, PricingCardProps>(
             current,
             onSelect,
             loading,
+            href,
+            ctaLocation,
             ...props
         },
         ref
     ) => {
+        // `mailto:` / external URLs must bypass the Next router — see
+        // src/lib/plans.ts, which documents the same constraint.
+        const isExternalHref =
+            typeof href === "string" && /^(mailto:|tel:|https?:\/\/)/.test(href);
+        const ctaClassName = cn(
+            "w-full rounded-lg px-4 py-3 text-sm font-medium transition-colors text-center",
+            current
+                ? "bg-muted text-muted-foreground cursor-not-allowed"
+                : popular
+                ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+        );
+        const trackCtaClick = () => {
+            if (!ctaLocation) return;
+            try {
+                track("cta_click", { location: ctaLocation, plan: title });
+            } catch {
+                // best-effort — analytics must never break navigation
+            }
+        };
+
         return (
             <div
                 ref={ref}
@@ -91,11 +130,12 @@ const PricingCard = React.forwardRef<HTMLDivElement, PricingCardProps>(
                     {features.map((feature) => (
                         <li key={feature} className="flex items-start gap-2 text-sm">
                             <svg
-                                className="mt-0.5 h-4 w-4 shrink-0 text-green-500"
+                                className="mt-0.5 h-4 w-4 shrink-0 text-gold"
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke="currentColor"
                                 strokeWidth={2}
+                                aria-hidden="true"
                             >
                                 <path
                                     strokeLinecap="round"
@@ -108,20 +148,32 @@ const PricingCard = React.forwardRef<HTMLDivElement, PricingCardProps>(
                     ))}
                 </ul>
 
-                <button
-                    onClick={onSelect}
-                    disabled={loading || current}
-                    className={cn(
-                        "w-full rounded-lg px-4 py-3 text-sm font-medium transition-colors",
-                        current
-                            ? "bg-muted text-muted-foreground cursor-not-allowed"
-                            : popular
-                            ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                            : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                    )}
-                >
-                    {loading ? "Loading..." : current ? "Current Plan" : cta}
-                </button>
+                {/* Link form (landing page) takes precedence over the button
+                    form (/pricing checkout flow). */}
+                {href && !isExternalHref && (
+                    <Link
+                        href={href}
+                        className={ctaClassName}
+                        aria-disabled={current || undefined}
+                        onClick={trackCtaClick}
+                    >
+                        {cta}
+                    </Link>
+                )}
+                {href && isExternalHref && (
+                    <a href={href} className={ctaClassName} onClick={trackCtaClick}>
+                        {cta}
+                    </a>
+                )}
+                {!href && (
+                    <button
+                        onClick={onSelect}
+                        disabled={loading || current}
+                        className={ctaClassName}
+                    >
+                        {loading ? "Loading..." : current ? "Current Plan" : cta}
+                    </button>
+                )}
             </div>
         );
     }
