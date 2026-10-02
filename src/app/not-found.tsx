@@ -15,6 +15,12 @@ export const metadata: Metadata = {
   },
 };
 
+// Next.js 16.3.1 fails to prerender the `/_not-found` internal route with
+// "Invariant: Expected workStore to be initialized. This is a bug in Next.js."
+// and that aborts the entire production build. A 404 has no per-request data
+// worth baking into a static file, so opt it out of static generation.
+export const dynamic = 'force-dynamic';
+
 export default function NotFound() {
   return (
     <main

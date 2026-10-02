@@ -67,7 +67,19 @@ export const subscribe = mutation({
         name: v.optional(v.string()),
         source: v.optional(v.string()),
     },
-    handler: subscribeHandler,
+    // Inline arrow that delegates to `subscribeHandler`.
+    //
+    // Passing the named `subscribeHandler` directly made Convex pick its
+    // "handler defines the args" overload, and because the handler is annotated
+    // with the hand-written `SubscribeArgs` interface (rather than being
+    // inferred from the validators above) that overload failed to resolve and
+    // `_args` collapsed to `never`. That surfaced in the client as
+    // "Type 'string' is not assignable to type 'never'" on every field of the
+    // subscribe({...}) call in src/components/WaitlistForm.tsx.
+    //
+    // An inline handler makes `args` infer from the validators, so the client
+    // sees the real shape. `subscribeHandler` stays exported for unit tests.
+    handler: async (ctx, args) => subscribeHandler(ctx, args),
 });
 
 // Admin-only: mark subscribers as notified after a launch/release.

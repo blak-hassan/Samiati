@@ -14,10 +14,14 @@
  */
 import { NextResponse } from "next/server";
 
-// runtime: edge — why: pure parse + log, no Node-only APIs, no Convex calls,
-// and CSP reports are latency-insensitive but called from every page load.
-// Edge keeps cold-start minimal. Per docs/perf.md §1.
-export const runtime = "edge";
+// Runtime: was "edge", per docs/perf.md §1 (pure parse + log, no Node-only
+// APIs, latency-insensitive). Next.js 16 deprecates the Edge Runtime and
+// warns on every build ("The Edge Runtime is deprecated…"), and Next also
+// reports that an edge-runtime route "disables static generation for that
+// page", which interacts badly with the static-generation pass. The original
+// rationale (cheap cold start) no longer outweighs the deprecation, and the
+// proxy already runs on the Node.js runtime regardless.
+export const runtime = "nodejs";
 
 interface CspReport {
     "csp-report"?: {

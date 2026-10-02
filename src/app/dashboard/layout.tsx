@@ -1,5 +1,12 @@
 import { AuthGuard } from "@/components/auth/AuthGuard";
 
+// These routes are authenticated, client-only screens behind Clerk + Convex.
+// There is nothing useful to prerender — a static shell would ship empty auth
+// state to every visitor — so opt the whole app shell out of static generation
+// rather than page by page. src/app/dashboard/page.tsx already did this for the
+// hub; declaring it on the layout covers every nested screen at once.
+export const dynamic = "force-dynamic";
+
 export default function DashboardLayout({
   children,
 }: {

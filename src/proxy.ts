@@ -111,7 +111,16 @@ export default async function proxy(req: NextRequest, event: NextFetchEvent) {
 
 export const config = {
     matcher: [
-        "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+        // Next's internal routes (`_global-error`, `_not-found`, …) are error
+        // boundaries, not application pages. They were being matched here, so
+        // Clerk's middleware ran while Next prerendered `/_global-error`, and
+        // that combination tripped a Next 16.3.1 work-store invariant:
+        //   Error [InvariantError]: Invariant: Expected workStore to be
+        //   initialized. This is a bug in Next.js.
+        // which failed the whole production build. Excluding them keeps auth
+        // off them — correct anyway, since an error boundary must still render
+        // when auth is unavailable.
+        "/((?!_next|_global-error|_not-found|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
         "/__clerk/:path*",
         "/(api|trpc)(.*)",
     ],
