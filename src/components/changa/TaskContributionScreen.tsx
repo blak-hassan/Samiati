@@ -15,7 +15,9 @@ import { useUploadFile } from "@/hooks/useUploadFile";
 import { logChangaEvent } from "@/lib/changaTelemetry";
 import { enqueueChangaSubmission, takeChangaQueue } from "@/lib/changaOfflineQueue";
 import { trackEvent } from "@/lib/analytics";
-import { CheckCircle2, Clock3, Languages, Loader2, MessageSquare, Sparkles, XCircle, HelpCircle } from "lucide-react";
+import { CheckCircle2, Clock3, Languages, Loader2, MessageSquare, Sparkles, XCircle, HelpCircle, MapPin } from "lucide-react";
+import { XpCelebration } from "@/components/changa/XpCelebration";
+import { DEMO_REGIONS } from "@/lib/changaDemoData";
 
 const CODE_SWITCHING_OPTIONS = [
     { id: "pure_sheng", label: "Pure Sheng" },
@@ -141,6 +143,9 @@ export default function TaskContributionScreen({ task, onComplete }: TaskContrib
     const [answer, setAnswer] = useState("");
     const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
     const [codeSwitchingType, setCodeSwitchingType] = useState<string>("pure_sheng");
+    // "Where is your accent from? (optional)" — recorded as the submission's
+    // regionCode so regional coverage can be tracked ("Where we need more voices").
+    const [region, setRegion] = useState("");
     const [hasTrainingConsent, setHasTrainingConsent] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSavingDraft, setIsSavingDraft] = useState(false);
@@ -212,7 +217,6 @@ export default function TaskContributionScreen({ task, onComplete }: TaskContrib
             void flush();
         }
         return () => window.removeEventListener("online", flush);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [claimTask, startClaimedSubmission, submitSubmission]);
 
     const copy = TASK_COPY[task.taskType];
@@ -316,6 +320,7 @@ export default function TaskContributionScreen({ task, onComplete }: TaskContrib
                 submissionId: submissionId as Id<"changaSubmissions">,
                 targetText: task.taskType === "transcription" ? undefined : answer.trim(),
                 transcriptText: task.taskType === "transcription" ? answer.trim() : undefined,
+                regionCode: region.trim() || undefined,
             });
             clearDraft(task._id);
             draftRef.current = null;
@@ -350,11 +355,22 @@ export default function TaskContributionScreen({ task, onComplete }: TaskContrib
 
     if (phase === "result" && resultSubmissionId) {
         return (
-            <SubmitResult
-                submissionId={resultSubmissionId}
-                onComplete={onComplete}
-                onRetry={onComplete}
-            />
+            <main className="min-h-screen bg-background px-4 py-6 sm:py-12">
+                <div className="mx-auto max-w-lg space-y-5">
+                    <XpCelebration
+                        xp={10}
+                        onNext={onComplete}
+                        onDone={onComplete}
+                        nextLabel="Do another task"
+                        doneLabel="Back to Changa"
+                    />
+                    <SubmitResult
+                        submissionId={resultSubmissionId}
+                        onComplete={onComplete}
+                        onRetry={onComplete}
+                    />
+                </div>
+            </main>
         );
     }
 
@@ -380,6 +396,28 @@ export default function TaskContributionScreen({ task, onComplete }: TaskContrib
                         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prompt</p>
                         <p className="text-lg font-medium leading-relaxed">{prompt}</p>
                     </section>
+
+                    {/* "Where is your accent from? (optional)" */}
+                    <div className="space-y-2">
+                        <Label htmlFor="changa-region" className="flex items-center gap-1.5">
+                            <MapPin className="size-3.5 text-muted-foreground" aria-hidden />
+                            Where is your accent from? (optional)
+                        </Label>
+                        <input
+                            id="changa-region"
+                            list="changa-region-options"
+                            value={region}
+                            onChange={(event) => setRegion(event.target.value)}
+                            placeholder="e.g. Nyeri"
+                            maxLength={80}
+                            className="w-full rounded-xl border border-border/50 bg-muted/20 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary outline-none"
+                        />
+                        <datalist id="changa-region-options">
+                            {DEMO_REGIONS.map((option) => (
+                                <option key={option} value={option} />
+                            ))}
+                        </datalist>
+                    </div>
 
                     {task.taskType === "audio_reading" ? (
                         <Tooltip>
@@ -527,7 +565,7 @@ function SubmitResult({ submissionId, onComplete, onRetry }: {
     const totalChecks = status?.processingRuns.length ?? 0;
 
     return (
-        <main className="min-h-screen bg-background px-4 py-12">
+        <div className="w-full">
             <div className="mx-auto max-w-lg space-y-5">
                 <Card className="space-y-5 p-8 text-center">
                     {status === undefined ? (
@@ -595,6 +633,6 @@ function SubmitResult({ submissionId, onComplete, onRetry }: {
                     )}
                 </Card>
             </div>
-        </main>
+        </div>
     );
 }

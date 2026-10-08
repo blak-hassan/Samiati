@@ -65,6 +65,9 @@ export const CHOKED_TABLES = [
     "changaCampaigns",
     "changaCampaignProposals",
     "changaUserStats",
+    "changaWordOfTheDay",
+    "changaLanguageGoals",
+    "changaRegionVoices",
     "changaRoleGrants",
     "changaInvites",
     "changaCustomTaskTemplates",
@@ -518,6 +521,42 @@ export const insertInvite = internalMutation({
 
 export const patchInvite = internalMutation({
     args: { id: v.id("changaInvites"), patch: v.any() },
+    handler: async (ctx, args) => { await ctx.db.patch(args.id, args.patch); },
+});
+
+// --- changaWordOfTheDay ---
+
+export const insertWordOfTheDay = internalMutation({
+    args: { doc: v.any() },
+    handler: async (ctx, args) => ctx.db.insert("changaWordOfTheDay", args.doc),
+});
+
+export const patchWordOfTheDay = internalMutation({
+    args: { id: v.id("changaWordOfTheDay"), patch: v.any() },
+    handler: async (ctx, args) => { await ctx.db.patch(args.id, args.patch); },
+});
+
+// --- changaLanguageGoals ---
+
+export const insertLanguageGoal = internalMutation({
+    args: { doc: v.any() },
+    handler: async (ctx, args) => ctx.db.insert("changaLanguageGoals", args.doc),
+});
+
+export const patchLanguageGoal = internalMutation({
+    args: { id: v.id("changaLanguageGoals"), patch: v.any() },
+    handler: async (ctx, args) => { await ctx.db.patch(args.id, args.patch); },
+});
+
+// --- changaRegionVoices ---
+
+export const insertRegionVoices = internalMutation({
+    args: { doc: v.any() },
+    handler: async (ctx, args) => ctx.db.insert("changaRegionVoices", args.doc),
+});
+
+export const patchRegionVoices = internalMutation({
+    args: { id: v.id("changaRegionVoices"), patch: v.any() },
     handler: async (ctx, args) => { await ctx.db.patch(args.id, args.patch); },
 });
 

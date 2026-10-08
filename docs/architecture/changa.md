@@ -35,11 +35,20 @@ Explicit consent scopes (`voiceDataAllowed`, `culturalDataAllowed`, `attribution
 
 ```
 src/components/changa/
-├── ChangaHome.tsx           # Main hub (task list, stats, campaigns)
+├── ChangaHome.tsx           # Revamped prototype home (greeting, today's goal,
+│                            #   community + keeper entry cards, missions, ways to help)
+├── ChangaCommunity.tsx      # Community page (goal header, contributions/people/
+│                            #   hours-of-speech, word of the day, recognition,
+│                            #   language-goal breakdown, region voices, start-a-challenge)
+├── ChangaCommunityBits.tsx  # Community building blocks (WordOfTheDayCard,
+│                            #   RecognitionBoard, GoalBreakdown, RegionVoicesGrid)
+├── ChangaBits.tsx           # Shared home blocks (TodayGoalCard, MissionGrid, …)
 ├── ChangaCampaigns.tsx      # Campaign listing
 ├── MyChangaActivity.tsx     # User's submission history
-├── ValidationRunner.tsx     # Review queue UI
-├── TaskContributionScreen.tsx # Task input + submission flow
+├── ValidationRunner.tsx     # Review queue UI (+ SwipeVoteDeck)
+├── SwipeVoteDeck.tsx        # Prototype swipe voting (right = accept, left = fix/reject)
+├── XpCelebration.tsx        # Prototype +XP success toast after a contribution
+├── TaskContributionScreen.tsx # Task input + submission flow (region picker, 0:00 timer)
 ├── ProjectHero.tsx          # Campaign/project header
 ├── SquadList.tsx            # Contributor rankings
 ├── XPProgressBar.tsx        # Level progress indicator
@@ -50,6 +59,14 @@ src/components/changa/
     └── AccentRecorder.tsx
 ```
 
+Challenge creation (`src/components/screens/AddChallengeScreen.tsx`) follows the
+prototype form — What kind / Give it a name / Which region / Goal / Why does it
+matter / Who should we ask to join — and submits a **campaign proposal** for
+moderator review ("A moderator checks it before it goes live"), not a live
+campaign. Moderator entry points are `ModeratorApplicationScreen.tsx`
+("Be a keeper of your language") and `ModerationDashboardScreen.tsx`
+(Waiting · Checked today · Agreement · Moderation XP).
+
 ## Backend Structure
 
 ```
@@ -58,12 +75,18 @@ convex/changa/
 ├── tasks.ts         # Task template + listing + claiming
 ├── submissions.ts   # Submission CRUD + idempotency
 ├── validation.ts    # Queue, votes, bundles
-├── campaigns.ts     # Campaign CRUD + proposals
+├── campaigns.ts     # Campaign CRUD + proposals (challenge form submits a proposal)
+├── community.ts     # Prototype community surface: getWordOfTheDay,
+│                    #   getRecognitionBoard, getLanguageGoal,
+│                    #   getRegionsNeedingVoices, getDailyGoal, getCommunitySummary
 ├── reputation.ts    # Role grants, reviewer calibration
 ├── stats.ts         # User + language stats
 ├── invites.ts       # Invite code system
 ├── curation.ts      # Curated examples
 ├── worker.ts        # Background processing
 ├── processing.ts    # ASR, quality checks
+├── seedDemo.ts      # Demo seed — also writes changaWordOfTheDay /
+│                    #   changaLanguageGoals / changaRegionVoices (Mũgumo, ki goal,
+│                    #   Kiambu · Murang'a · Nyeri · Kirinyaga)
 └── consent.ts       # Consent policies
 ```

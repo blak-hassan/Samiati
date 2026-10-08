@@ -173,6 +173,21 @@ export const chokepoint = {
     patchInvite: (ctx: ChokepointCtx, id: Id<"changaInvites">, patch: object) =>
         run(ctx, "patchInvite", { id, patch }) as Promise<Id<"changaInvites">>,
 
+    insertWordOfTheDay: (ctx: ChokepointCtx, doc: object) =>
+        run(ctx, "insertWordOfTheDay", { doc }) as Promise<Id<"changaWordOfTheDay">>,
+    patchWordOfTheDay: (ctx: ChokepointCtx, id: Id<"changaWordOfTheDay">, patch: object) =>
+        run(ctx, "patchWordOfTheDay", { id, patch }) as Promise<Id<"changaWordOfTheDay">>,
+
+    insertLanguageGoal: (ctx: ChokepointCtx, doc: object) =>
+        run(ctx, "insertLanguageGoal", { doc }) as Promise<Id<"changaLanguageGoals">>,
+    patchLanguageGoal: (ctx: ChokepointCtx, id: Id<"changaLanguageGoals">, patch: object) =>
+        run(ctx, "patchLanguageGoal", { id, patch }) as Promise<Id<"changaLanguageGoals">>,
+
+    insertRegionVoices: (ctx: ChokepointCtx, doc: object) =>
+        run(ctx, "insertRegionVoices", { doc }) as Promise<Id<"changaRegionVoices">>,
+    patchRegionVoices: (ctx: ChokepointCtx, id: Id<"changaRegionVoices">, patch: object) =>
+        run(ctx, "patchRegionVoices", { id, patch }) as Promise<Id<"changaRegionVoices">>,
+
     insertConsentPolicy: (ctx: ChokepointCtx, doc: object) =>
         run(ctx, "insertConsentPolicy", { doc }) as Promise<Id<"changaConsentPolicies">>,
     patchConsentPolicy: (ctx: ChokepointCtx, id: Id<"changaConsentPolicies">, patch: object) =>

@@ -386,6 +386,9 @@ export const submitSubmission = mutation({
         contextNote: v.optional(v.string()),
         gloss: v.optional(v.string()),
         partOfSpeech: v.optional(v.string()),
+        // "Where is your accent from? (optional)" — stored on the submission so
+        // regional coverage can be aggregated for "Where we need more voices".
+        regionCode: v.optional(v.string()),
         clientIdempotencyKey: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
@@ -448,6 +451,7 @@ export const submitSubmission = mutation({
             // Source text comes from the task. Contributors may supply a
             // context note but must not silently replace the task prompt.
             targetText: args.targetText?.slice(0, MAX_TARGET_TEXT),
+            regionCode: args.regionCode?.trim().slice(0, 80) || undefined,
             transcriptText: args.transcriptText?.slice(0, MAX_TRANSCRIPT_TEXT),
             contextNote: args.contextNote?.slice(0, MAX_CONTEXT_NOTE),
             gloss: args.gloss?.slice(0, MAX_GLOSS),

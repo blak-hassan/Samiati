@@ -71,7 +71,96 @@ type TranslationKey =
   | "reviewNotePlaceholder"
   | "nothingToReviewDesc"
   | "queueClearedDesc"
-  | "keepReviewing";
+  | "keepReviewing"
+  // --- Prototype revamp: Home / misc ---
+  | "greetingMorning"
+  | "greetingAfternoon"
+  | "greetingEvening"
+  | "helloName"
+  | "valueLine"
+  | "todaysGoal"
+  | "streakLabel"
+  | "xpLabel"
+  | "sentencesGoal"
+  | "welcomeBack"
+  | "whatNeedsToday"
+  | "todaysMissions"
+  | "missionsHint"
+  | "quickContribute"
+  | "allWaysToHelp"
+  | "doneToday"
+  | "speakAndListen"
+  | "writeLabel"
+  | "checkLabel"
+  | "togetherLabel"
+  | "achievementsLabel"
+  | "communitiesLabel"
+  | "notificationsLabel"
+  | "communityChallenge"
+  | "letUsChoose"
+  | "pickOne"
+  // --- Prototype revamp: Community page ---
+  | "wordOfTheDay"
+  | "recognition"
+  | "topContributor"
+  | "mostConsistent"
+  | "helpfulReviewer"
+  | "communityBuilder"
+  | "goalSentences"
+  | "translationCategory"
+  | "voiceCategory"
+  | "vocabularyCategory"
+  | "validationCategory"
+  | "whereWeNeedVoices"
+  | "hoursOfSpeech"
+  | "peopleLabel"
+  | "contributionsLabel"
+  | "soFar"
+  | "contributionsTab"
+  | "peopleTab"
+  // --- Prototype revamp: Task + validation ---
+  | "translateInto"
+  | "sayThisIn"
+  | "accentFrom"
+  | "howWouldYouSay"
+  | "swipeHint"
+  | "niceHelper"
+  | "xpEarned"
+  // --- Prototype revamp: Keeper / moderator ---
+  | "startChallenge"
+  | "startChallengeHint"
+  | "keeperOfLanguage"
+  | "keeperSubtitle"
+  | "whatYouWouldDo"
+  | "keeperCheckWork"
+  | "keeperCatchBad"
+  | "keeperOneStandard"
+  | "yourEligibility"
+  | "eligibleAccurate"
+  | "eligibleActive"
+  | "moderatorsChosen"
+  | "stepDownAnytime"
+  | "trustedReviewer"
+  | "thankYouClean"
+  | "waitingLabel"
+  | "checkedToday"
+  | "agreement"
+  | "moderationXp"
+  // --- Prototype revamp: Onboarding ---
+  | "whichLanguage"
+  | "whichLanguageHint"
+  | "createProfile"
+  | "onlyNameNeeded"
+  | "yourNameNickname"
+  | "regionOptional"
+  | "youAreHelping"
+  | "days"
+  // --- Prototype revamp: Home entry points (community + keeper) ---
+  | "communityHomeTitle"
+  | "communityHomeHint"
+  | "openCommunity"
+  | "applyKeeper"
+  | "openValidationQueue";
 
 interface Translations {
   [key: string]: string;
@@ -147,6 +236,90 @@ const en: Translations = {
   nothingToReviewDesc: "Submissions land here once they pass their quality checks. Check back soon.",
   queueClearedDesc: "Thanks for reviewing. New submissions appear here as they pass quality checks.",
   keepReviewing: "Keep reviewing",
+  // --- Prototype revamp ---
+  greetingMorning: "Good morning",
+  greetingAfternoon: "Good afternoon",
+  greetingEvening: "Good evening",
+  helloName: "Hello, {name}",
+  valueLine: "Your language. Your voice. Every task moves it forward.",
+  todaysGoal: "Today's goal",
+  streakLabel: "day streak",
+  xpLabel: "XP",
+  sentencesGoal: "Help reach 100,000 new sentences",
+  welcomeBack: "Welcome back",
+  whatNeedsToday: "Here is what needs today.",
+  todaysMissions: "Today's missions",
+  missionsHint: "Short and simple. Pick one, or let us choose.",
+  quickContribute: "Quick contribute",
+  allWaysToHelp: "All ways to help",
+  doneToday: "of {count} done",
+  speakAndListen: "Speak and listen",
+  writeLabel: "Write",
+  checkLabel: "Check",
+  togetherLabel: "Together",
+  achievementsLabel: "Achievements",
+  communitiesLabel: "Communities",
+  notificationsLabel: "Notifications",
+  communityChallenge: "Community challenge",
+  letUsChoose: "Let us choose",
+  pickOne: "Pick one",
+  wordOfTheDay: "Word of the day",
+  recognition: "Recognition",
+  topContributor: "Top contributor",
+  mostConsistent: "Most consistent",
+  helpfulReviewer: "Helpful reviewer",
+  communityBuilder: "Community builder",
+  goalSentences: "{language} goal: 100,000 sentences",
+  translationCategory: "Translation",
+  voiceCategory: "Voice",
+  vocabularyCategory: "Vocabulary",
+  validationCategory: "Validation",
+  whereWeNeedVoices: "Where we need more voices",
+  hoursOfSpeech: "Hours of speech",
+  peopleLabel: "People",
+  contributionsLabel: "Contributions",
+  soFar: "so far",
+  contributionsTab: "Contributions",
+  peopleTab: "People",
+  translateInto: "Translate this into {language}",
+  sayThisIn: "Say this sentence in {language}",
+  accentFrom: "Where is your accent from? (optional)",
+  howWouldYouSay: "How would you say it?",
+  swipeHint: "Swipe right if correct, left if it needs fixing, or use the buttons.",
+  niceHelper: "Nice! You just helped your language.",
+  xpEarned: "+{xp} XP",
+  startChallenge: "Start a challenge",
+  startChallengeHint: "Rally your community around something your language needs. A moderator checks it before it goes live.",
+  keeperOfLanguage: "Be a keeper of your language",
+  keeperSubtitle: "Moderators check contributions so the data stays correct and respectful. It is optional.",
+  whatYouWouldDo: "What you would do",
+  keeperCheckWork: "Check translations and recordings",
+  keeperCatchBad: "Catch private information and bad audio",
+  keeperOneStandard: "Help your community keep one standard",
+  yourEligibility: "Your eligibility",
+  eligibleAccurate: "Accurate work ({percent}%)",
+  eligibleActive: "Active for {days} days or more",
+  moderatorsChosen: "Moderators are chosen for careful work, not for how much they do.",
+  stepDownAnytime: "You can step down any time.",
+  trustedReviewer: "Trusted Reviewer",
+  thankYouClean: "Thank you for keeping the data clean",
+  waitingLabel: "Waiting",
+  checkedToday: "Checked today",
+  agreement: "{percent}% Agreement",
+  moderationXp: "Moderation XP",
+  whichLanguage: "Which language do you want to help?",
+  whichLanguageHint: "Pick the language you speak best. You can add more later.",
+  createProfile: "Create your profile",
+  onlyNameNeeded: "Only a name is needed. You choose what others see.",
+  yourNameNickname: "Your name or nickname",
+  regionOptional: "Region (optional)",
+  youAreHelping: "You are helping",
+  days: "days",
+  communityHomeTitle: "Your language community",
+  communityHomeHint: "Word of the day, recognition, and the regions still waiting for voices.",
+  openCommunity: "Open community",
+  applyKeeper: "Apply to be a keeper",
+  openValidationQueue: "Open the review queue",
 };
 
 const sw: Translations = {

@@ -3,6 +3,9 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { NavigateFn, Screen, User, LanguageSkill, ProfileDashboard } from '@/types';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
+import { useChangaQuery } from '@/hooks/useChangaData';
+import { StreakXpChips } from '@/components/changa/ChangaBits';
+import { GoalBreakdown } from '@/components/changa/ChangaCommunityBits';
 import { NotificationBell } from '@/components/shared/NotificationBell';
 import { useToast } from '@/hooks/useToast';
 import {
@@ -39,6 +42,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SettingsExitButton } from "@/components/settings/SettingsPageHeader";
+import { useTranslation } from "@/i18n/TranslationProvider";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -122,6 +126,7 @@ const ProfileScreen: React.FC<Props> = ({
   const followMutation = useMutation(api.users.mutations.follow);
   const unfollowMutation = useMutation(api.users.mutations.unfollow);
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const [profileVisible, setProfileVisible] = useState(privacy?.profileVisible ?? true);
   const [showContributions, setShowContributions] = useState(privacy?.showChanga ?? true);
@@ -202,6 +207,17 @@ const ProfileScreen: React.FC<Props> = ({
 
   const activeRoles = dashboard?.activeRoles ?? [];
   const serverBadges = contribution?.badges ?? [];
+
+  // Prototype-aligned Changa context: today's goal (streak + XP) and the shared
+  // language goal for the user's top contributing language.
+  const dailyGoal = useChangaQuery(api.changa.community.getDailyGoal, {});
+  const topLanguageCode = contribution?.topLanguages?.[0] ?? 'ki';
+  const languageGoal = useChangaQuery(api.changa.community.getLanguageGoal, {
+    languageCode: topLanguageCode,
+  });
+  const topLanguageName =
+    languagesForDisplay.find((skill) => skill.name.toLowerCase() === topLanguageCode.toLowerCase())
+      ?.name ?? topLanguageCode.charAt(0).toUpperCase() + topLanguageCode.slice(1);
 
   // Target user id (the profile being viewed) — falls back to undefined for
   // the self-profile case where follow/unfollow is not shown.
@@ -464,6 +480,69 @@ const ProfileScreen: React.FC<Props> = ({
           </TabsList>
 
           <TabsContent value="overview" className="p-4 space-y-6 mt-0">
+            {/* Today's goal — streak + XP (prototype) */}
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
+                  Today&apos;s goal
+                </h3>
+                <StreakXpChips streakDays={dailyGoal?.streakDays ?? 0} xp={dailyGoal?.xp ?? 0} />
+              </div>
+              <Card className="space-y-2 p-4 shadow-sm border-border/50">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-bold text-foreground">
+                    {dailyGoal?.done ?? 0} of {dailyGoal?.target ?? 3} tasks today
+                  </span>
+                  {dailyGoal?.completed ? (
+                    <Badge variant="secondary" className="font-bold text-emerald-700 dark:text-emerald-300">
+                      Complete
+                    </Badge>
+                  ) : (
+                    <span className="text-xs font-bold text-muted-foreground">
+                      {dailyGoal?.remaining ?? 3} to go
+                    </span>
+                  )}
+                </div>
+                <Progress
+                  value={
+                    (dailyGoal?.target ?? 3) > 0
+                      ? Math.min(100, ((dailyGoal?.done ?? 0) / (dailyGoal?.target ?? 3)) * 100)
+                      : 0
+                  }
+                  className="h-2"
+                />
+                <p className="text-xs font-medium text-muted-foreground">
+                  Help reach 100,000 new sentences — {(dailyGoal?.sentenceGoal.done ?? 0).toLocaleString()} of{' '}
+                  {(dailyGoal?.sentenceGoal.target ?? 100_000).toLocaleString()} so far.
+                </p>
+              </Card>
+            </section>
+
+            {/* Moderator standing (prototype: "Trusted moderator") */}
+            {isOwnProfile && user.role === 'moderator' && (
+              <section className="space-y-3">
+                <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
+                  Trusted moderator
+                </h3>
+                <Card className="flex items-center gap-3 p-4 shadow-sm border-border/50">
+                  <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10">
+                    <ShieldCheck className="size-5 text-primary" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-black text-foreground">
+                      {t('trustedReviewer')}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {t('thankYouClean')}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="font-bold">
+                    {t('agreement', { percent: Math.round((contribution?.reviewAgreementRate ?? 0) * 100) })}
+                  </Badge>
+                </Card>
+              </section>
+            )}
+
             {/* Contributor level (spec §17) */}
             {dashboard && (
               <section className="space-y-3">
@@ -781,6 +860,15 @@ const ProfileScreen: React.FC<Props> = ({
                 <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
+            {/* Shared language goal (prototype: "<Language> goal: 100,000 sentences") */}
+            {languageGoal ? (
+              <GoalBreakdown
+                languageName={topLanguageName}
+                totalCurrent={languageGoal.totalCurrent}
+                totalTarget={languageGoal.targetSentences}
+                categories={languageGoal.categories}
+              />
+            ) : null}
             {recentContributions.length > 0 ? (
               <Card className="divide-y divide-border/60 overflow-hidden border-border/50 shadow-sm">
                 {recentContributions.map((event) => {

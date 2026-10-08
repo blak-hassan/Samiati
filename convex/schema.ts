@@ -35,6 +35,10 @@ export default defineSchema({
     users: defineTable({
         name: v.string(),
         handle: v.optional(v.string()),
+        // Optional region the contributor identifies with (e.g. "Nyeri").
+        // Used by onboarding ("Region (optional)") and to surface
+        // "Where we need more voices" targeting.
+        region: v.optional(v.string()),
         email: v.optional(v.string()),
         emailVerified: v.optional(v.boolean()), // From Clerk identity; false/absent = unverified
         avatar: v.string(),
@@ -602,6 +606,47 @@ curatedExampleId: v.optional(v.id("changaCuratedExamples")),
     })
         .index("by_user", ["userId"])
         .index("by_trustScore", ["trustScore"]),
+
+    // Word of the day — one reviewed vocabulary highlight per language per day.
+    // Surfaced on the community page ("Word of the day": Mũgumo — A sacred fig tree).
+    changaWordOfTheDay: defineTable({
+        languageCode: v.string(),
+        word: v.string(),
+        meaning: v.string(),
+        partOfSpeech: v.optional(v.string()),
+        example: v.optional(v.string()),
+        // ISO date (YYYY-MM-DD) the word is featured on.
+        date: v.string(),
+        createdBy: v.optional(v.id("users")),
+        createdAt: v.number(),
+    })
+        .index("by_date", ["date"])
+        .index("by_language_date", ["languageCode", "date"]),
+
+    // Per-language contribution goal ("Kikuyu goal: 100,000 sentences") with a
+    // per-category breakdown (Translation · Voice · Vocabulary · Validation).
+    changaLanguageGoals: defineTable({
+        languageCode: v.string(),
+        targetSentences: v.number(),
+        translationTarget: v.number(),
+        voiceTarget: v.number(),
+        vocabularyTarget: v.number(),
+        validationTarget: v.number(),
+        updatedAt: v.number(),
+    })
+        .index("by_language", ["languageCode"]),
+
+    // Regions where a language still needs more voices
+    // ("Where we need more voices": Kiambu · Murang'a · Nyeri · Kirinyaga).
+    changaRegionVoices: defineTable({
+        languageCode: v.string(),
+        region: v.string(),
+        contributions: v.number(),
+        target: v.number(),
+        updatedAt: v.number(),
+    })
+        .index("by_language", ["languageCode"])
+        .index("by_language_region", ["languageCode", "region"]),
 
     changaRoleGrants: defineTable({
         userId: v.id("users"),

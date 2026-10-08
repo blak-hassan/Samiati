@@ -347,6 +347,8 @@ export const updateNotificationPreferences = mutation({
 // Complete onboarding — marks the user as having gone through the onboarding flow
 export const completeOnboarding = mutation({
     args: {
+        name: v.optional(v.string()),
+        region: v.optional(v.string()),
         languages: v.optional(v.array(v.object({
             id: v.string(),
             name: v.string(),
@@ -364,6 +366,20 @@ export const completeOnboarding = mutation({
         if (isGuestUser(user)) throw new Error("Guests cannot complete onboarding");
 
         const updates: Record<string, unknown> = { onboardingCompleted: true };
+
+        // "Create your profile — only a name is needed."
+        if (args.name !== undefined) {
+            const name = sanitizeInput(args.name, 80);
+            if (name.length === 0) {
+                throw new Error("Please enter a name or nickname");
+            }
+            updates.name = name;
+        }
+
+        // "Region (optional)" — free-text region the contributor identifies with.
+        if (args.region !== undefined) {
+            updates.region = sanitizeInput(args.region, 80);
+        }
 
         if (args.languages !== undefined) {
             if (args.languages.length > 20) {

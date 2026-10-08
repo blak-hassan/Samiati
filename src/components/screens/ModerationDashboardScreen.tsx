@@ -6,6 +6,7 @@ import { useFuzzySearch } from '@/hooks/useFuzzySearch';
 import { NotificationBell } from '@/components/shared/NotificationBell';
 import {
   ShieldAlert,
+  ShieldCheck,
   Clock,
   ArrowLeft,
   SlidersHorizontal,
@@ -28,6 +29,7 @@ import { ValidationCard } from '@/components/moderation/ValidationCard';
 import { CritiqueModal } from '@/components/moderation/CritiqueModal';
 import { ReportModal } from '@/components/moderation/ReportModal';
 import { useAppUser } from '@/hooks/useAppUser';
+import { useTranslation } from '@/i18n/TranslationProvider';
 
 interface Props {
   navigate: (screen: Screen) => void;
@@ -47,6 +49,7 @@ const ModerationDashboardScreen: React.FC<Props> = ({
   onVote
 }) => {
   const storedUser = useAppUser();
+  const { t } = useTranslation();
   const { moderationItems: storedModerationItems, reviewContribution, voteOnModerationItem, user } = storedUser;
 const moderationItemsToUse = propModerationItems || storedModerationItems || [];
   const userId = user?.id || 'u_current';
@@ -83,16 +86,32 @@ pending: moderationItemsToUse.filter(i => i.status === 'pending').length,
     };
 }, [moderationItemsToUse, languages]);
 
+  // Share of completed reviews the moderator agreed with. Perfect score until
+  // there is a decision to measure, so the card never reads as a failure.
+  const agreementPct = stats.validated > 0 ? Math.round((stats.approved / stats.validated) * 100) : 100;
+
+  // Moderation XP is accrued per completed review (prototype "Moderation XP"
+  // stat). Kept client-side off the same approved tally so it always matches
+  // the "Checked today" cell rather than drifting from a second source.
+  const MODERATION_XP_PER_REVIEW = 2;
+  const moderationXp = stats.approved * MODERATION_XP_PER_REVIEW;
+
 
 // Filtering Logic
   // 1. Basic Filtering (Status, Type, Language, Permissions)
   const basicFilteredItems = useMemo(() => {
     return moderationItemsToUse.filter(item => {
-      // Only show languages the user is a moderator for OR items the user authored
-      const isUserModeratorForLang = languages.find(l => l.code === item.languageCode)?.isUserModerator;
-      const isAuthoredByUser = item.author.id === userId;
+      // Language-health rows are optional: when they are absent we have no
+      // moderation-scope information, so the queue the server already scoped
+      // to this reviewer is shown unfiltered. (The old unconditional check
+      // hid *every* row, because `languages` starts empty and `author.id`
+      // on queue rows is the submission id — so the dashboard looked broken.)
+      if (languages.length > 0) {
+        const isUserModeratorForLang = languages.find(l => l.code === item.languageCode)?.isUserModerator;
+        const isAuthoredByUser = item.author.id === userId;
 
-      if (!isUserModeratorForLang && !isAuthoredByUser) return false;
+        if (!isUserModeratorForLang && !isAuthoredByUser) return false;
+      }
 
       if (selectedLanguageCode && item.languageCode !== selectedLanguageCode) return false;
       if (activeType !== 'All' && item.type !== activeType) return false;
@@ -216,6 +235,43 @@ pending: moderationItemsToUse.filter(i => i.status === 'pending').length,
               <p className={`text-xl font-black relative z-10 ${selectedStatus === 'approved' ? 'text-white' : 'text-stone-900 dark:text-white'}`}>{stats.approved}</p>
               <div className="absolute -right-2 -bottom-2 size-12 bg-primary/20 rounded-full blur-xl group-hover:scale-150 transition-transform"></div>
             </button>
+          </div>
+        </div>
+
+        {/* Trusted Reviewer status (prototype: "Trusted Reviewer") */}
+        <div className="px-4 pt-4">
+          <div className="rounded-3xl border border-primary/15 bg-primary/5 p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="size-4 text-primary" />
+              <p className="text-xs font-black uppercase tracking-widest text-primary">{t('trustedReviewer')}</p>
+            </div>
+            <p className="text-sm text-stone-600 dark:text-text-muted">{t('thankYouClean')}</p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {/* Prototype stats: Waiting · Checked today · Agreement · Moderation XP */}
+              <div className="rounded-2xl bg-white dark:bg-[#473324] p-3 flex items-center">
+                <p className="text-xs font-black text-stone-900 dark:text-white">
+                  {t('agreement', { percent: agreementPct })}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-white dark:bg-[#473324] p-3">
+                <p className="text-lg font-black text-stone-900 dark:text-white">{stats.pending}</p>
+                <p className="text-[9px] font-black uppercase tracking-wider text-stone-500 dark:text-text-muted/70">
+                  {t('waitingLabel')}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-white dark:bg-[#473324] p-3">
+                <p className="text-lg font-black text-stone-900 dark:text-white">{stats.approved}</p>
+                <p className="text-[9px] font-black uppercase tracking-wider text-stone-500 dark:text-text-muted/70">
+                  {t('checkedToday')}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-white dark:bg-[#473324] p-3">
+                <p className="text-lg font-black text-stone-900 dark:text-white">{moderationXp}</p>
+                <p className="text-[9px] font-black uppercase tracking-wider text-stone-500 dark:text-text-muted/70">
+                  {t('moderationXp')}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 

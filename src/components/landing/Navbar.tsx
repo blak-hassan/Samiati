@@ -7,17 +7,19 @@ import { Button } from "@/components/ui/button";
 import { TrackedCta } from "./HeroCta";
 
 /**
- * In-page section links. The landing page already defines these anchors
- * (#features, #pricing, #faq) but nothing linked to them, so the sections were
- * only reachable by scrolling. Hidden below `md` to keep the mobile header to
- * logo + two actions.
+ * In-page section links for the landing page. Every href must match an id
+ * that actually exists on src/app/page.tsx (`#demo`, `#languages`,
+ * `#changa`, `#pricing`, `#faq`). Hidden below `md` to keep the mobile
+ * header to logo + actions.
  */
 const NAV_LINKS = [
-  { href: "#features", label: "Features" },
+  { href: "#demo", label: "Try it" },
+  { href: "#languages", label: "Languages" },
+  { href: "#changa", label: "Changa" },
   { href: "#pricing", label: "Pricing" },
   { href: "#faq", label: "FAQ" },
-  { href: "/languages", label: "Languages" },
 ] as const;
+
 
 export default function Navbar() {
   return (

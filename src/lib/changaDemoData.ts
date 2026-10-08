@@ -574,6 +574,83 @@ export const DEMO_EARNED_BADGE_IDS = [
     "streak_7",
 ] as const;
 
+// ---------------------------------------------------------------------------
+// Community surface (Changa prototype revamp) — mirrors
+// `convex/changa/community.ts` so the new Home / Community screens render in
+// demo mode instead of empty states.
+// ---------------------------------------------------------------------------
+
+export const DEMO_WORD_OF_THE_DAY = {
+    languageCode: "ki",
+    word: "Mũgumo",
+    meaning: "A sacred fig tree",
+    partOfSpeech: "noun",
+    example: "Mũgumo nĩ mũtĩ mũtheru.",
+    date: new Date(DEMO_NOW).toISOString().slice(0, 10),
+} as const;
+
+export const DEMO_RECOGNITION_BOARD = [
+    { key: "topContributor", label: "Top contributor", userId: "demo_user_mwangi", name: "Mwangi K.", avatar: "", value: 412, metric: "accepted" },
+    { key: "mostConsistent", label: "Most consistent", userId: "demo_user_njeri", name: "Njeri W.", avatar: "", value: 43, metric: "day streak" },
+    { key: "helpfulReviewer", label: "Helpful reviewer", userId: "demo_user_kamau", name: "Kamau G.", avatar: "", value: 289, metric: "reviews" },
+    { key: "communityBuilder", label: "Community builder", userId: "demo_user_wanjiku", name: "Wanjiku M.", avatar: "", value: 6, metric: "languages" },
+] as const;
+
+export const DEMO_LANGUAGE_GOAL = {
+    languageCode: "ki",
+    targetSentences: 100_000,
+    totalCurrent: 67_420,
+    categories: [
+        { key: "translation", label: "Translation", current: 41_200, target: 60_000 },
+        { key: "voice", label: "Voice", current: 18_300, target: 25_000 },
+        { key: "vocabulary", label: "Vocabulary", current: 5_100, target: 100_000 },
+        { key: "validation", label: "Validation", current: 2_820, target: 5_000 },
+    ],
+} as const;
+
+export const DEMO_REGIONS_NEEDING_VOICES = [
+    { region: "Kiambu", contributions: 120, target: 500, remaining: 380 },
+    { region: "Murang'a", contributions: 210, target: 500, remaining: 290 },
+    { region: "Nyeri", contributions: 340, target: 500, remaining: 160 },
+    { region: "Kirinyaga", contributions: 90, target: 500, remaining: 410 },
+] as const;
+
+// Recognised regions for onboarding / "Where is your accent from?" pickers.
+export const DEMO_REGIONS = [
+    "Kiambu",
+    "Murang'a",
+    "Nyeri",
+    "Kirinyaga",
+    "Nairobi",
+    "Nakuru",
+    "Kisumu",
+    "Mombasa",
+    "Eldoret",
+] as const;
+
+export function demoDailyGoal() {
+    return {
+        done: 1,
+        target: 3,
+        remaining: 2,
+        completed: false,
+        streakDays: DEMO_USER_STATS.streakDays,
+        xpToday: 10,
+        xp: DEMO_PROFILE.xp,
+        level: DEMO_PROFILE.level,
+        sentenceGoal: { done: 67_420, target: 100_000 },
+    };
+}
+
+export const DEMO_COMMUNITY_SUMMARY = {
+    name: "Kikuyu",
+    sentencesDone: 67_420,
+    sentencesTarget: 100_000,
+    hoursOfSpeech: 320,
+    contributions: 67_420,
+    people: 1_284,
+} as const;
+
 
 
 

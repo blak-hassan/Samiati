@@ -6,22 +6,28 @@ import { api } from "../../../convex/_generated/api";
 import { Screen } from "@/types";
 import { useNavigation } from "@/hooks/useNavigation";
 import { Language, LANGUAGES } from "@/components/chat/LanguageSelector";
-import { Check, ArrowRight } from "lucide-react";
+import { useTranslation } from "@/i18n/TranslationProvider";
+import { Check, ArrowRight, MapPin } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import SettingsPageHeader from "@/components/settings/SettingsPageHeader";
 import { useToast } from "@/hooks/useToast";
+import { DEMO_REGIONS } from "@/lib/changaDemoData";
 
-const STEPS = ['languages', 'cultural', 'consent'] as const;
+// Prototype flow: "Which language do you want to help?" → "Create your profile"
+// → "You are helping {language}" → consent.
+const STEPS = ['language', 'profile', 'helping', 'consent'] as const;
 type Step = typeof STEPS[number];
 
 const OnboardingScreen: React.FC<{ goBack: () => void }> = ({ goBack }) => {
   const { toast } = useToast();
   const { navigate } = useNavigation();
+  const { t } = useTranslation();
   const completeOnboardingMutation = useMutation(api.users.mutations.completeOnboarding);
 
-  const [step, setStep] = useState<Step>('languages');
-  const [selectedLanguages, setSelectedLanguages] = useState<Language[]>([]);
-  const [culturalBackground, setCulturalBackground] = useState('');
+  const [step, setStep] = useState<Step>('language');
+  const [selectedLanguage, setSelectedLanguage] = useState<Language | null>(null);
+  const [name, setName] = useState('');
+  const [region, setRegion] = useState('');
   const [consent, setConsent] = useState({
     showChanga: true,
     voiceDataAllowed: false,
@@ -29,22 +35,20 @@ const OnboardingScreen: React.FC<{ goBack: () => void }> = ({ goBack }) => {
   });
   const [saving, setSaving] = useState(false);
 
-  const toggleLanguage = (lang: Language) => {
-    setSelectedLanguages(prev =>
-      prev.find(l => l.code === lang.code)
-        ? prev.filter(l => l.code !== lang.code)
-        : [...prev, lang].slice(0, 10)
-    );
-  };
-
   const handleNext = () => {
-    if (step === 'languages') {
-      if (selectedLanguages.length === 0) {
-        toast("Please select at least one language", "error");
+    if (step === 'language') {
+      if (!selectedLanguage) {
+        toast("Please choose a language to help", "error");
         return;
       }
-      setStep('cultural');
-    } else if (step === 'cultural') {
+      setStep('profile');
+    } else if (step === 'profile') {
+      if (name.trim().length === 0) {
+        toast("Please enter a name or nickname", "error");
+        return;
+      }
+      setStep('helping');
+    } else if (step === 'helping') {
       setStep('consent');
     }
   };
@@ -53,13 +57,12 @@ const OnboardingScreen: React.FC<{ goBack: () => void }> = ({ goBack }) => {
     setSaving(true);
     try {
       await completeOnboardingMutation({
-        languages: selectedLanguages.map(l => ({
-          id: l.code,
-          name: l.name,
-          level: 'learning',
-          percent: 50,
-        })),
-        culturalBackground: culturalBackground || undefined,
+        name: name.trim(),
+        region: region.trim() || undefined,
+        languages: selectedLanguage
+          ? [{ id: selectedLanguage.code, name: selectedLanguage.name, level: 'learning', percent: 50 }]
+          : [],
+        culturalBackground: region.trim() || undefined,
         showChanga: consent.showChanga,
         voiceDataAllowed: consent.voiceDataAllowed,
         culturalDataAllowed: consent.culturalDataAllowed,
@@ -91,20 +94,21 @@ const OnboardingScreen: React.FC<{ goBack: () => void }> = ({ goBack }) => {
           ))}
         </div>
 
-        {/* Step 1: Languages */}
-        {step === 'languages' && (
+        {/* Step 1: Which language do you want to help? */}
+        {step === 'language' && (
           <div className="space-y-4">
             <div>
-              <h2 className="text-lg font-bold text-foreground mb-1">Select Your Languages</h2>
-              <p className="text-sm text-muted-foreground">Choose the languages you speak or want to learn. You can change this later.</p>
+              <h2 className="text-lg font-bold text-foreground mb-1">{t('whichLanguage')}</h2>
+              <p className="text-sm text-muted-foreground">{t('whichLanguageHint')}</p>
             </div>
             <div className="grid grid-cols-1 gap-2">
               {LANGUAGES.map((lang) => {
-                const isSelected = selectedLanguages.some(l => l.code === lang.code);
+                const isSelected = selectedLanguage?.code === lang.code;
                 return (
                   <button
                     key={lang.code}
-                    onClick={() => toggleLanguage(lang)}
+                    onClick={() => setSelectedLanguage(lang)}
+                    aria-pressed={isSelected}
                     className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
                       isSelected
                         ? 'bg-primary/10 border-primary/30'
@@ -123,24 +127,67 @@ const OnboardingScreen: React.FC<{ goBack: () => void }> = ({ goBack }) => {
           </div>
         )}
 
-        {/* Step 2: Cultural Background */}
-        {step === 'cultural' && (
+        {/* Step 2: Create your profile */}
+        {step === 'profile' && (
           <div className="space-y-4">
             <div>
-              <h2 className="text-lg font-bold text-foreground mb-1">Your Cultural Background</h2>
-              <p className="text-sm text-muted-foreground">Help us understand your background so we can personalize your experience. This is optional.</p>
+              <h2 className="text-lg font-bold text-foreground mb-1">{t('createProfile')}</h2>
+              <p className="text-sm text-muted-foreground">{t('onlyNameNeeded')}</p>
             </div>
-            <textarea
-              value={culturalBackground}
-              onChange={(e) => setCulturalBackground(e.target.value)}
-              placeholder="e.g., Kenyan, Nigerian, South African..."
-              rows={4}
-              className="w-full bg-muted/20 border border-border/50 rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary outline-none resize-none"
-            />
+            <div className="space-y-2">
+              <label htmlFor="onboarding-name" className="text-sm font-bold text-foreground">
+                {t('yourNameNickname')}
+              </label>
+              <input
+                id="onboarding-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Wanjiku"
+                maxLength={80}
+                className="w-full bg-muted/20 border border-border/50 rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary outline-none"
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="onboarding-region" className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+                <MapPin className="w-4 h-4 text-muted-foreground" />
+                {t('regionOptional')}
+              </label>
+              <input
+                id="onboarding-region"
+                list="onboarding-region-options"
+                value={region}
+                onChange={(e) => setRegion(e.target.value)}
+                placeholder="e.g. Nyeri"
+                maxLength={80}
+                className="w-full bg-muted/20 border border-border/50 rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary outline-none"
+              />
+              <datalist id="onboarding-region-options">
+                {DEMO_REGIONS.map((option) => (
+                  <option key={option} value={option} />
+                ))}
+              </datalist>
+            </div>
           </div>
         )}
 
-        {/* Step 3: Changa Consent */}
+        {/* Step 3: You are helping */}
+        {step === 'helping' && (
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-lg font-bold text-foreground mb-1">{t('youAreHelping')}</h2>
+              <p className="text-sm text-muted-foreground">{t('whatNeedsToday')}</p>
+            </div>
+            <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5 space-y-2">
+              <p className="text-2xl font-black text-foreground">{selectedLanguage?.name}</p>
+              <p className="text-sm text-muted-foreground">
+                {t('helloName', { name: name.trim() || 'there' })}
+                {region.trim() ? ` · ${region.trim()}` : ''}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Changa consent */}
         {step === 'consent' && (
           <div className="space-y-4">
             <div>
@@ -194,7 +241,7 @@ const OnboardingScreen: React.FC<{ goBack: () => void }> = ({ goBack }) => {
 
         {/* Navigation buttons */}
         <div className="flex gap-3 mt-8">
-          {step !== 'languages' && (
+          {step !== 'language' && (
             <button
               onClick={() => setStep(STEPS[STEPS.indexOf(step) - 1])}
               className="flex-1 py-3 rounded-2xl border border-border/50 font-bold text-foreground hover:bg-muted/20 transition-colors"

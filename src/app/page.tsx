@@ -1,438 +1,501 @@
-import { LANDING_PLANS } from '@/lib/plans';
-import {
-  FAQS as faqs,
-  LANDING_STATS,
-} from '@/lib/landingContent';
-import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from '@/lib/seo';
+// src/app/page.tsx — Samiati landing page.
+// Server Component: all interactive pieces ('use client' leaves) live in
+// src/components/landing/{Navbar,DemoChat,LanguageStrength,FAQAccordion}.tsx.
 import Link from 'next/link';
+import { FAQS as faqs } from '@/lib/landingContent';
+import { SITE_NAME, SITE_DESCRIPTION } from '@/lib/seo';
+import { LANGUAGE_PAGES, getLanguageBySlug } from '@/lib/languages';
+import { PLANS } from '@/lib/plans';
 import SamiatiLogo from '@/components/SamiatiLogo';
 import Navbar from '@/components/landing/Navbar';
 import { FeatureCard } from '@/components/landing/FeatureCard';
-import { TestimonialCard } from '@/components/landing/TestimonialCard';
 import FAQAccordion from '@/components/landing/FAQAccordion';
-import { Button } from '@/components/ui/button';
+import { DemoChat, type DemoPhrase } from '@/components/landing/DemoChat';
+import { LanguageStrength } from '@/components/landing/LanguageStrength';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { CookieSettingsLink } from '@/components/cookie-consent';
-import { HeroCta } from '@/components/landing/HeroCta';
+import { TrackedCta, HeroCta } from '@/components/landing/HeroCta';
 import { PricingCard } from '@/components/PricingCard';
-import { WaitlistForm } from '@/components/WaitlistForm';
-import {
-  MessageSquare,
-  Mic,
-  BookOpen,
-  Users,
-  Globe2,
-  Zap,
-  CheckCircle2,
-} from 'lucide-react';
+import { MessageSquare, Mic, Globe2 } from 'lucide-react';
 
-const features = [
+// Languages shown in the picker grid: only those with a real /languages/<slug>
+// page, so every card links somewhere that exists (e2e/links.spec crawls them).
+const LIVE_SLUGS = new Set(['kikuyu', 'swahili']);
+const pickerLanguages = LANGUAGE_PAGES.map((lang) => ({
+  ...lang,
+  live: LIVE_SLUGS.has(lang.slug),
+}));
+
+// Design-spec counts. Both derive from the real language tables so they can
+// never drift: live = the two published /languages pages marked live above;
+// next = every language name across both tables (LANGUAGES + LANGUAGE_PAGES)
+// minus the live ones — 11 names total, 2 live, 9 "planned with their
+// communities", exactly matching the design's "2 live / 9 next".
+const LIVE_LANGUAGE_COUNT = LIVE_SLUGS.size;
+const ALL_LANGUAGE_NAMES = new Set<string>([
+  ...LANGUAGE_PAGES.map((lang) => lang.name),
+]);
+const NEXT_LANGUAGE_COUNT = ALL_LANGUAGE_NAMES.size - LIVE_LANGUAGE_COUNT;
+
+
+// Real sample phrases behind the interactive demo — from the published
+// /languages/kikuyu and /languages/swahili pages, not invented copy.
+const kikuyuPhrases: DemoPhrase[] = getLanguageBySlug('kikuyu')?.phrases ?? [];
+const kiswahiliPhrases: DemoPhrase[] =
+  getLanguageBySlug('swahili')?.phrases ?? [];
+
+const CAPABILITIES = [
   {
     icon: <MessageSquare className="h-6 w-6" />,
-    title: 'AI-Powered Chat',
+    title: 'Ask anything',
     description:
-      'Practice conversations in African languages with an AI tutor that understands cultural context and nuance.',
+      'Questions, translations, everyday explanations — answered in the language you asked in.',
   },
   {
     icon: <Mic className="h-6 w-6" />,
-    title: 'Voice Messages',
+    title: 'Voice or text',
     description:
-      'Record and listen to voice messages to perfect your pronunciation and connect with native speakers.',
-  },
-  {
-    icon: <BookOpen className="h-6 w-6" />,
-    title: 'Cultural Stories',
-    description:
-      'Explore proverbs, folktales, and oral histories passed down through generations across the continent.',
-  },
-  {
-    icon: <Users className="h-6 w-6" />,
-    title: 'Community Challenges',
-    description:
-      'Join Changa challenges to contribute words, validate entries, and earn recognition from the community.',
+      'Speak when typing is slow, type when you are somewhere loud. Both come back in your language.',
   },
   {
     icon: <Globe2 className="h-6 w-6" />,
-    title: 'Language Profiles',
+    title: 'Mix as you speak',
     description:
-      'Build profiles for multiple languages and dialects, track your progress, and set personal goals.',
+      'Switch between Kikuyu, Kiswahili, English or Sheng mid-sentence. Samiati keeps up.',
   },
-  {
-    icon: <Zap className="h-6 w-6" />,
-    title: 'Instant Translation',
-    description:
-      'Get fast, context-aware translations between African languages and major world languages.',
-  },
-];
+] as const;
 
-const testimonials = [
+const HOW_STEPS = [
   {
-    quote:
-      "Samiati helped me reconnect with my grandmother's language. I never thought I'd be fluent in Swahili again.",
-    name: 'Amara O.',
-    role: 'Language Learner',
+    title: 'Speak or type',
+    body: 'Say it the way you would to a friend. Mix in Kiswahili, English or Sheng if you like.',
   },
   {
-    quote:
-      'The Changa challenges make contributing to language preservation feel like a game. My kids and I do them together.',
-    name: 'Kwame M.',
-    role: 'Community Contributor',
+    title: 'Samiati understands',
+    body: 'It carries your meaning across languages so a powerful AI can help you properly.',
   },
   {
-    quote: 'Finally, an app that treats African languages with the depth and respect they deserve.',
-    name: 'Fatima N.',
-    role: 'Educator',
+    title: 'You get the answer',
+    body: 'The reply comes back in your language, in text or in voice.',
   },
-];
+] as const;
+
+const CHANGA_STEPS = [
+  { title: 'Use Samiati', body: 'Ask in your language' },
+  { title: 'Spot a gap', body: 'A word it misses' },
+  { title: 'Add it on Changa', body: 'A few quick taps' },
+  { title: 'Better data', body: 'Checked by speakers' },
+  { title: 'Better Samiati', body: 'For everyone' },
+] as const;
+
+const PROMISES = [
+  {
+    title: 'Your chats stay yours',
+    body: 'You can delete your conversations at any time.',
+  },
+  {
+    title: 'Sharing is a choice',
+    body: 'Nothing is used to improve languages unless you opt in through Changa.',
+  },
+  {
+    title: 'Voice is handled with care',
+    body: 'You decide whether recordings can be used, and you can withdraw later.',
+  },
+  {
+    title: 'Built with communities',
+    body: 'Language speakers check and guide what goes into Samiati.',
+  },
+] as const;
+
 
 export default function Home() {
   return (
-    <main
-      id="main"
-      tabIndex={-1}
-      className="min-h-screen bg-background text-foreground antialiased"
-    >
-      <Navbar />
+    <>
+      {/* `#top` anchor target — the design's brand link and social placeholders
+          resolve here. Wraps the whole page so the jump lands at the very top. */}
+      <div id="top">
+        <main
+          id="main"
+          tabIndex={-1}
+          className="min-h-screen bg-background text-foreground antialiased"
+        >
+          <Navbar />
 
-      {/* Hero */}
-      <section id="home-hero" className="relative overflow-hidden">
-        <div className="absolute inset-0 -z-10">
-          <div className="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-primary/20 blur-3xl" />
-          <div className="absolute top-40 -left-40 h-96 w-96 rounded-full bg-rasta-red/10 blur-3xl" />
-        </div>
-        <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-32">
-          <div className="text-center space-y-8">
-            <SamiatiLogo size={80} variant="primary" className="mx-auto" />
-            <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl font-display">
-              Preserve. Share. Celebrate.
-              <span className="block text-gold">African Languages.</span>
-            </h1>
-            <p className="mx-auto max-w-2xl text-lg text-muted-foreground sm:text-xl">
-              Explore, learn, and contribute to African language preservation with AI-powered chat,
-              voice messages, and community challenges.
+          {/* Announcement */}
+          <div className="border-b border-border/50 bg-primary/10">
+            <p className="mx-auto max-w-7xl px-4 py-3 text-center text-sm text-foreground sm:px-6 lg:px-8">
+              Kikuyu and Kiswahili are live. More languages are coming.
             </p>
-            <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <HeroCta />
-              <Button variant="outline" size="lg" asChild>
-                <Link href="/pricing">See Pricing</Link>
-              </Button>
-            </div>
-            <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground sm:text-sm">
-              <span className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-gold" />
-                No credit card required
-              </span>
-              <span className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-gold" />
-                Free forever plan
-              </span>
-            </div>
-
-            {/* Product-updates capture, not a launch waitlist: the primary CTA
-                above is "Get Started Free", so a "join the waitlist for launch"
-                form underneath it was sending first-time visitors down two
-                competing paths. */}
-            <WaitlistForm
-              source="hero"
-              title="Get product updates"
-              description="Occasional emails when we add a new language or ship a feature. No spam."
-            />
           </div>
-        </div>
-      </section>
 
-      {/* Trust Strip */}
-      <section className="border-y border-border/50 bg-card/50">
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 gap-8 text-center sm:grid-cols-4">
-            {LANDING_STATS.map((stat) => (
-              <div key={stat.label}>
-                <p className="text-2xl font-bold text-gold sm:text-3xl">{stat.value}</p>
-                <p className="mt-1 text-xs text-muted-foreground sm:text-sm">{stat.label}</p>
+          {/* Hero + demo */}
+          <section className="relative overflow-hidden">
+            <div className="mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:items-center lg:gap-16 lg:px-8 lg:py-24">
+              <div className="space-y-6">
+                <h1 className="text-4xl font-extrabold leading-tight tracking-tight font-display sm:text-5xl lg:text-6xl">
+                  AI that speaks{' '}
+                  <em className="text-gold">Kikuyu</em>
+                  <span className="block">your language</span>
+                </h1>
+                <p className="max-w-xl text-lg text-muted-foreground">
+                  Speak or type the way you naturally do. Samiati answers in
+                  your language, so you never have to switch to English.
+                </p>
+                <TrackedCta
+                  href="#languages"
+                  location="hero"
+                  label="Explore languages"
+                  size="lg"
+                  className="min-h-11"
+                />
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      {/* Features */}
-      {/* `scroll-mt-16` offsets anchor jumps by the sticky navbar height so a
-          linked section's heading isn't hidden behind the header. */}
-      <section id="features" className="scroll-mt-16 py-20 sm:py-32">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center space-y-4">
-            <Badge variant="outline" className="border-gold/50 text-gold">
-              Features
-            </Badge>
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-display">
-              Everything you need to connect with your heritage
-            </h2>
-            <p className="mx-auto max-w-2xl text-muted-foreground">
-              From AI-powered conversations to community-driven challenges, Samiati gives you the
-              tools to learn, preserve, and share African languages.
-            </p>
-          </div>
-          <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map((feature) => (
-              <FeatureCard
-                key={feature.title}
-                icon={feature.icon}
-                title={feature.title}
-                description={feature.description}
-              />
-            ))}
-          </div>
-        </div>
-      </section>
+              {/* Interactive demo (#demo) */}
+              <div id="demo" className="scroll-mt-16">
+                <DemoChat
+                  phrases={{
+                    kikuyu: kikuyuPhrases,
+                    kiswahili: kiswahiliPhrases,
+                  }}
+                />
+              </div>
+            </div>
+          </section>
 
-      <Separator className="bg-border/50" />
+          {/* Languages picker */}
+          <section id="languages" className="scroll-mt-16 py-16 sm:py-24">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              <div className="mb-10 space-y-3">
+                <p className="text-xs font-bold uppercase tracking-widest text-gold">
+                  Languages
+                </p>
+                <h2 className="text-3xl font-bold tracking-tight font-display sm:text-4xl">
+                  Pick the language you live in.
+                </h2>
+              </div>
+              <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {pickerLanguages.map((lang) => (
+                  <li key={lang.slug}>
+                    <Link
+                      href={`/languages/${lang.slug}`}
+                      className="flex min-h-11 h-full flex-col gap-2 rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <span className="flex items-start justify-between gap-2">
+                        <span className="font-bold">{lang.name}</span>
+                        <Badge
+                          variant={lang.live ? 'default' : 'secondary'}
+                          className="shrink-0"
+                        >
+                          {lang.live ? 'Live' : 'Next'}
+                        </Badge>
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        {lang.nativeName !== lang.name
+                          ? `${lang.nativeName} · `
+                          : ''}
+                        {lang.tagline}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
 
-      {/* How It Works */}
-      <section id="how-it-works" className="py-20 sm:py-32">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center space-y-4">
-            <Badge variant="outline" className="border-gold/50 text-gold">
-              How It Works
-            </Badge>
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-display">
-              Start preserving languages in minutes
-            </h2>
-          </div>
-          <div className="mt-16 grid gap-8 sm:grid-cols-3">
-            {[
-              {
-                step: '1',
-                title: 'Create Your Account',
-                description:
-                  'Sign up for free and choose the African languages you want to explore and preserve.',
-              },
-              {
-                step: '2',
-                title: 'Choose Your Path',
-                description:
-                  'Chat with AI, record voice messages, read cultural stories, or join community challenges.',
-              },
-              {
-                step: '3',
-                title: 'Make an Impact',
-                description:
-                  "Contribute words, validate entries, and help build the world's most comprehensive African language platform.",
-              },
-            ].map((item) => (
-              <div key={item.step} className="relative text-center">
-                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-2xl font-bold text-gold">
-                  {item.step}
-                </div>
-                <h3 className="text-lg font-bold">{item.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                  {item.description}
+          {/* What you can do */}
+          <section className="border-t border-border/50 bg-card/30 py-16 sm:py-24">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              <div className="mb-10 space-y-3">
+                <p className="text-xs font-bold uppercase tracking-widest text-gold">
+                  What you can do
+                </p>
+                <h2 className="text-3xl font-bold tracking-tight font-display sm:text-4xl">
+                  Ask anything. In your words.
+                </h2>
+              </div>
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {CAPABILITIES.map((capability) => (
+                  <FeatureCard
+                    key={capability.title}
+                    icon={capability.icon}
+                    title={capability.title}
+                    description={capability.description}
+                  />
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* How it works */}
+          <section className="py-16 sm:py-24">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              <div className="mb-10 space-y-3">
+                <p className="text-xs font-bold uppercase tracking-widest text-gold">
+                  How it works
+                </p>
+                <h2 className="text-3xl font-bold tracking-tight font-display sm:text-4xl">
+                  You talk. Samiati does the rest.
+                </h2>
+                <p className="max-w-2xl text-muted-foreground">
+                  The technical part stays out of sight. You only see a
+                  conversation in your language.
                 </p>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
+              <ol className="grid gap-6 sm:grid-cols-3">
+                {HOW_STEPS.map((step, index) => (
+                  <li
+                    key={step.title}
+                    className="rounded-2xl border border-border bg-card p-6"
+                  >
+                    <span className="mb-4 flex size-10 items-center justify-center rounded-full bg-primary/10 text-lg font-bold text-gold">
+                      {index + 1}
+                    </span>
+                    <h3 className="text-lg font-bold">{step.title}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                      {step.body}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </section>
 
-      <Separator className="bg-border/50" />
+          {/* Why this matters */}
+          <section className="border-y border-border/50 bg-card/30 py-16 sm:py-24">
+            <div className="mx-auto max-w-4xl space-y-6 px-4 text-center sm:px-6 lg:px-8">
+              <p className="text-xs font-bold uppercase tracking-widest text-gold">
+                Why this matters
+              </p>
+              <p className="text-2xl font-semibold leading-relaxed tracking-tight font-display sm:text-3xl">
+                Millions of Africans think, work and dream in their own
+                languages. Most AI still expects English.
+              </p>
+              <p className="mx-auto max-w-2xl leading-relaxed text-muted-foreground">
+                Samiati exists so that you never have to change how you speak
+                to use modern AI. It is built with the people who speak these
+                languages, starting in Kenya and growing across Africa.
+              </p>
+            </div>
+          </section>
 
-      {/* Pricing Preview */}
-      <section id="pricing" className="scroll-mt-16 py-20 sm:py-32">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center space-y-4">
-            <Badge variant="outline" className="border-gold/50 text-gold">
-              Pricing
-            </Badge>
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-display">
-              Simple, transparent pricing
-            </h2>
-            <p className="mx-auto max-w-2xl text-muted-foreground">
-              Choose the plan that fits your language learning journey. Start free and upgrade when
-              you are ready.
-            </p>
-          </div>
-          {/* Exactly 3 landing plans: stepping to 3 columns at `lg` left the
-              third card orphaned on its own row across the whole 640–1023px
-              range. `md` keeps 2-up only for the narrow 640–767px band.
+          {/* Language strength */}
+          <section className="py-16 sm:py-24">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              <div className="mb-10 space-y-3">
+                <p className="text-xs font-bold uppercase tracking-widest text-gold">
+                  Language strength
+                </p>
+                <h2 className="text-3xl font-bold tracking-tight font-display sm:text-4xl">
+                  How well does AI know your language today?
+                </h2>
+                <p className="max-w-2xl text-muted-foreground">
+                  Tap a point. Add a contribution. Watch it grow.
+                </p>
+              </div>
 
-              This previously re-implemented the pricing card inline (including
-              its own hand-rolled checkmark svg), which drifted from the
-              /pricing page. It now renders the shared <PricingCard>, so the two
-              surfaces stay identical; ctaLocation keeps the CTA instrumented. */}
-          <div className="mt-16 grid gap-6 sm:grid-cols-2 md:grid-cols-3">
-            {LANDING_PLANS.map((plan) => (
-              <PricingCard
-                key={plan.title}
-                title={plan.title}
-                price={plan.price}
-                priceSuffix={plan.priceSuffix}
-                description={plan.description}
-                features={plan.features}
-                cta={plan.cta}
-                popular={plan.popular}
-                href={plan.href}
-                ctaLocation="pricing"
+              <LanguageStrength />
+
+              <div className="mt-8 grid gap-6 sm:grid-cols-3">
+                <div className="rounded-2xl border border-border bg-card p-6">
+                  <p className="text-3xl font-extrabold text-gold">
+                    {LIVE_LANGUAGE_COUNT} live
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Kikuyu and Kiswahili
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-border bg-card p-6">
+                  <p className="text-3xl font-extrabold text-gold">
+                    {NEXT_LANGUAGE_COUNT} next
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Planned with their communities
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-dashed border-border bg-card/50 p-6">
+                  <p className="text-3xl font-extrabold text-muted-foreground">
+                    Your story
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Community stories and live numbers will appear here.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Changa */}
+          <section id="changa" className="scroll-mt-16 border-t border-border/50 bg-card/30 py-16 sm:py-24">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              <div className="mb-10 space-y-3">
+                <p className="text-xs font-bold uppercase tracking-widest text-gold">
+                  Changa
+                </p>
+                <h2 className="text-3xl font-bold tracking-tight font-display sm:text-4xl">
+                  Help your language grow.
+                </h2>
+                <p className="max-w-2xl text-muted-foreground">
+                  Every contribution is checked by speakers before it counts.
+                  Start on Changa in seconds.
+                </p>
+              </div>
+              <ol className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
+                {CHANGA_STEPS.map((step, index) => (
+                  <li
+                    key={step.title}
+                    className="rounded-2xl border border-border bg-card p-6"
+                  >
+                    <span className="mb-4 flex size-10 items-center justify-center rounded-full bg-primary/10 text-lg font-bold text-gold">
+                      {index + 1}
+                    </span>
+                    <h3 className="text-lg font-bold">{step.title}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                      {step.body}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+              <div className="mt-8">
+                <TrackedCta
+                  href="/dashboard/changa"
+                  location="changa"
+                  label="Open Changa"
+                  size="lg"
+                  className="min-h-11"
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Promises */}
+          <section className="border-t border-border/50 py-16 sm:py-24">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              <div className="mb-10 space-y-3">
+                <p className="text-xs font-bold uppercase tracking-widest text-gold">
+                  Promises
+                </p>
+                <h2 className="text-3xl font-bold tracking-tight font-display sm:text-4xl">
+                  Your language. Your terms.
+                </h2>
+              </div>
+              <div className="grid gap-6 sm:grid-cols-2">
+                {PROMISES.map((promise) => (
+                  <div
+                    key={promise.title}
+                    className="rounded-2xl border border-border bg-card p-6"
+                  >
+                    <h3 className="text-lg font-bold">{promise.title}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                      {promise.body}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Pricing preview */}
+          <section id="pricing" className="scroll-mt-16 border-t border-border/50 bg-card/30 py-16 sm:py-24">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              <div className="mb-10 space-y-3 text-center">
+                <p className="text-xs font-bold uppercase tracking-widest text-gold">
+                  Pricing
+                </p>
+                <h2 className="text-3xl font-bold tracking-tight font-display sm:text-4xl">
+                  Start free. Grow when ready.
+                </h2>
+              </div>
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                {PLANS.map((plan) => (
+                  <PricingCard
+                    key={plan.title}
+                    title={plan.title}
+                    price={plan.price}
+                    priceSuffix={plan.priceSuffix}
+                    description={plan.description}
+                    features={[...plan.features]}
+                    cta={plan.cta}
+                    popular={plan.popular}
+                    href={plan.href}
+                    ctaLocation="landing"
+                  />
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* FAQ */}
+          <section id="faq" className="scroll-mt-16 py-16 sm:py-24">
+            <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+              <div className="mb-10 space-y-3 text-center">
+                <p className="text-xs font-bold uppercase tracking-widest text-gold">
+                  FAQ
+                </p>
+                <h2 className="text-3xl font-bold tracking-tight font-display sm:text-4xl">
+                  Questions, answered.
+                </h2>
+              </div>
+              <FAQAccordion items={faqs} />
+              <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{
+                  __html: JSON.stringify({
+                    '@context': 'https://schema.org',
+                    '@type': 'FAQPage',
+                    mainEntity: faqs.map((faq) => ({
+                      '@type': 'Question',
+                      name: faq.question,
+                      acceptedAnswer: {
+                        '@type': 'Answer',
+                        text: faq.answer,
+                      },
+                    })),
+                  }),
+                }}
               />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <Separator className="bg-border/50" />
-
-      {/* Testimonials */}
-      <section id="testimonials" className="py-20 sm:py-32">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center space-y-4">
-            <Badge variant="outline" className="border-gold/50 text-gold">
-              Testimonials
-            </Badge>
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-display">
-              Loved by language enthusiasts
-            </h2>
-          </div>
-          {/* 3 testimonials — see the pricing grid note: 3 columns start at
-              `md` so the last card isn't orphaned across the sm range. */}
-          <div className="mt-16 grid gap-6 sm:grid-cols-2 md:grid-cols-3">
-            {testimonials.map((item) => (
-              <TestimonialCard
-                key={item.name}
-                quote={item.quote}
-                name={item.name}
-                role={item.role}
-              />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <Separator className="bg-border/50" />
-
-      {/* FAQ */}
-      <section id="faq" className="scroll-mt-16 py-20 sm:py-32">
-        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center space-y-4">
-            <Badge variant="outline" className="border-gold/50 text-gold">
-              FAQ
-            </Badge>
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-display">
-              Frequently asked questions
-            </h2>
-          </div>
-          <div className="mt-12">
-            <FAQAccordion items={faqs} />
-          </div>
-        </div>
-      </section>
-
-      {/* Final CTA */}
-      <section className="py-20 sm:py-32">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <div className="rounded-3xl border border-border bg-card p-8 text-center sm:p-12">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-display">
-              Ready to explore your culture?
-            </h2>
-            <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
-              Join thousands of learners preserving African languages, one word at a time.
-            </p>
-            <div className="mt-8">
-              <HeroCta location="final-cta" label="Get Started Free" />
             </div>
-          </div>
-        </div>
-      </section>
+          </section>
 
-      {/* Footer */}
-      <footer className="border-t border-border/50 bg-card/30">
-        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-          <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
-            <div className="flex items-center gap-2">
-              <SamiatiLogo size={32} variant="primary" />
+          {/* Final CTA */}
+          <section className="border-t border-border/50 bg-card/30 py-16 sm:py-24">
+            <div className="mx-auto max-w-4xl space-y-6 px-4 text-center sm:px-6 lg:px-8">
+              <h2 className="text-3xl font-bold tracking-tight font-display sm:text-4xl">
+                Your language belongs in AI.
+              </h2>
+              <p className="mx-auto max-w-2xl text-muted-foreground">
+                Join free today and help build technology that speaks like you do.
+              </p>
+              <HeroCta location="final-cta" />
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
-              <Link href="/languages" className="hover:text-foreground transition-colors">
-                Languages
-              </Link>
-              <Link href="/pricing" className="hover:text-foreground transition-colors">
-                Pricing
-              </Link>
-              <Link href="/faq" className="hover:text-foreground transition-colors">
-                FAQ
-              </Link>
-              <Link href="/about" className="hover:text-foreground transition-colors">
-                About
-              </Link>
-              <Link href="/terms" className="hover:text-foreground transition-colors">
-                Terms of Service
-              </Link>
-              <Link href="/privacy" className="hover:text-foreground transition-colors">
-                Privacy Policy
-              </Link>
-              <CookieSettingsLink className="hover:text-foreground transition-colors" />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} Samiati. All rights reserved.
-            </p>
-          </div>
-        </div>
-      </footer>
+          </section>
 
-      {/* ------------------------------------------------------------------
-          Structured data. The homepage previously emitted none, while
-          not-found.tsx already used this exact pattern — so the FAQ section
-          was invisible to rich results. Built from the same `faqs` array the
-          accordion renders, so schema and visible copy cannot drift.
-          `<` is escaped to prevent a `</script>` break-out from any
-          future user-supplied copy.
-      ------------------------------------------------------------------ */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            '@context': 'https://schema.org',
-            '@graph': [
-              {
-                '@type': 'Organization',
-                '@id': `${SITE_URL}/#organization`,
-                name: SITE_NAME,
-                url: SITE_URL,
-                description: SITE_DESCRIPTION,
-                logo: `${SITE_URL}/samiati-logo.svg`,
-              },
-              {
-                '@type': 'WebSite',
-                '@id': `${SITE_URL}/#website`,
-                name: SITE_NAME,
-                url: SITE_URL,
-                description: SITE_DESCRIPTION,
-                publisher: { '@id': `${SITE_URL}/#organization` },
-                inLanguage: 'en',
-              },
-              {
-                '@type': 'SoftwareApplication',
-                name: SITE_NAME,
-                url: SITE_URL,
-                applicationCategory: 'EducationalApplication',
-                operatingSystem: 'Web',
-                offers: {
-                  '@type': 'Offer',
-                  price: '0',
-                  priceCurrency: 'USD',
-                },
-              },
-              {
-                '@type': 'FAQPage',
-                '@id': `${SITE_URL}/#faq`,
-                mainEntity: faqs.map((f) => ({
-                  '@type': 'Question',
-                  name: f.question,
-                  acceptedAnswer: { '@type': 'Answer', text: f.answer },
-                })),
-              },
-            ],
-          }).replace(/</g, '\\u003c'),
-        }}
-      />
-    </main>
+          {/* Footer */}
+          <footer className="border-t border-border/50 py-10">
+            <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 px-4 sm:px-6 lg:flex-row lg:px-8">
+              <Link href="#top" className="flex items-center" aria-label={`${SITE_NAME} home`}>
+                <SamiatiLogo size={32} variant="primary" />
+              </Link>
+              <p className="text-sm text-muted-foreground">
+                {SITE_NAME} — {SITE_DESCRIPTION}
+              </p>
+              <div className="flex items-center gap-4 text-sm">
+                <Link href="/about" className="text-muted-foreground hover:text-foreground">
+                  About
+                </Link>
+                <Link href="/pricing" className="text-muted-foreground hover:text-foreground">
+                  Pricing
+                </Link>
+                <Link href="/faq" className="text-muted-foreground hover:text-foreground">
+                  FAQ
+                </Link>
+                <CookieSettingsLink />
+              </div>
+            </div>
+          </footer>
+        </main>
+      </div>
+    </>
   );
 }
+
+

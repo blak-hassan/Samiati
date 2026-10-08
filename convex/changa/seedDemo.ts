@@ -1171,6 +1171,69 @@ export const seedDemoData = internalMutation({
             });
         }
 
+        // 20. Community surface (prototype revamp): word of the day, per-language
+        // goal, and regions needing more voices. Idempotent on re-runs: skip rows
+        // that already exist via their unique indexes.
+        const todayIso = new Date(now).toISOString().slice(0, 10);
+        const existingWord = await ctx.db
+            .query("changaWordOfTheDay")
+            .withIndex("by_language_date", (q) =>
+                q.eq("languageCode", "ki").eq("date", todayIso),
+            )
+            .first();
+        if (!existingWord) {
+            await chokepoint.insertWordOfTheDay(ctx, {
+                languageCode: "ki",
+                word: "Mũgumo",
+                meaning: "A sacred fig tree",
+                partOfSpeech: "noun",
+                example: "Mũgumo nĩ mũtĩ mũtheru.",
+                date: todayIso,
+                createdBy: wanjiku._id,
+                createdAt: now,
+            });
+        }
+
+        const existingGoal = await ctx.db
+            .query("changaLanguageGoals")
+            .withIndex("by_language", (q) => q.eq("languageCode", "ki"))
+            .first();
+        if (!existingGoal) {
+            await chokepoint.insertLanguageGoal(ctx, {
+                languageCode: "ki",
+                targetSentences: 100_000,
+                translationTarget: 60_000,
+                voiceTarget: 25_000,
+                vocabularyTarget: 100_000,
+                validationTarget: 5_000,
+                updatedAt: now,
+            });
+        }
+
+        const communityRegions = [
+            { region: "Kiambu", contributions: 120, target: 500 },
+            { region: "Murang'a", contributions: 210, target: 500 },
+            { region: "Nyeri", contributions: 340, target: 500 },
+            { region: "Kirinyaga", contributions: 90, target: 500 },
+        ];
+        for (const communityRegion of communityRegions) {
+            const existingRegion = await ctx.db
+                .query("changaRegionVoices")
+                .withIndex("by_language_region", (q) =>
+                    q.eq("languageCode", "ki").eq("region", communityRegion.region),
+                )
+                .first();
+            if (!existingRegion) {
+                await chokepoint.insertRegionVoices(ctx, {
+                    languageCode: "ki",
+                    region: communityRegion.region,
+                    contributions: communityRegion.contributions,
+                    target: communityRegion.target,
+                    updatedAt: now,
+                });
+            }
+        }
+
         return {
             success: true as const,
             campaignsWithData: DEMO_CAMPAIGNS.length,
@@ -1190,6 +1253,9 @@ export const seedDemoData = internalMutation({
             moderationDecisions: 2,
             documents: DEMO_DOCUMENTS.length,
             documentEntries: DEMO_DOCUMENTS.reduce((sum, d) => sum + d.entries.length, 0),
+            communityWords: 1,
+            communityGoals: 1,
+            communityRegions: communityRegions.length,
         };
     },
 });
@@ -1268,6 +1334,9 @@ export const demoSeedStatus = internalQuery({
             moderationDecisions: decisions.length,
             documents: documents.length,
             documentEntries: docEntries.length,
+            communityWords: (await ctx.db.query("changaWordOfTheDay").collect()).length,
+            communityGoals: (await ctx.db.query("changaLanguageGoals").collect()).length,
+            communityRegions: (await ctx.db.query("changaRegionVoices").collect()).length,
         };
     },
 });

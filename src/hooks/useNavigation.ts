@@ -97,6 +97,7 @@ export const useNavigation = () => {
             case Screen.TERMS_OF_SERVICE: go("/terms" + queryString); break;
             case Screen.PRIVACY_POLICY: go("/privacy" + queryString); break;
             case Screen.CHANGA: go("/dashboard/changa" + queryString); break;
+            case Screen.CHANGA_COMMUNITY: go("/dashboard/changa-community" + queryString); break;
             case Screen.CHANGA_CAMPAIGNS: go("/dashboard/changa-campaigns" + queryString); break;
             case Screen.REPORT_MODAL: go("/dashboard/report-modal" + queryString); break;
             case Screen.SOCIAL_AUTH_REDIRECT: go("/auth/social-auth-redirect" + queryString); break;

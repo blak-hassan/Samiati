@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle2, Flag, Languages, Loader2, ShieldAlert, Wrench, XCircle } from "lucide-react";
+import { SwipeVoteDeck } from "@/components/changa/SwipeVoteDeck";
 
 const REJECT_CODES: Array<{ code: "duplicate" | "unsafe" | "unclear_audio" | "wrong_language"; label: string }> = [
     { code: "duplicate", label: "Duplicate" },
@@ -170,6 +171,14 @@ export default function ValidationRunner({ languageCode, goBack }: ValidationRun
 
                 {current && bundle ? (
                     <div className="space-y-5">
+                    <p className="text-center text-xs text-muted-foreground">
+                        Swipe right if correct, left if it needs fixing, or use the buttons.
+                    </p>
+                    <SwipeVoteDeck
+                        onSwipeRight={() => handleVote("accept")}
+                        onSwipeLeft={() => handleVote("minor_fix")}
+                        disabled={isVoting}
+                    >
                     <Card className="space-y-4 p-5 sm:p-6">
                         <div className="flex flex-wrap items-center gap-2 text-xs">
                             <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1">
@@ -256,6 +265,7 @@ export default function ValidationRunner({ languageCode, goBack }: ValidationRun
                             </div>
                         )}
                     </Card>
+                    </SwipeVoteDeck>
 
                     <div className="grid grid-cols-2 gap-3">
                         <Button

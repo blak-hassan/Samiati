@@ -1,7 +1,34 @@
 
 import { useState } from 'react';
-import { NavigateFn, ChallengeType, InputType, ChallengeInputField } from '@/types';
-import { useAppUser } from '@/hooks/useAppUser';
+import { NavigateFn, ChallengeType } from '@/types';
+import { useChangaMutation as useMutation } from '@/hooks/useChangaData';
+import { api } from '../../../convex/_generated/api';
+import { changaTaskTypeValues } from '../../../convex/changa/validators';
+
+type ChangaTaskType = typeof changaTaskTypeValues[number];
+
+const TYPE_MAP: Record<string, ChangaTaskType[]> = {
+    VOICE: ['audio_reading'],
+    WORDS: ['lexicon_entry'],
+    TRANSLATE: ['sentence_translation'],
+    CUSTOM: ['lexicon_entry'],
+    LEGACY_ACCENT: ['audio_reading'],
+    LEGACY_DIALECT: ['dialect_mapping'],
+    LEGACY_ALPHABET: ['lexicon_entry'],
+    LEGACY_TOTEM: ['cultural_context'],
+};
+
+const DEMO_REGIONS = [
+    'Kiambu',
+    "Murang'a",
+    'Nyeri',
+    'Kirinyaga',
+    'Nairobi',
+    'Nakuru',
+    'Kisumu',
+    'Mombasa',
+    'Eldoret',
+] as const;
 
 interface Props {
   navigate: NavigateFn;
@@ -10,51 +37,68 @@ interface Props {
   isSubmitting?: boolean;
 }
 
-const TEMPLATE_PRESETS: Record<string, { goalCount: number; description: string; inputSchema: ChallengeInputField[] }> = {
+// ---------------------------------------------------------------------------
+// Prototype-aligned challenge kinds ("What kind of challenge?"). The four
+// legacy studio types (accent / dialect / alphabet / totem) are kept in the
+// submit path via TYPE_MAP so saved templates still resolve, but the picker
+// itself speaks the prototype language: voice, words, translation.
+// ---------------------------------------------------------------------------
+const CHALLENGE_KINDS = [
+    { kind: 'VOICE', label: 'Voice recordings', desc: 'Collect audio from speakers in different regions.', icon: 'mic' },
+    { kind: 'WORDS', label: 'Words & vocabulary', desc: 'Grow the word list for your language.', icon: 'spellcheck' },
+    { kind: 'TRANSLATE', label: 'Translations', desc: 'Translate sentences so everyone can use them.', icon: 'translate' },
+] as const;
+
+type ChallengeKind = typeof CHALLENGE_KINDS[number]['kind'];
+
+const TEMPLATE_PRESETS: Record<string, { goalCount: number; description: string }> = {
+    VOICE: {
+        goalCount: 50,
+        description: 'Collect audio recordings of local accents from different regions. Each contributor records a set of standard phrases to capture phonetic variations.',
+    },
+    WORDS: {
+        goalCount: 40,
+        description: 'Add new words with a short meaning and an example sentence so reviewers can check them.',
+    },
+    TRANSLATE: {
+        goalCount: 30,
+        description: 'Translate everyday sentences so the language works in technology, school and daily life.',
+    },
     ACCENT: {
         goalCount: 50,
         description: 'Collect audio recordings of local accents from different regions. Each contributor records a set of standard phrases to capture phonetic variations.',
-        inputSchema: [{ id: '1', type: 'AUDIO', label: 'Audio Recording', required: true }],
     },
     DIALECT: {
         goalCount: 30,
         description: 'Pin specific dialect variations on a map. Contributors identify where certain words or pronunciations are used.',
-        inputSchema: [{ id: '1', type: 'LOCATION', label: 'Location Pin', required: true }],
     },
     ALPHABET: {
         goalCount: 40,
         description: 'Document characters and symbols from traditional or emerging writing systems. Include Unicode values and names where possible.',
-        inputSchema: [{ id: '1', type: 'IMAGE', label: 'Symbol Reference', required: true }, { id: '2', type: 'TEXT', label: 'Character Name', required: true }],
     },
     TOTEM: {
         goalCount: 20,
         description: 'Archive photos and histories of cultural totems. Each entry includes an image and the story behind it.',
-        inputSchema: [{ id: '1', type: 'IMAGE', label: 'Totem Photo', required: true }, { id: '2', type: 'TEXT', label: 'Totem Name', required: true }],
     },
 };
 
-const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting }) => {
-  const { addChallenge } = useAppUser();
+const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting: propSubmitting }) => {
+  const submitProposal = useMutation(api.changa.campaigns.submitCampaignProposal);
   const [step, setStep] = useState(1);
+  const [selectedKind, setSelectedKind] = useState<ChallengeKind | null>(null);
   const [selectedType, setSelectedType] = useState<ChallengeType | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     goalCount: 50,
-    deadline: '7 Days',
-    invitees: [] as string[],
     goalDescription: '',
-    inputSchema: [
-      { id: '1', type: 'AUDIO', label: 'Audio Recording', required: true }
-    ] as ChallengeInputField[]
+    region: '',
+    whyItMatters: '',
+    inviteNote: '',
+    languageCode: 'ki',
   });
   const [customMission, setCustomMission] = useState('');
-
-  const [squad, setSquad] = useState([
-    { name: 'Wanjiku M.', avatar: 'WM', selected: true },
-    { name: 'Ochieng J.', avatar: 'OJ', selected: false },
-    { name: 'Kamau K.', avatar: 'KK', selected: true },
-    { name: 'Aisha S.', avatar: 'AS', selected: false },
-  ]);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [proposalId, setProposalId] = useState<string | null>(null);
 
   const [suggestions, setSuggestions] = useState([
     { name: 'Dr. Ali', avatar: 'DA', role: 'Linguist' },
@@ -64,29 +108,33 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
   ]);
 
   const handleAddToSquad = (user: typeof suggestions[0]) => {
-    setSquad([...squad, { ...user, selected: true }]);
     setSuggestions(suggestions.filter(s => s.name !== user.name));
   };
 
   const handleNext = () => setStep(s => s + 1);
-  const handleBack = () => setStep(s => s - 1);
+  const handleBack = () => { setSubmitError(null); setStep(s => s - 1); };
 
-  const PROJECT_TYPES: { type: ChallengeType; label: string; icon: string; desc: string; color: string }[] = [
-    { type: 'ACCENT', label: 'Accent Preservation', icon: 'mic', desc: 'Collect audio recordings of local accents.', color: 'bg-red-500' },
-    { type: 'DIALECT', label: 'Dialect Mapping', icon: 'map', desc: 'Pin specific dialect variations on a map.', color: 'bg-green-600' },
-    { type: 'ALPHABET', label: 'Alphabet Creation', icon: 'border_color', desc: 'Design or document scripts/symbols.', color: 'bg-blue-600' },
-    { type: 'TOTEM', label: 'Totem Registry', icon: 'photo_camera', desc: 'Archive photos and histories of totems.', color: 'bg-amber-600' },
-  ];
+  // Legacy studio labels (kept only as a fallback title source; the picker
+  // itself now uses CHALLENGE_KINDS above).
 
-  const handleTypeSelect = (type: ChallengeType) => {
-    setSelectedType(type);
-    const preset = TEMPLATE_PRESETS[type];
+  const LEGACY_LABELS: Record<string, string> = {
+    ACCENT: 'Accent Preservation',
+    DIALECT: 'Dialect Mapping',
+    ALPHABET: 'Alphabet Creation',
+    TOTEM: 'Totem Registry',
+  };
+
+  const handleKindSelect = (kind: ChallengeKind) => {
+    setSelectedKind(kind);
+    // Keep the legacy `selectedType` in sync so the preview + completion
+    // math keep working; kinds map 1:1 onto the studio template presets.
+    setSelectedType(kind as unknown as ChallengeType);
+    const preset = TEMPLATE_PRESETS[kind];
     if (preset) {
         setFormData(prev => ({
             ...prev,
             goalCount: preset.goalCount,
             goalDescription: preset.description,
-            inputSchema: preset.inputSchema.map(s => ({ ...s, id: Math.random().toString(36).substr(2, 9) })),
         }));
     }
     handleNext();
@@ -94,6 +142,7 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
 
   const handleCustomTypeSelect = () => {
     if (!customMission.trim()) return;
+    setSelectedKind(null);
     setSelectedType('CUSTOM');
     setFormData(prev => ({ ...prev, title: customMission }));
     handleNext();
@@ -102,19 +151,79 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
   const getChallengeTitle = () => {
     if (formData.title.trim()) return formData.title.trim();
     if (customMission.trim()) return customMission.trim();
-    const projectType = PROJECT_TYPES.find((project) => project.type === selectedType);
-    return projectType ? projectType.label : 'New Project';
+    const kind = CHALLENGE_KINDS.find((entry) => entry.kind === selectedKind);
+    if (kind) return kind.label;
+    if (selectedType && LEGACY_LABELS[selectedType as string]) {
+      return LEGACY_LABELS[selectedType as string];
+    }
+    return 'New Project';
   };
+
+  const canSubmitStep2 =
+    formData.title.trim().length > 0 &&
+    formData.goalCount > 0 &&
+    formData.region.trim().length > 0;
 
     const completionPercent = (() => {
     let filled = 0;
     const total = 4;
-    if (selectedType) filled++;
+    if (selectedKind || selectedType) filled++;
     if (formData.title.trim() || customMission.trim()) filled++;
+    if (formData.region.trim()) filled++;
     if (formData.goalDescription.trim()) filled++;
-    if (formData.inputSchema.length > 0) filled++;
     return Math.round((filled / total) * 100);
   })();
+
+  // Submits the prototype form as a campaign proposal so a moderator reviews
+  // it before anything goes live ("A moderator checks it before it goes
+  // live."). Falls back to the legacy direct-create path only when the
+  // caller passed `onLaunch` (the /dashboard/add-challenge route) or when
+  // offline demo mode returns a mock id.
+  const [localSubmitting, setLocalSubmitting] = useState(false);
+  const submitting = propSubmitting ?? localSubmitting;
+
+  const handleLaunchChallenge = async () => {
+    if (!canSubmitStep2 || submitting) return;
+    setSubmitError(null);
+    const title = getChallengeTitle();
+    const kindKey = selectedKind ?? (selectedType as string | null) ?? 'CUSTOM';
+    const taskTypes = TYPE_MAP[kindKey] ?? ['lexicon_entry'];
+    const inviteLine = formData.inviteNote.trim()
+      ? `\n\nWho should we ask to join: ${formData.inviteNote.trim()}`
+      : '';
+    const regionLine = formData.region.trim()
+      ? `\n\nRegion: ${formData.region.trim()}`
+      : '';
+    const description = `${formData.goalDescription.trim() || `A collaborative ${title.toLowerCase()} challenge.`}${regionLine}${inviteLine}`;
+
+    if (onLaunch) {
+      await onLaunch({
+        title,
+        description,
+        type: (selectedType ?? 'CUSTOM') as ChallengeType,
+        goalCount: formData.goalCount,
+      });
+      return;
+    }
+
+    setLocalSubmitting(true);
+    try {
+      const id = await submitProposal({
+        title,
+        description,
+        languageCode: formData.languageCode,
+        taskTypes,
+        goalCount: formData.goalCount,
+        rationale: formData.whyItMatters.trim() || undefined,
+      });
+      setProposalId(String(id ?? ''));
+      setStep(3);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Could not submit your challenge. Please try again.');
+    } finally {
+      setLocalSubmitting(false);
+    }
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-[#FAF9F6] dark:bg-[#2b1e19] text-stone-900 dark:text-white transition-colors duration-300 font-display">
@@ -124,7 +233,7 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
         <div className="flex-1 text-center">
-          <h1 className="text-lg font-bold">Start a Movement</h1>
+          <h1 className="text-lg font-bold">Start a challenge</h1>
           <div className="flex justify-center gap-1 mt-1">
             {[1, 2].map(i => (
               <div key={i} className={`h-1 w-12 rounded-full transition-colors ${step >= i ? 'bg-brand-accent' : 'bg-stone-200 dark:bg-white/10'}`} />
@@ -139,27 +248,27 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
         {/* Main Form */}
         <main className="flex-1 p-6 pb-32 overflow-y-auto">
 
-          {/* STEP 1: CHOOSE TYPE */}
+          {/* STEP 1: WHAT KIND */}
           {step === 1 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="text-center space-y-2 mb-8">
-                <h2 className="text-2xl font-extrabold text-stone-900 dark:text-white">Choose Your Mission</h2>
-                <p className="text-stone-500 dark:text-[#A8A29E]">What part of heritage needs saving today?</p>
+                <h2 className="text-2xl font-extrabold text-stone-900 dark:text-white">What kind of challenge?</h2>
+                <p className="text-stone-500 dark:text-[#A8A29E]">Rally your community around something your language needs. A moderator checks it before it goes live.</p>
               </div>
 
               <div className="grid grid-cols-1 gap-4">
-                {PROJECT_TYPES.map((t) => (
+                {CHALLENGE_KINDS.map((entry) => (
                   <button
-                    key={t.type}
-                    onClick={() => handleTypeSelect(t.type)}
+                    key={entry.kind}
+                    onClick={() => handleKindSelect(entry.kind)}
                     className="relative group overflow-hidden bg-white dark:bg-[#42342b] border border-stone-200 dark:border-white/5 p-6 rounded-2xl flex items-center gap-5 hover:border-brand-accent hover:shadow-lg transition-all text-left"
                   >
-                    <div className={`w-14 h-14 rounded-full ${t.color} bg-opacity-10 flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                      <span className={`material-symbols-outlined text-2xl ${t.color.replace('bg-', 'text-')}`}>{t.icon}</span>
+                    <div className="w-14 h-14 rounded-full bg-brand-accent/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <span className="material-symbols-outlined text-2xl text-brand-accent">{entry.icon}</span>
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-bold text-lg text-stone-900 dark:text-white group-hover:text-brand-accent transition-colors">{t.label}</h3>
-                      <p className="text-sm text-stone-500 dark:text-[#A8A29E] leading-relaxed">{t.desc}</p>
+                      <h3 className="font-bold text-lg text-stone-900 dark:text-white group-hover:text-brand-accent transition-colors">{entry.label}</h3>
+                      <p className="text-sm text-stone-500 dark:text-[#A8A29E] leading-relaxed">{entry.desc}</p>
                     </div>
                     <span className="material-symbols-outlined text-stone-300 group-hover:text-brand-accent transition-colors">chevron_right</span>
                   </button>
@@ -179,7 +288,7 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="Name your mission (e.g. Digital Museum)"
+                  placeholder="Name your challenge (e.g. Nyeri accent week)"
                   className="flex-1 bg-white dark:bg-[#42342b] border border-stone-200 dark:border-white/10 rounded-xl p-4 text-stone-900 dark:text-white focus:border-brand-accent outline-none transition-colors"
                   value={customMission}
                   onChange={(e) => setCustomMission(e.target.value)}
@@ -200,17 +309,17 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
             </div>
           )}
 
-          {/* STEP 2: CONFIGURE */}
+          {/* STEP 2: DETAILS (prototype spec) */}
           {step === 2 && (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="text-center space-y-2 mb-4">
-                <h2 className="text-2xl font-extrabold text-stone-900 dark:text-white">Configure Your Mission</h2>
-                <p className="text-stone-500 dark:text-[#A8A29E]">Define goals, requirements, and team.</p>
+                <h2 className="text-2xl font-extrabold text-stone-900 dark:text-white">Tell us about it</h2>
+                <p className="text-stone-500 dark:text-[#A8A29E]">A moderator checks it before it goes live.</p>
               </div>
 
-              {/* Title */}
+              {/* Give it a name */}
               <div>
-                <label className="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">Mission Title</label>
+                <label className="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">Give it a name</label>
                 <input
                   type="text"
                   value={formData.title}
@@ -221,20 +330,24 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
               </div>
 
               <div className="space-y-6">
-                {/* Goal Description */}
+                {/* Which region? */}
                 <div>
-                  <label className="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">Goal Description</label>
-                  <textarea
-                    value={formData.goalDescription}
-                    onChange={(e) => setFormData({ ...formData, goalDescription: e.target.value })}
-                    placeholder="Describe what success looks like (e.g. We need 50 recordings of the elders in the village...)"
-                    className="w-full bg-white dark:bg-[#42342b] border-2 border-stone-200 dark:border-white/10 rounded-xl p-4 font-medium text-lg text-stone-900 dark:text-white placeholder-stone-300 focus:border-brand-accent outline-none transition-colors min-h-[120px] resize-y"
-                  />
+                  <label className="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">Which region?</label>
+                  <select
+                    value={formData.region}
+                    onChange={(e) => setFormData({ ...formData, region: e.target.value })}
+                    className="w-full bg-white dark:bg-[#42342b] border-2 border-stone-200 dark:border-white/10 rounded-xl p-4 font-bold text-stone-900 dark:text-white focus:border-brand-accent outline-none transition-colors"
+                  >
+                    <option value="">Choose a region</option>
+                    {DEMO_REGIONS.map((region) => (
+                      <option key={region} value={region}>{region}</option>
+                    ))}
+                  </select>
                 </div>
 
-                {/* Goal Count */}
+                {/* Goal */}
                 <div>
-                  <label className="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">Target Goal</label>
+                  <label className="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">Goal</label>
                   <div className="flex items-center gap-4">
                     <input
                       type="range"
@@ -250,132 +363,55 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
                   <p className="text-xs text-stone-400 mt-1">Estimated time: ~{Math.ceil(formData.goalCount / 5)} days at 5 contributions/day</p>
                 </div>
 
-                {/* Submission Inputs Builder */}
+                {/* Why does it matter? (optional) */}
                 <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <label className="block text-sm font-bold text-stone-700 dark:text-stone-300">Submission Requirements</label>
-                    <span className="text-xs font-bold text-stone-400 uppercase tracking-widest">What creators submit</span>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-bold text-stone-700 dark:text-stone-300">Why does it matter?</label>
+                    <span className="text-xs text-stone-400">Optional</span>
                   </div>
-
-                  <div className="space-y-3">
-                    {formData.inputSchema.map((input, index) => (
-                      <div key={input.id} className="bg-white dark:bg-[#42342b] border border-stone-200 dark:border-white/10 p-4 rounded-xl flex items-center gap-4 group">
-                        <div className="w-10 h-10 rounded-full bg-stone-100 dark:bg-white/5 flex items-center justify-center text-stone-500">
-                          <span className="material-symbols-outlined">
-                            {input.type === 'AUDIO' ? 'mic' :
-                              input.type === 'VIDEO' ? 'videocam' :
-                                input.type === 'IMAGE' ? 'image' :
-                                  input.type === 'LOCATION' ? 'location_on' : 'text_fields'}
-                          </span>
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <input
-                              value={input.label}
-                              onChange={(e) => {
-                                const newSchema = [...formData.inputSchema];
-                                newSchema[index].label = e.target.value;
-                                setFormData({ ...formData, inputSchema: newSchema });
-                              }}
-                              className="font-bold text-stone-900 dark:text-white bg-transparent outline-none focus:underline decoration-brand-accent"
-                            />
-                            <span className="material-symbols-outlined text-stone-300 text-sm cursor-help" title="Click to rename">edit</span>
-                          </div>
-                          <div className="text-xs text-stone-400 font-medium flex gap-2">
-                            <span>{input.type}</span>
-                            <span>•</span>
-                            <button
-                              onClick={() => {
-                                const newSchema = [...formData.inputSchema];
-                                newSchema[index].required = !newSchema[index].required;
-                                setFormData({ ...formData, inputSchema: newSchema });
-                              }}
-                              className={`${input.required ? 'text-brand-accent' : 'text-stone-300'} font-bold hover:underline`}
-                            >
-                              {input.required ? 'Required' : 'Optional'}
-                            </button>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => {
-                            const newSchema = formData.inputSchema.filter((_, i) => i !== index);
-                            setFormData({ ...formData, inputSchema: newSchema });
-                          }}
-                          className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
-                        >
-                          <span className="material-symbols-outlined">delete</span>
-                        </button>
-                      </div>
-                    ))}
-
-                    {/* Add Field Button */}
-                    <div className="flex gap-2 flex-wrap">
-                      {(['TEXT', 'AUDIO', 'VIDEO', 'IMAGE', 'LOCATION'] as InputType[]).map(type => (
-                        <button
-                          key={type}
-                          onClick={() => {
-                            const newField: ChallengeInputField = {
-                              id: Math.random().toString(36).substr(2, 9),
-                              type,
-                              label: type === 'TEXT' ? 'Description' :
-                                type === 'AUDIO' ? 'Recording' :
-                                  type === 'VIDEO' ? 'Video Clip' :
-                                    type === 'IMAGE' ? 'Photo' : 'Location',
-                              required: true
-                            };
-                            setFormData({ ...formData, inputSchema: [...formData.inputSchema, newField] });
-                          }}
-                          className="px-3 py-2 rounded-lg border border-dashed border-stone-300 dark:border-white/20 text-xs font-bold text-stone-500 hover:bg-stone-50 dark:hover:bg-white/5 hover:text-brand-accent hover:border-brand-accent transition-all flex items-center gap-1"
-                        >
-                          <span className="material-symbols-outlined text-[16px]">add</span>
-                          {type}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  <textarea
+                    value={formData.whyItMatters}
+                    onChange={(e) => setFormData({ ...formData, whyItMatters: e.target.value })}
+                    placeholder="Tell the moderators why this challenge matters for your language..."
+                    className="w-full bg-white dark:bg-[#42342b] border-2 border-stone-200 dark:border-white/10 rounded-xl p-4 font-medium text-stone-900 dark:text-white placeholder-stone-300 focus:border-brand-accent outline-none transition-colors min-h-[100px] resize-y"
+                  />
                 </div>
 
-                {/* Squad Section */}
+                {/* Who should we ask to join? */}
                 <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <label className="block text-sm font-bold text-stone-700 dark:text-stone-300">Invite Squad</label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-bold text-stone-700 dark:text-stone-300">Who should we ask to join?</label>
                     <span className="text-xs text-stone-400">Optional</span>
                   </div>
 
-                  <div className="bg-white dark:bg-[#42342b] border border-stone-200 dark:border-white/5 rounded-2xl overflow-hidden divide-y divide-stone-100 dark:divide-white/5">
-                    {squad.map((user, idx) => (
-                      <div
-                        key={idx}
-                        onClick={() => {
-                          const newSquad = [...squad];
-                          newSquad[idx].selected = !newSquad[idx].selected;
-                          setSquad(newSquad);
-                        }}
-                        className="p-4 flex items-center justify-between hover:bg-stone-50 dark:hover:bg-black/20 cursor-pointer"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-stone-200 dark:bg-white/10 flex items-center justify-center font-bold text-stone-600 dark:text-stone-400">
-                            {user.avatar}
-                          </div>
-                          <span className="font-bold text-stone-700 dark:text-white">{user.name}</span>
-                        </div>
-                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${user.selected ? 'bg-brand-accent border-brand-accent' : 'border-stone-300 dark:border-white/20'}`}>
-                          {user.selected && <span className="material-symbols-outlined text-white text-sm">check</span>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <textarea
+                    value={formData.inviteNote}
+                    onChange={(e) => setFormData({ ...formData, inviteNote: e.target.value })}
+                    placeholder="Name friends, elders, or groups to invite (e.g. Nyeri youth group, Mama Wanjiru...)"
+                    className="w-full bg-white dark:bg-[#42342b] border-2 border-stone-200 dark:border-white/10 rounded-xl p-4 font-medium text-stone-900 dark:text-white placeholder-stone-300 focus:border-brand-accent outline-none transition-colors min-h-[90px] resize-y"
+                  />
 
-                  <button className="w-full mt-3 py-3 rounded-xl border-2 border-dashed border-stone-300 dark:border-white/20 text-stone-500 dark:text-stone-400 font-bold text-sm hover:bg-stone-50 dark:hover:bg-white/5 transition-colors">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const link = typeof window !== 'undefined' ? window.location.href : '';
+                      try {
+                        if (navigator.clipboard && link) await navigator.clipboard.writeText(link);
+                      } catch {
+                        // Clipboard is best-effort; the link is still visible in the bar.
+                      }
+                    }}
+                    className="w-full mt-3 py-3 rounded-xl border-2 border-dashed border-stone-300 dark:border-white/20 text-stone-500 dark:text-stone-400 font-bold text-sm hover:bg-stone-50 dark:hover:bg-white/5 transition-colors"
+                  >
                     + Copy Invite Link
                   </button>
 
-                  {/* Suggestions Section */}
+                  {/* Suggested contributors */}
                   {suggestions.length > 0 && (
                     <div className="pt-4">
                       <div className="flex items-center justify-between mb-3 px-1">
-                        <h3 className="font-bold text-sm text-stone-700 dark:text-stone-300">Suggested Experts</h3>
-                        <span className="text-xs text-stone-400">Based on your mission</span>
+                        <h3 className="font-bold text-sm text-stone-700 dark:text-stone-300">Suggested contributors</h3>
+                        <span className="text-xs text-stone-400">Tap to add their name</span>
                       </div>
 
                       <div className="flex gap-3 overflow-x-auto pb-2 snap-x no-scrollbar">
@@ -392,7 +428,15 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
                               <div className="text-[10px] text-stone-400">{user.role}</div>
                             </div>
                             <button
-                              onClick={() => handleAddToSquad(user)}
+                              onClick={() => {
+                                handleAddToSquad(user);
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  inviteNote: prev.inviteNote
+                                    ? `${prev.inviteNote}, ${user.name}`
+                                    : user.name,
+                                }));
+                              }}
                               className="w-full py-1 bg-stone-900 dark:bg-white text-white dark:text-stone-900 text-[10px] font-bold rounded-lg hover:opacity-90 transition-opacity"
                             >
                               Add +
@@ -404,6 +448,29 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
                   )}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* STEP 3: SUBMITTED — moderator review queue */}
+          {step === 3 && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 text-center py-10">
+              <div className="mx-auto w-20 h-20 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                <span className="material-symbols-outlined text-4xl text-emerald-600">check_circle</span>
+              </div>
+              <h2 className="text-2xl font-extrabold text-stone-900 dark:text-white">Challenge sent for review</h2>
+              <p className="text-stone-500 dark:text-[#A8A29E] max-w-md mx-auto">
+                A moderator checks it before it goes live. We will notify you once
+                &ldquo;{formData.title || getChallengeTitle()}&rdquo; is approved.
+              </p>
+              {proposalId ? (
+                <p className="text-xs text-stone-400">Reference: {proposalId}</p>
+              ) : null}
+              <button
+                onClick={goBack}
+                className="px-6 py-3 bg-stone-900 dark:bg-white text-white dark:text-stone-900 font-bold rounded-xl hover:opacity-90 transition-opacity"
+              >
+                Back to community
+              </button>
             </div>
           )}
         </main>
@@ -418,7 +485,7 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
                 {/* Preview Header */}
                 <div className="bg-gradient-to-r from-brand-accent to-amber-500 p-4">
                   <span className="inline-block px-2 py-0.5 bg-white/20 text-white text-[8px] font-bold rounded-full uppercase mb-2">
-                    {selectedType || 'Type'}
+                    {selectedKind ?? selectedType ?? 'Type'}
                   </span>
                   <h4 className="font-bold text-white text-sm line-clamp-2">
                     {formData.title || getChallengeTitle()}
@@ -428,8 +495,13 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
                 {/* Preview Body */}
                 <div className="p-4 space-y-3">
                   <p className="text-xs text-stone-500 dark:text-[#A8A29E] line-clamp-3">
-                    {formData.goalDescription || 'Goal description will appear here...'}
+                    {formData.goalDescription || 'What this challenge is about will appear here...'}
                   </p>
+                  {formData.region ? (
+                    <p className="text-[11px] font-bold text-stone-500 dark:text-stone-300">
+                      Region: {formData.region}
+                    </p>
+                  ) : null}
 
                   {/* Preview Progress */}
                   <div className="space-y-1">
@@ -442,24 +514,9 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
                     </div>
                   </div>
 
-                  {/* Preview Inputs */}
-                  <div className="space-y-2 pt-2 border-t border-stone-100 dark:border-white/5">
-                    <p className="text-[10px] font-bold text-stone-400 uppercase">Submission requires:</p>
-                    {formData.inputSchema.map((input) => (
-                      <div key={input.id} className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-stone-400 text-sm">
-                          {input.type === 'AUDIO' ? 'mic' :
-                            input.type === 'VIDEO' ? 'videocam' :
-                              input.type === 'IMAGE' ? 'image' :
-                                input.type === 'LOCATION' ? 'location_on' : 'text_fields'}
-                        </span>
-                        <span className="text-xs text-stone-600 dark:text-stone-300">{input.label}</span>
-                        {input.required && (
-                          <span className="text-[8px] text-brand-accent font-bold">Required</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                  <p className="text-[11px] text-stone-400">
+                    A moderator checks it before it goes live.
+                  </p>
 
                   {/* Preview CTA */}
                   <button className="w-full py-2 bg-brand-accent text-white text-xs font-bold rounded-lg mt-2">
@@ -475,9 +532,18 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
       {/* Footer Actions */}
       <footer className="sticky bottom-0 z-20 bg-white/90 dark:bg-[#2b1e19]/90 backdrop-blur-md p-4 border-t border-stone-200 dark:border-white/5 transition-colors">
         {step === 1 ? (
-          <div className="text-center text-xs text-stone-400 font-bold uppercase tracking-widest pb-2">Select a type to proceed</div>
-        ) : (
-          <div className="flex gap-2 max-w-lg mx-auto">
+          <div className="text-center text-xs text-stone-400 font-bold uppercase tracking-widest pb-2">Select a kind to proceed</div>
+        ) : step === 3 ? null : (
+          <div className="mx-auto max-w-lg space-y-2">
+            {submitError ? (
+              <p className="text-sm font-bold text-red-600 text-center">{submitError}</p>
+            ) : null}
+            {!canSubmitStep2 ? (
+              <p className="text-xs text-stone-400 text-center font-medium">
+                Give it a name, pick a region and set a goal to continue.
+              </p>
+            ) : null}
+            <div className="flex gap-2">
             <button
               onClick={handleBack}
               className="px-6 py-4 border-2 border-stone-200 dark:border-white/10 rounded-xl font-bold text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-white/5 transition-colors"
@@ -485,36 +551,14 @@ const AddChallengeScreen: React.FC<Props> = ({ goBack, onLaunch, isSubmitting })
               Back
             </button>
             <button
-              onClick={async () => {
-                const challengeData = {
-                  title: getChallengeTitle(),
-                  description: formData.goalDescription || `A collaborative ${selectedType?.toLowerCase()} project.`,
-                  type: selectedType!,
-                  goalCount: formData.goalCount,
-                };
-
-                if (onLaunch) {
-                  await onLaunch(challengeData);
-                } else {
-                  const newChallenge = {
-                    id: `new-${Date.now()}`,
-                    ...challengeData,
-                    inputSchema: formData.inputSchema,
-                    currentCount: 0,
-                    goalMetric: 'Entries',
-                    deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-                    image: 'https://images.unsplash.com/photo-1544985335-7c2a74c10648?auto=format&fit=crop&q=80&w=2000'
-                  };
-                  addChallenge(newChallenge);
-                  window.location.href = '/dashboard/challenges';
-                }
-              }}
-              disabled={isSubmitting}
+              onClick={handleLaunchChallenge}
+              disabled={!canSubmitStep2 || submitting}
               className="flex-1 bg-brand-accent hover:bg-brand-accent-hover text-white font-bold py-4 rounded-xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              {isSubmitting ? 'Launching...' : 'Launch Project'}
-              {!isSubmitting && <span className="material-symbols-outlined">rocket_launch</span>}
+              {submitting ? 'Sending for review...' : 'Send for review'}
+              {!submitting && <span className="material-symbols-outlined">shield</span>}
             </button>
+            </div>
           </div>
         )}
       </footer>

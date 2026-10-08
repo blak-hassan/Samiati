@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Screen } from '@/types';
+import { useTranslation } from '@/i18n/TranslationProvider';
 import {
     Shield,
     CheckCircle,
@@ -34,6 +35,7 @@ const LANGUAGE_OPTIONS = [
 ];
 
 const ModeratorApplicationScreen: React.FC<Props> = ({ navigate, goBack }) => {
+    const { t } = useTranslation();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -113,7 +115,7 @@ const ModeratorApplicationScreen: React.FC<Props> = ({ navigate, goBack }) => {
                     <ArrowLeft className="w-6 h-6" />
                 </button>
                 <h1 className="flex-1 text-center text-lg font-bold text-stone-900 dark:text-white pr-8">
-                    Become a Moderator
+                    {t("keeperOfLanguage")}
                 </h1>
             </header>
 
@@ -125,12 +127,11 @@ const ModeratorApplicationScreen: React.FC<Props> = ({ navigate, goBack }) => {
                     </div>
 
                     <h2 className="text-2xl font-bold text-stone-900 dark:text-white">
-                        Help Keep Samiati Safe
+                        {t("keeperOfLanguage")}
                     </h2>
 
                     <p className="text-stone-600 dark:text-text-muted max-w-md mx-auto">
-                        Moderators play a vital role in maintaining our community&apos;s cultural integrity and ensuring
-                        respectful dialogue across all languages and traditions.
+                        {t("keeperSubtitle")}
                     </p>
                 </div>
 
@@ -138,16 +139,14 @@ const ModeratorApplicationScreen: React.FC<Props> = ({ navigate, goBack }) => {
                 <div className="bg-white dark:bg-[#32241a] rounded-xl p-6 space-y-4">
                     <h3 className="text-lg font-bold text-stone-900 dark:text-white flex items-center gap-2">
                         <ClipboardList className="w-5 h-5 text-primary" />
-                        Moderator Responsibilities
+                        {t("whatYouWouldDo")}
                     </h3>
 
                     <ul className="space-y-3">
                         {[
-                            'Review and action user reports promptly',
-                            'Enforce community guidelines fairly and consistently',
-                            'Protect cultural content from misinformation',
-                            'Support users in resolving conflicts',
-                            'Maintain confidentiality of moderation decisions'
+                            t("keeperCheckWork"),
+                            t("keeperCatchBad"),
+                            t("keeperOneStandard"),
                         ].map((item, index) => (
                             <li key={index} className="flex items-start gap-3 text-stone-700 dark:text-text-muted">
                                 <CheckCircle className="w-5 h-5 text-success mt-0.5 flex-shrink-0" />
@@ -161,16 +160,13 @@ const ModeratorApplicationScreen: React.FC<Props> = ({ navigate, goBack }) => {
                 <div className="bg-white dark:bg-[#32241a] rounded-xl p-6 space-y-4">
                     <h3 className="text-lg font-bold text-stone-900 dark:text-white flex items-center gap-2">
                         <ShieldCheck className="w-5 h-5 text-primary" />
-                        What We Look For
+                        {t("yourEligibility")}
                     </h3>
 
                     <ul className="space-y-3">
                         {[
-                            'Active participation in the Samiati community',
-                            'Respect for diverse cultures and languages',
-                            'Fair and unbiased judgment',
-                            'Commitment to regular availability',
-                            'Strong communication skills'
+                            t("eligibleAccurate", { percent: 94 }),
+                            t("eligibleActive", { days: 7 }),
                         ].map((item, index) => (
                             <li key={index} className="flex items-start gap-3 text-stone-700 dark:text-text-muted">
                                 <Star className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
@@ -180,20 +176,17 @@ const ModeratorApplicationScreen: React.FC<Props> = ({ navigate, goBack }) => {
                     </ul>
                 </div>
 
-                {/* Benefits */}
+                {/* Trusted reviewer */}
                 <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl p-6 space-y-4">
                     <h3 className="text-lg font-bold text-stone-900 dark:text-white flex items-center gap-2">
                         <Medal className="w-5 h-5 text-primary" />
-                        Moderator Benefits
+                        {t("trustedReviewer")}
                     </h3>
 
                     <ul className="space-y-3">
                         {[
-                            'Exclusive moderator badge on your profile',
-                            'Early access to new features',
-                            'Direct communication with the Samiati team',
-                            'Recognition in the community',
-                            'Contribute to cultural preservation'
+                            t("moderatorsChosen"),
+                            t("stepDownAnytime"),
                         ].map((item, index) => (
                             <li key={index} className="flex items-start gap-3 text-stone-700 dark:text-text-muted">
                                 <Trophy className="w-5 h-5 text-warning mt-0.5 flex-shrink-0" />
@@ -209,7 +202,7 @@ const ModeratorApplicationScreen: React.FC<Props> = ({ navigate, goBack }) => {
                         Languages I can moderate
                     </h3>
                     <p className="text-sm text-stone-600 dark:text-text-muted">
-                        Pick every language you feel confident reviewing. You'll be granted a Changa role in each.
+                        Pick every language you feel confident reviewing. You&apos;ll be granted a Changa role in each.
                     </p>
                     <div className="flex flex-wrap gap-2">
                         {LANGUAGE_OPTIONS.map((lang) => {
@@ -272,7 +265,7 @@ const ModeratorApplicationScreen: React.FC<Props> = ({ navigate, goBack }) => {
                     ) : (
                         <>
                             <Shield className="w-5 h-5" />
-                            Apply to Become a Moderator
+                            Apply as a Trusted Reviewer
                         </>
                     )}
                 </button>

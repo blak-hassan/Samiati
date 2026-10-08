@@ -56,6 +56,7 @@ const PrivacyPolicyScreen = dynamic(() => import('@/components/screens/PrivacyPo
 const ChangaHome = dynamic(() => import('@/components/changa/ChangaHome'), { ssr: false });
 const MyChangaActivity = dynamic(() => import('@/components/changa/MyChangaActivity'), { ssr: false });
 const ChangaCampaigns = dynamic(() => import('@/components/changa/ChangaCampaigns'), { ssr: false });
+const ChangaCommunity = dynamic(() => import('@/components/changa/ChangaCommunity'), { ssr: false });
 const DarasaScreen = dynamic(() => import('@/components/screens/DarasaScreen'), { ssr: false });
 
 export default function DashboardCatchAllPage({ params, searchParams }: { params: Promise<{ slug: string }>, searchParams: Promise<RouteSearchParams> }) {
@@ -139,15 +140,20 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
 
         case Screen.CHANGA:
             if (isGuest) return <SignInPrompt feature="Changa" description="Sign in to help your language with quick, consented tasks." navigate={navigate} />;
-            return <ContributionsScreen
-                navigate={navigate}
-                goBack={goBack}
-                myContributions={myContributions}
-                setMyContributions={setMyContributions}
-                languages={languages}
-                onViewProfile={handleViewProfile}
-                unreadCount={unreadCount}
+            return <ChangaHome
+                userName={appUser.name}
+                onViewActivity={() => navigate(Screen.CHANGA_ACTIVITY)}
             />;
+
+        case Screen.CHANGA_COMMUNITY: {
+            const communityLanguage = (resolvedSearchParams?.language as string) || "ki";
+            const communityName = (resolvedSearchParams?.name as string) || "Kikuyu";
+            return <ChangaCommunity
+                languageCode={communityLanguage}
+                languageName={communityName}
+                goBack={goBack}
+            />;
+        }
 
         case Screen.CHANGA_ACTIVITY:
             if (isGuest) return <SignInPrompt feature="Changa" description="Sign in to see your Changa contributions and activity." navigate={navigate} />;
