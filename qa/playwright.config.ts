@@ -59,5 +59,13 @@ export default defineConfig({
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
+    // Force demo mode for QA: no Convex URL and no pk_ Clerk key, so the app
+    // uses MockProviders (always-signed-in mock user, no Clerk/Convex/HF).
+    // This keeps QA fully local and free, with no credentials required.
+    env: {
+      ...process.env,
+      NEXT_PUBLIC_CONVEX_URL: "",
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "",
+    },
   },
 });
