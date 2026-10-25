@@ -11,7 +11,7 @@
  * - translation_started / completed / failed
  * - search_started / completed / failed
  * - voice_started / completed
- * - changa_opened / started / submitted
+ * - changa_opened / started / submitted / activity_viewed
  * - feedback_given
  * - discover_opened
  * - signup_completed
@@ -31,6 +31,7 @@ export type AnalyticsEvent =
   | 'changa_opened'
   | 'changa_started'
   | 'changa_submitted'
+  | 'changa_activity_viewed'
   | 'feedback_given'
   | 'discover_opened'
   | 'signup_completed'

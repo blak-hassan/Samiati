@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
 
-type TranslationKey = 
+export type TranslationKey = 
   | "title"
   | "subtitle"
   | "recommended"
@@ -21,6 +21,7 @@ type TranslationKey =
   | "trust"
   | "invite"
   | "myActivity"
+  | "activityCountLabel"
   | "inviteSuccess"
   | "allDialects"
   | "openTasks"
@@ -92,7 +93,7 @@ type TranslationKey =
   | "speakAndListen"
   | "writeLabel"
   | "checkLabel"
-  | "togetherLabel"
+  | "communityLabel"
   | "achievementsLabel"
   | "communitiesLabel"
   | "notificationsLabel"
@@ -185,6 +186,7 @@ const en: Translations = {
   trust: "Trust",
   invite: "Invite",
   myActivity: "My activity",
+  activityCountLabel: "{count} contribution{plural} so far",
   inviteSuccess: "Link copied! Share it with friends to collect Sheng together.",
   allDialects: "All dialects",
   openTasks: "Open tasks",
@@ -256,7 +258,7 @@ const en: Translations = {
   speakAndListen: "Speak and listen",
   writeLabel: "Write",
   checkLabel: "Check",
-  togetherLabel: "Together",
+  communityLabel: "Community",
   achievementsLabel: "Achievements",
   communitiesLabel: "Communities",
   notificationsLabel: "Notifications",
@@ -341,6 +343,7 @@ const sw: Translations = {
   trust: "Uaminifu",
   invite: "Alika",
   myActivity: "Shughuli zangu",
+  activityCountLabel: "Mchango {count} hadi sasa",
   inviteSuccess: "Kiungo kimekopiwa! Shiriki na marafiki kukusanya data ya Sheng pamoja.",
   allDialects: "Lahaja zote",
   openTasks: "Kazi wazi",

@@ -423,7 +423,7 @@ export default function TaskContributionScreen({ task, onComplete }: TaskContrib
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <span>
-                                    <AudioRecorder onRecorded={setAudioBlob} onCancel={() => setAudioBlob(null)} />
+                                            <AudioRecorder onRecorded={setAudioBlob} onCancel={() => setAudioBlob(null)} autoFocus={true} />
                                 </span>
                             </TooltipTrigger>
                             <TooltipContent>

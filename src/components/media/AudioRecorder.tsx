@@ -7,9 +7,10 @@ import { logChangaEvent } from "@/lib/changaTelemetry";
 interface AudioRecorderProps {
     onRecorded: (blob: Blob) => void;
     onCancel: () => void;
+    autoFocus?: boolean;
 }
 
-export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecorded, onCancel }) => {
+export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecorded, onCancel, autoFocus = false }) => {
     const [isRecording, setIsRecording] = useState(false);
     const [recordingTime, setRecordingTime] = useState(0);
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -18,12 +19,19 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecorded, onCanc
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const chunksRef = useRef<Blob[]>([]);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const recordButtonRef = useRef<HTMLButtonElement | null>(null);
 
     useEffect(() => {
         return () => {
             if (timerRef.current) clearInterval(timerRef.current);
         };
     }, []);
+
+    useEffect(() => {
+        if (autoFocus && recordButtonRef.current && !isRecording && !audioUrl) {
+            recordButtonRef.current.focus();
+        }
+    }, [autoFocus, isRecording, audioUrl]);
 
     const startRecording = async () => {
         try {
@@ -127,6 +135,7 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecorded, onCanc
                             Cancel
                         </Button>
                         <Button
+                            ref={recordButtonRef}
                             variant={isRecording ? "destructive" : "default"}
                             className="flex-2 h-12 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg flex-[2]"
                             onClick={isRecording ? stopRecording : startRecording}

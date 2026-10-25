@@ -4,9 +4,9 @@ import { useChangaQuery as useQuery } from "@/hooks/useChangaData";
 import { api } from "../../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ChangaPageHeader } from "@/components/changa/ChangaPageHeader";
 import { Screen, type NavigateFn } from "@/types";
 import {
-    ArrowLeft,
     ArrowRight,
     CheckCircle2,
     Clock3,
@@ -100,11 +100,13 @@ function relativeTime(timestamp: number): string {
 interface MyChangaActivityProps {
     navigate: NavigateFn;
     goBack: () => void;
+    onViewSubmission?: (submissionId: string) => void;
 }
 
 export default function MyChangaActivity({
     navigate,
     goBack,
+    onViewSubmission,
 }: MyChangaActivityProps) {
     const submissions = useQuery(api.changa.submissions.listUserSubmissions, {
         limit: 100,
@@ -126,15 +128,8 @@ export default function MyChangaActivity({
     return (
         <main className="min-h-screen bg-background px-4 py-6 sm:py-10">
             <div className="mx-auto max-w-xl space-y-5">
-                <div className="flex items-center justify-between">
-                    <button
-                        onClick={goBack}
-                        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-                        aria-label="Go back"
-                    >
-                        <ArrowLeft className="size-4" />
-                        Back
-                    </button>
+                <ChangaPageHeader title="My Changa activity" onBack={goBack} />
+                <div className="flex justify-end mt-2">
                     <Button
                         variant="ghost"
                         size="sm"
@@ -144,15 +139,9 @@ export default function MyChangaActivity({
                         <ArrowRight className="ml-2 size-4" />
                     </Button>
                 </div>
-
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">
-                        My Changa activity
-                    </h1>
-                    <p className="text-sm text-muted-foreground">
-                        Every contribution, and where it is in the pipeline.
-                    </p>
-                </div>
+                <p className="text-sm text-muted-foreground">
+                    Every contribution, and where it is in the pipeline.
+                </p>
 
                 {/* Stats overview */}
                 {userStats && (
@@ -304,7 +293,13 @@ export default function MyChangaActivity({
                                 STATUS_META.submitted;
                             const StatusIcon = meta.icon;
                             return (
-                                <li key={submission._id}>
+                                <li
+                                    key={submission._id}
+                                    onClick={() => onViewSubmission?.(submission._id)}
+                                    role="button"
+                                    tabIndex={0}
+                                    className="cursor-pointer"
+                                >
                                     <Card className="space-y-2 p-4">
                                         <div className="flex items-center justify-between gap-3">
                                             <p className="text-sm font-semibold">
