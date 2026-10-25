@@ -55,6 +55,11 @@ QA_REAL_PROVIDER=1 npm run qa:e2e
 npm run qa:personas
 # Run a specific persona
 node qa/personas/runner.js amina
+
+# Phase 4: Kenyan-language quality evaluation
+npm run qa:eval
+# With mock AI (requires dev server on localhost:3000)
+QA_MOCK_AI=1 node qa/eval/run.js --with-mock-ai
 ```
 
 Personas run as versioned JSON in `qa/personas/personas/` and log JSONL to `qa/personas/out/run-<timestamp>/`. Output includes per-persona friction findings and a ranked summary.

@@ -26,7 +26,7 @@
     "qa:e2e": "npx playwright test --config qa/playwright.config.ts",
     "qa:e2e:ui": "npx playwright test --config qa/playwright.config.ts --ui",
     "qa:personas": "node qa/personas/runner.js",
-    "qa:eval": "npx vitest run --config qa/vitest.qa.config.ts",
+    "qa:eval": "node qa/eval/run.js",
     "qa:load": "node qa/load/run-load.js",
     "qa:report": "node qa/scripts/gen-report.js",
     "qa:ci": "npm run qa:smoke && npm run qa:e2e && npm run qa:eval"

@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Samiati Translation Quality Dataset",
+  "description": "Versioned dataset for Kenyan-language translation quality evaluation. References are left empty or pending_review unless supplied by a competent speaker.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["id", "source_lang", "target_lang", "input", "expected_meaning", "case_type", "provenance", "reviewer", "review_status", "notes"],
+    "properties": {
+      "id": { "type": "string", "description": "Unique case identifier" },
+      "source_lang": { "type": "string", "description": "Source language code (ISO 639-3 / NLLB code)" },
+      "target_lang": { "type": "string", "description": "Target language code" },
+      "input": { "type": "string", "description": "Source text to translate" },
+      "reference": { "type": "string", "description": "Reference translation (empty or pending_review unless supplied by reviewer)" },
+      "expected_meaning": { "type": "string", "description": "Expected meaning in English (not a translation)" },
+      "case_type": { "type": "string", "enum": ["greeting", "everyday_question", "short_exchange", "spelling_variation", "code_switching", "ambiguous_expression"] },
+      "provenance": { "type": "string", "description": "Origin of the case (e.g. 'synthetic', 'community_contribution', 'field_note')" },
+      "reviewer": { "type": "string", "description": "Reviewer name or handle" },
+      "review_status": { "type": "string", "enum": ["pending_review", "verified", "rejected"] },
+      "notes": { "type": "string", "description": "Reviewer notes" }
+    },
+    "additionalProperties": false
+  }
+}

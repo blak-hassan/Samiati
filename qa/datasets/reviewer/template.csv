@@ -1,0 +1,3 @@
+id,source_lang,target_lang,input,expected_meaning,case_type,provenance,reviewer,review_status,reference,notes
+ke-qe-001,sw,ki,Habari yako,Hello / How are you (greeting),greeting,synthetic,,pending_review,,Standard Swahili greeting; Kikuyu equivalent needed from reviewer.
+ke-qe-002,sw,en,Asante,Thank you,greeting,synthetic,,pending_review,,Common Swahili word of gratitude.
