@@ -20,7 +20,15 @@
     "certs:check": "node scripts/check-cert-expiry.mjs",
     "prepare": "husky",
     "seed:changa": "convex run changa.seedDemo:seedDemoData",
-    "seed:changa:status": "convex run changa.seedDemo:demoSeedStatus"
+    "seed:changa:status": "convex run changa.seedDemo:demoSeedStatus",
+    "qa:smoke": "npx playwright test --config qa/playwright.config.ts qa/e2e/smoke",
+    "qa:e2e": "npx playwright test --config qa/playwright.config.ts",
+    "qa:e2e:ui": "npx playwright test --config qa/playwright.config.ts --ui",
+    "qa:personas": "node qa/personas/runner.js",
+    "qa:eval": "npx vitest run --config qa/vitest.qa.config.ts",
+    "qa:load": "node qa/load/run-load.js",
+    "qa:report": "node qa/scripts/gen-report.js",
+    "qa:ci": "npm run qa:smoke && npm run qa:e2e && npm run qa:eval"
   },
   "dependencies": {
     "@clerk/nextjs": "6.36.4",

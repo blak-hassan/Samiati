@@ -10,6 +10,7 @@ export default defineConfig({
     // with "Cannot find package '@playwright/test'".
     exclude: [
       'e2e/**',
+      'qa/**',
       '.kilo/**',
       '.agent/**',
       '.agents/**',
