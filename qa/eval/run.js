@@ -8,14 +8,17 @@
  *   node qa/eval/run.js [--with-mock-ai]
  *
  * Without --with-mock-ai: runs deterministic checks only (no AI provider needed).
- * With --with-mock-ai: also runs the app's translate pipeline via mock AI
- * and evaluates outputs (requires dev server on localhost:3000).
+ * With --with-mock-ai: starts the mock AI server (port 8765) and calls it
+ * for each case to get actual output, then evaluates (requires dev server
+ * not needed — mock AI is standalone).
  */
 
 const fs = require("node:fs");
 const path = require("node:path");
+const http = require("node:http");
 const { loadCases, runDeterministicChecks } = require("./checks.js");
 const { chrF } = require("./chrf.js");
+const { startMockServer, stopMockServer } = require("../mock-ai/server");
 
 const CASES_FILE = path.join(__dirname, "..", "datasets", "cases.jsonl");
 const REPORTS_DIR = path.join(__dirname, "..", "reports");
@@ -24,14 +27,63 @@ const OUT_DIR = path.join(
   `eval-${new Date().toISOString().replace(/[:.]/g, "-")}`,
 );
 
-function main() {
+const MOCK_BASE = "http://127.0.0.1:8765";
+
+function callMockAi(input, sourceLang, targetLang) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify({
+      messages: [
+        { role: "user", content: `__MOCK_SCENARIO:success__${input}` },
+      ],
+      source_lang: sourceLang,
+      target_lang: targetLang,
+    });
+    const req = http.request(
+      `${MOCK_BASE}/translate`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Mock-Scenario": "success",
+        },
+        timeout: 10000,
+      },
+      (res) => {
+        let data = "";
+        res.on("data", (c) => (data += c));
+        res.on("end", () => {
+          try {
+            const parsed = JSON.parse(data);
+            resolve(parsed.value ?? parsed.ok ?? data);
+          } catch {
+            resolve(data);
+          }
+        });
+      },
+    );
+    req.on("error", (err) => reject(err));
+    req.on("timeout", () => {
+      req.destroy();
+      reject(new Error("mock AI timeout"));
+    });
+    req.end(body);
+  });
+}
+
+async function main() {
   const withMockAi = process.argv.includes("--with-mock-ai");
+  let mockServer;
   const cases = loadCases(CASES_FILE);
 
   console.log(`Loaded ${cases.length} cases from ${CASES_FILE}`);
   console.log(
     `Mock AI evaluation: ${withMockAi ? "ENABLED" : "DISABLED (deterministic checks only)"}`,
   );
+
+  if (withMockAi) {
+    mockServer = await startMockServer({ port: 8765 });
+    console.log("Mock AI server started on port 8765");
+  }
 
   const results = [];
   let totalChecks = 0;
@@ -46,13 +98,23 @@ function main() {
       review_status: c.review_status,
       deterministic: [],
       chrF: null,
+      modelOutput: null,
     };
 
-    // Deterministic checks (no model output yet — checks structure, not quality)
-    const deterministicOutput = "";
+    let modelOutput = "";
+    if (withMockAi) {
+      try {
+        modelOutput = await callMockAi(c.input, c.source_lang, c.targetLang);
+        caseResult.modelOutput = modelOutput;
+      } catch (err) {
+        modelOutput = `[MOCK AI ERROR: ${err.message}]`;
+        caseResult.modelOutput = modelOutput;
+      }
+    }
+
     const checks = runDeterministicChecks(
       c.input,
-      deterministicOutput,
+      modelOutput,
       c.source_lang,
       c.target_lang,
       c.id,
@@ -65,11 +127,16 @@ function main() {
     }
 
     // chrF only on verified cases with a reference
-    if (c.review_status === "verified" && c.reference) {
-      caseResult.chrF = chrF(deterministicOutput, c.reference);
+    if (c.review_status === "verified" && c.reference && modelOutput) {
+      caseResult.chrF = chrF(modelOutput, c.reference);
     }
 
     results.push(caseResult);
+  }
+
+  if (mockServer) {
+    await stopMockServer(mockServer.server);
+    console.log("Mock AI server stopped");
   }
 
   const summary = {
@@ -138,4 +205,7 @@ function main() {
   console.log(`Verified cases: ${summary.verifiedCases}`);
 }
 
-main();
+main().catch((err) => {
+  console.error("Eval failed:", err.message);
+  process.exit(1);
+});
