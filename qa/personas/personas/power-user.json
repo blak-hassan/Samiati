@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "name": "Power User",
+  "age": 30,
+  "device": "desktop",
+  "connectivity": "fast",
+  "techComfort": "high",
+  "languages": ["English", "Kiswahili", "Kikuyu"],
+  "learningGoal": "Stress-test the app with edge cases and rapid inputs",
+  "patienceLevel": "low",
+  "failureTriggers": ["duplicate submissions accepted", "no error on empty input", "crash on very long text", "rapid-click race conditions"],
+  "goal": "Attempt to break the app with empty input, very long text, and rapid clicks",
+  "notes": "Impatient power user who deliberately triggers edge cases to find UX friction and bugs."
+}

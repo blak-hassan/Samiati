@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "name": "Amina",
+  "age": 28,
+  "device": "mobile",
+  "connectivity": "slow",
+  "techComfort": "low",
+  "languages": ["Kiswahili", "Kikuyu", "English"],
+  "learningGoal": "Learn basic Kiswahili-to-Kikuyu phrases for family conversations",
+  "patienceLevel": "medium",
+  "failureTriggers": ["unclear error messages", "small tap targets", "slow page loads", "forced account creation"],
+  "goal": "Complete first translation from Kiswahili to Kikuyu",
+  "notes": "Represents a low-tech-comfort mobile user on slow network who needs simple, guided interactions."
+}

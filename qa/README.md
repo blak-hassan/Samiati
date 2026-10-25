@@ -49,7 +49,18 @@ npm run qa:e2e
 
 # With real provider (opt-in, capped)
 QA_REAL_PROVIDER=1 npm run qa:e2e
+
+# Phase 3: AI persona simulation
+# Run all 5 personas (requires dev server on localhost:3000 with QA_MOCK_AI=1)
+npm run qa:personas
+# Run a specific persona
+node qa/personas/runner.js amina
 ```
+
+Personas run as versioned JSON in `qa/personas/personas/` and log JSONL to `qa/personas/out/run-<timestamp>/`. Output includes per-persona friction findings and a ranked summary.
+
+Limitation: AI personas cannot judge pronunciation, cultural correctness, or real learning progress. Flag these for testing with real learners.
+
 
 
 ## Layout

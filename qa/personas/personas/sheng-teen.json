@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "name": "Sheng Teen",
+  "age": 16,
+  "device": "mobile",
+  "connectivity": "fast",
+  "techComfort": "high",
+  "languages": ["English", "Kiswahili", "Sheng"],
+  "learningGoal": "Translate Sheng-inflected phrases and explore the app casually",
+  "patienceLevel": "low",
+  "failureTriggers": ["rigid language selection (no Sheng option)", "slow response times", "mandatory tutorials", "spelling-correction prompts"],
+  "goal": "Switch language and find Discover section",
+  "notes": "Code-switches in Sheng with heavy spelling variation; high tech comfort but low patience for friction."
+}

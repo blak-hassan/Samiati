@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "name": "Tourist",
+  "age": 34,
+  "device": "desktop",
+  "connectivity": "fast",
+  "techComfort": "medium",
+  "languages": ["English", "Kiswahili"],
+  "learningGoal": "Find quick everyday phrases for travel in Kenya",
+  "patienceLevel": "medium",
+  "failureTriggers": ["no English fallback", "unclear language codes", "hidden navigation", "slow page transitions"],
+  "goal": "Find everyday phrases and switch between languages",
+  "notes": "Wants fast access to common phrases; may not know Kenyan language codes; needs clear labels."
+}

@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Samiati AI Persona",
+  "description": "Versioned persona specification for AI-driven user simulation.",
+  "type": "object",
+  "required": ["version", "name", "age", "device", "connectivity", "techComfort", "languages", "learningGoal", "patienceLevel", "failureTriggers", "goal"],
+  "properties": {
+    "version": { "type": "integer", "description": "Persona schema version", "minimum": 1 },
+    "name": { "type": "string", "description": "Persona display name" },
+    "age": { "type": "integer", "minimum": 1 },
+    "device": { "type": "string", "enum": ["mobile", "desktop"] },
+    "connectivity": { "type": "string", "enum": ["fast", "slow"] },
+    "techComfort": { "type": "string", "enum": ["low", "medium", "high"] },
+    "languages": { "type": "array", "items": { "type": "string" } },
+    "learningGoal": { "type": "string" },
+    "patienceLevel": { "type": "string", "enum": ["low", "medium", "high"] },
+    "failureTriggers": { "type": "array", "items": { "type": "string" } },
+    "goal": { "type": "string", "description": "Short goal for this simulation run" },
+    "notes": { "type": "string" }
+  },
+  "additionalProperties": false
+}

@@ -58,3 +58,10 @@ colab_server.py
 
 # journey simulation harness artifacts
 tests/journey/artifacts/
+
+# QA artifacts (run outputs, reports, secrets scrubbed)
+qa/personas/out/
+qa/reports/
+test-results/
+playwright-report/
+*.log

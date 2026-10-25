@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "name": "Voice Elder",
+  "age": 72,
+  "device": "mobile",
+  "connectivity": "slow",
+  "techComfort": "low",
+  "languages": ["Kikuyu", "English"],
+  "learningGoal": "Use voice input to get simple phrases without typing",
+  "patienceLevel": "medium",
+  "failureTriggers": ["voice button not obvious", "microphone permission prompts", "small text", "complex navigation menus"],
+  "goal": "Complete first translation using voice input",
+  "notes": "Prefers voice over typing; low literacy; needs large targets and clear audio feedback."
+}
