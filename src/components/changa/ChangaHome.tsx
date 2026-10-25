@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Screen } from "@/types";
 import { logChangaEvent } from "@/lib/changaTelemetry";
 import { trackEvent } from "@/lib/analytics";
+import { LANGUAGES } from "@/lib/languages";
 import { ChangaEmptyState } from "@/components/changa/ChangaEmptyState";
 import {
     TodayGoalCard,
@@ -61,19 +62,17 @@ const WAY_TASK_TYPES: Record<HelpWayKey, string[]> = {
     together: ["dialect_mapping"],
 };
 
-const LANGUAGE_OPTIONS = [
-    { id: "sheng", label: "Sheng", emoji: "🔥" },
-    { id: "sw", label: "Kiswahili", emoji: "🇰🇪" },
-    { id: "ki", label: "Kikuyu", emoji: "🌳" },
-    { id: "en", label: "English", emoji: "🌍" },
-];
+// Language chips shown on the Changa home "which language do you want to help?" picker.
+// Driven by the full set of in-app supported languages so every language Samiati offers
+// is available to contribute to — no emoji, just the language name.
+const LANGUAGE_OPTIONS = LANGUAGES.map((lang) => ({
+    id: lang.code,
+    label: lang.name,
+}));
 
-const LANGUAGE_NAMES: Record<string, string> = {
-    sheng: "Sheng",
-    sw: "Kiswahili",
-    ki: "Kikuyu",
-    en: "English",
-};
+const LANGUAGE_NAMES: Record<string, string> = Object.fromEntries(
+    LANGUAGES.map((lang) => [lang.code, lang.name]),
+);
 
 function taskLabel(taskType: string | undefined): string {
     return (taskType && TASK_TYPE_LABELS[taskType]) || "Quick task";
@@ -116,7 +115,7 @@ interface ChangaHomeProps {
 export default function ChangaHome({ onViewActivity, userName }: ChangaHomeProps) {
     const { navigate } = useNavigation();
     const { t } = useTranslation();
-    const [selectedLanguage, setSelectedLanguage] = useState("sheng");
+    const [selectedLanguage, setSelectedLanguage] = useState("sw");
     const [showInvite, setShowInvite] = useState(false);
 
     const tasks = useQuery(api.changa.tasks.listAvailableTasks, {
@@ -279,7 +278,6 @@ export default function ChangaHome({ onViewActivity, userName }: ChangaHomeProps
                                         : "bg-muted text-muted-foreground hover:bg-accent"
                                 }`}
                             >
-                                <span aria-hidden>{lang.emoji}</span>
                                 {lang.label}
                             </button>
                         ))}
