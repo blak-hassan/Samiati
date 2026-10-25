@@ -22,6 +22,7 @@
     "seed:changa": "convex run changa.seedDemo:seedDemoData",
     "seed:changa:status": "convex run changa.seedDemo:demoSeedStatus",
     "qa:smoke": "npx playwright test --config qa/playwright.config.ts qa/e2e/smoke",
+    "qa:mock-ai": "npx playwright test --config qa/playwright.config.ts qa/e2e/mock-ai-scenarios.spec.ts qa/e2e/mock-ai-production.spec.ts",
     "qa:e2e": "npx playwright test --config qa/playwright.config.ts",
     "qa:e2e:ui": "npx playwright test --config qa/playwright.config.ts --ui",
     "qa:personas": "node qa/personas/runner.js",

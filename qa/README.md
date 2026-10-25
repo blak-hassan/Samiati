@@ -27,6 +27,7 @@ values locally. Names only are committed; never values.
 | Script | Purpose |
 |--------|---------|
 | `npm run qa:smoke` | Phase 1 stage 1: home page smoke test |
+| `npm run qa:mock-ai` | Phase 2: mock AI scenario + production-disable tests |
 | `npm run qa:e2e` | Full deterministic Playwright suite |
 | `npm run qa:personas` | Phase 3: AI persona simulation |
 | `npm run qa:eval` | Phase 4: Kenyan-language quality evaluation |
@@ -37,15 +38,19 @@ values locally. Names only are committed; never values.
 ## Commands
 
 ```
-# Stage 1 (implemented now): home smoke test, shows real output
+# Stage 1 (implemented): home smoke test
 npm run qa:smoke
 
-# Full e2e suite
+# Phase 2: mock AI scenarios + production-disable guard
+npm run qa:mock-ai
+
+# Full e2e suite (includes mock AI + real-provider stub)
 npm run qa:e2e
 
 # With real provider (opt-in, capped)
 QA_REAL_PROVIDER=1 npm run qa:e2e
 ```
+
 
 ## Layout
 
@@ -69,7 +74,11 @@ qa/
     a11y.spec.ts
     responsive.spec.ts
     mock-ai-production.spec.ts
-  mock-ai/               # dev-only mock AI server + scenarios + guard
+    mock-ai-scenarios.spec.ts
+    real-provider/            # Phase 2: real-provider opt-in (off by default)
+  mock-ai/                    # Phase 2: dev-only mock AI server + scenarios + guard
+    server.ts                 # standalone HTTP mock AI server (localhost)
+    provider.ts               # mock Convex ChatProvider (dev-only hook)
   personas/              # persona JSON + runner + JSONL out/
   datasets/              # schema.json, cases.jsonl, reviewer/
   eval/                  # deterministic checks, chrF, run
