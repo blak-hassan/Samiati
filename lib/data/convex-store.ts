@@ -186,6 +186,9 @@ export class ConvexStore implements SamiatiStore {
     return this.query<DiscoverItem[]>("discover/list");
   }
 
+  async ingestDiscoverItems(items: DiscoverItem[]): Promise<DiscoverItem[]> {
+    return this.mutate<DiscoverItem[]>("discover/ingest", { items });
+  }
   async toggleDiscoverItemSaved(id: string): Promise<DiscoverItem> {
     return this.mutate<DiscoverItem>("discover/toggleSaved", { id });
   }

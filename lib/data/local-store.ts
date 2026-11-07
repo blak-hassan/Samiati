@@ -785,6 +785,33 @@ export class LocalStore implements SamiatiStore {
     return this.read().discover.map((item) => ({ ...item }));
   }
 
+  async ingestDiscoverItems(items: DiscoverItem[]): Promise<DiscoverItem[]> {
+    return this.commit((state) => {
+      const byId = new Map(state.discover.map((item) => [item.id, item]));
+
+      for (const item of items) {
+        const existing = byId.get(item.id);
+        if (existing) {
+          // Keep the reader's own state; refresh everything else.
+          existing.title = item.title;
+          existing.summary = item.summary;
+          existing.topic = item.topic;
+          existing.languages = item.languages;
+          existing.source = item.source;
+          existing.publishedAt = item.publishedAt;
+          existing.readingMinutes = item.readingMinutes;
+          existing.sourceUrl = item.sourceUrl;
+        } else {
+          const created = { ...item, saved: false };
+          state.discover.push(created);
+          byId.set(created.id, created);
+        }
+      }
+
+      return state.discover.map((item) => ({ ...item }));
+    });
+  }
+
   async toggleDiscoverItemSaved(id: string): Promise<DiscoverItem> {
     return this.commit((state) => {
       const item = state.discover.find((entry) => entry.id === id);

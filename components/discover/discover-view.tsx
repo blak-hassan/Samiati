@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   Bookmark,
@@ -21,6 +21,11 @@ import {
 } from "@/components/ui/select";
 import { useStore } from "@/lib/data/provider";
 import type { DiscoverItem, DiscoverTopic } from "@/lib/data/types";
+import {
+  preferredDiscoverLanguages,
+  rankDiscoverItems,
+} from "@/lib/discover/rank";
+import { useLanguagePreferences } from "@/lib/language-preferences/provider";
 import { getLanguageOrDefault } from "@/lib/languages";
 
 const TOPICS: { id: DiscoverTopic; label: string }[] = [
@@ -33,25 +38,45 @@ const TOPICS: { id: DiscoverTopic; label: string }[] = [
   { id: "community", label: "Community topics" },
 ];
 
+interface FeedPayload {
+  source?: string;
+  items?: DiscoverItem[];
+}
+
 /**
  * Discover — a reading surface for African news, culture and knowledge.
  *
- * The content here is seeded sample data (see `lib/data/seed.ts`), not a live
- * feed. The card says so, and each item can be opened in a Samiati
- * conversation.
+ * Items come from two places: the seed catalogue, and an optional feed that
+ * has been ingested with `scripts/ingest-discover.ts`. Items are ranked for
+ * the reader's own languages.
  */
 export function DiscoverView() {
   const store = useStore();
   const router = useRouter();
+  const { languageId, favorites, recent } = useLanguagePreferences();
 
   const [items, setItems] = React.useState<DiscoverItem[]>([]);
   const [topic, setTopic] = React.useState<DiscoverTopic | "all">("trending");
   const [language, setLanguage] = React.useState<string>("all");
   const [loading, setLoading] = React.useState(true);
+  const [feedSource, setFeedSource] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     void (async () => {
       try {
+        // Merge any ingested feed into the catalogue first.
+        try {
+          const response = await fetch("/discover-feed.json", { cache: "no-store" });
+          if (response.ok) {
+            const payload = (await response.json()) as FeedPayload;
+            if (Array.isArray(payload.items) && payload.items.length > 0) {
+              await store.ingestDiscoverItems(payload.items);
+              setFeedSource(payload.source ?? null);
+            }
+          }
+        } catch {
+          // No ingested feed — the seed catalogue is enough.
+        }
         setItems(await store.listDiscoverItems());
       } finally {
         setLoading(false);
@@ -59,15 +84,30 @@ export function DiscoverView() {
     })();
   }, [store]);
 
+  const readerLanguages = React.useMemo(
+    () => preferredDiscoverLanguages([languageId, ...recent, ...favorites], favorites),
+    [favorites, languageId, recent],
+  );
+
+  const ranked = React.useMemo(
+    () =>
+      rankDiscoverItems(items, {
+        languageIds: readerLanguages,
+        savedIds: items.filter((item) => item.saved).map((item) => item.id),
+        now: Date.now(),
+      }),
+    [items, readerLanguages],
+  );
+
   const visible = React.useMemo(() => {
-    return items.filter((item) => {
+    return ranked.filter(({ item }) => {
       if (topic !== "trending" && topic !== "all" && item.topic !== topic) {
         return false;
       }
       if (language !== "all" && !item.languages.includes(language)) return false;
       return true;
     });
-  }, [items, language, topic]);
+  }, [language, ranked, topic]);
 
   const toggleSaved = React.useCallback(
     async (item: DiscoverItem) => {
@@ -86,7 +126,7 @@ export function DiscoverView() {
       try {
         const conversation = await store.createConversation({
           title: item.title,
-          languageId: "kiswahili",
+          languageId,
         });
         router.push(
           `/chat/${conversation.id}?first=${encodeURIComponent(prompt)}`,
@@ -95,7 +135,7 @@ export function DiscoverView() {
         toast.error("Could not start the conversation.");
       }
     },
-    [router, store],
+    [languageId, router, store],
   );
 
   const allLanguages = React.useMemo(() => {
@@ -120,6 +160,12 @@ export function DiscoverView() {
             Read a summary, then open it in a Samiati conversation in any
             language you choose.
           </p>
+          {feedSource ? (
+            <p className="mt-3 inline-flex items-center gap-1.5 rounded-full border bg-muted/40 px-3 py-1 text-xs text-muted-foreground">
+              <Sparkles className="h-3 w-3" aria-hidden />
+              Live feed: {feedSource}
+            </p>
+          ) : null}
         </header>
 
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -177,7 +223,7 @@ export function DiscoverView() {
           </div>
         ) : (
           <ul className="grid gap-4 sm:grid-cols-2">
-            {visible.map((item) => (
+            {visible.map(({ item, reasons }) => (
               <li
                 key={item.id}
                 className="group flex flex-col rounded-xl border bg-card p-5 transition-shadow hover:shadow-md"
@@ -196,6 +242,12 @@ export function DiscoverView() {
                 <p className="mt-2 flex-1 text-sm text-pretty text-muted-foreground">
                   {item.summary}
                 </p>
+
+                {reasons.length > 0 ? (
+                  <p className="mt-2 text-xs text-muted-foreground/80">
+                    {reasons.join(" · ")}
+                  </p>
+                ) : null}
 
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {item.languages.map((id) => (
@@ -242,8 +294,12 @@ export function DiscoverView() {
         )}
 
         <p className="mt-8 rounded-lg border border-dashed px-4 py-3 text-xs text-muted-foreground">
-          Discover currently shows sample editorial content. Live African news
-          ingestion is planned for a later release — see{" "}
+          Discover reads feeds that publishers have chosen to publish — Samiati
+          does not scrape the web. Run{" "}
+          <code className="rounded bg-muted px-1 py-0.5 font-mono">
+            node scripts/ingest-discover.ts --url &lt;feed-url&gt;
+          </code>{" "}
+          to add a publication. See{" "}
           <span className="font-medium text-foreground">
             docs/implementation-roadmap.md
           </span>

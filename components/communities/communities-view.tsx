@@ -1,6 +1,7 @@
-"use client";
+﻿"use client";
 
 import { Check, Users } from "lucide-react";
+import Link from "next/link";
 import * as React from "react";
 import { toast } from "sonner";
 
@@ -11,7 +12,7 @@ import type { Community } from "@/lib/data/types";
 import { getLanguageOrDefault } from "@/lib/languages";
 
 /**
- * Communities — language-scoped spaces where speakers help each other.
+ * Communities â€” language-scoped spaces where speakers help each other.
  *
  * Membership is stored on the community record, so joining and leaving is a
  * real, persisted action rather than a decorative toggle.
@@ -89,10 +90,15 @@ export function CommunitiesView() {
                     </span>
                     <div className="min-w-0">
                       <h2 className="font-display text-lg font-semibold">
-                        {community.name}
+                        <Link
+                          href={`/communities/${community.id}`}
+                          className="hover:underline"
+                        >
+                          {community.name}
+                        </Link>
                       </h2>
                       <p className="text-xs text-muted-foreground">
-                        {language.name} · {language.region}
+                        {language.name} Â· {language.region}
                       </p>
                     </div>
                     <Button
@@ -131,7 +137,7 @@ export function CommunitiesView() {
 
         <p className="mt-8 rounded-lg border border-dashed px-4 py-3 text-xs text-muted-foreground">
           Community discussion threads are the next milestone. Membership,
-          language scoping and moderation roles are already modelled — see{" "}
+          language scoping and moderation roles are already modelled â€” see{" "}
           <span className="font-medium text-foreground">
             docs/changa-architecture.md
           </span>
