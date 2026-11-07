@@ -12,8 +12,15 @@ import type { TranslationRequest, TranslationService } from "@/lib/ai/types";
 describe("sentence window", () => {
   it("releases a sentence once it is complete", () => {
     const window = new SentenceWindow();
-    expect(window.push("Hello there. How are ")).toEqual(["Hello there."]);
-    expect(window.push("you? ")).toEqual(["How are you?"]);
+    expect(window.push("Hello there. How are ")).toEqual(["Hello there. "]);
+    expect(window.push("you? ")).toEqual(["How are you? "]);
+  });
+
+  it("keeps the separator so the sentences rejoin exactly", () => {
+    const text = "One. Two! Three?";
+    const window = new SentenceWindow();
+    const released = window.push(text);
+    expect(released.join("") + window.flush().join("")).toBe(text);
   });
 
   it("holds back a fragment that is too short", () => {
@@ -25,7 +32,7 @@ describe("sentence window", () => {
   it("does not split on an abbreviation", () => {
     const window = new SentenceWindow();
     expect(window.push("Dr. Smith arrived late. ")).toEqual([
-      "Dr. Smith arrived late.",
+      "Dr. Smith arrived late. ",
     ]);
   });
 

@@ -66,7 +66,11 @@ export class SentenceWindow {
         end += 1;
       }
 
-      const candidate = this.buffer.slice(cursor, end).trim();
+      // The raw slice keeps the trailing whitespace, which is the separator
+      // between this sentence and the next one. Keeping it means the
+      // sentences can be rejoined into the original text exactly.
+      const raw = this.buffer.slice(cursor, end);
+      const candidate = raw.trim();
       if (!candidate) {
         cursor = end;
         index = end - 1;
@@ -83,7 +87,7 @@ export class SentenceWindow {
         continue;
       }
 
-      sentences.push(candidate);
+      sentences.push(raw.replace(/^\s+/, ""));
       cursor = end;
       index = end - 1;
     }
@@ -153,11 +157,15 @@ export function isTerminatedSentence(fragment: string): boolean {
 /**
  * Splits a complete text into sentences.
  *
- * Used by the dataset pipeline, where the whole text is already available.
+ * Used by the dataset pipeline, where the whole text is already available and
+ * trimmed sentences are the right shape. The streaming window keeps the
+ * separators; this does not.
  */
 export function splitSentences(text: string): string[] {
   const window = new SentenceWindow({ minCharacters: 0 });
   const sentences = window.push(text);
   sentences.push(...window.flush());
-  return sentences.filter((sentence) => sentence.length > 0);
+  return sentences
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.length > 0);
 }
