@@ -204,6 +204,23 @@ Convex has no foreign keys. Integrity is maintained by the functions:
 
 ---
 
+### 3.3 The Phase 4-6 tables
+
+| Table | Purpose |
+| --- | --- |
+| `qualityReports` | The result of the automated checks for each contribution. `autoAccepted` is always false — automation flags, a person decides. |
+| `moderationActions` | The audit log. Every moderation action is written here *before* it is applied. |
+| `threads` | A discussion in one language community. |
+| `threadPosts` | Replies in a thread. `hidden` keeps a moderated post for the audit trail while removing it from the thread. |
+| `datasetVersions` | A frozen, provenance-tracked release of reviewed contributions, with a checksum and a review status. |
+
+The dataset version's review status moves `draft → reviewed → training_ready
+→ released`. The backend refuses the move to `training_ready` unless the
+version has items, a non-zero mean quality score and provenance. That gate
+is the last line of defence between a pile of contributions and a training
+run.
+
+---
 ## 4. Access control
 
 | Rule | Enforcement |

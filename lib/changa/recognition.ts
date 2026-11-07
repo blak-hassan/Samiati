@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Contributor standing and recognition.
  *
  * Recognition in Changa is earned by quality, not by volume. A contributor

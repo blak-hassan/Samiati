@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Contribution quality engine.
  *
  * These functions are pure and shared: the browser runs them for the local

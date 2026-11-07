@@ -1,4 +1,4 @@
-﻿# Design System
+# Design System
 
 Samiati's visual identity: a warm, calm, premium brown aesthetic that feels
 African without being decorative.

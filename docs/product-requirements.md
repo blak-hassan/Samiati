@@ -1,4 +1,4 @@
-﻿# Product Requirements
+# Product Requirements
 
 What Samiati is, for whom, and what it must do. This document defines scope;
 `docs/implementation-roadmap.md` defines the order it is built in.

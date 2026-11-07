@@ -251,7 +251,17 @@ export function LanguageSelector({
               </CommandGroup>
             ) : (
               <CommandGroup heading="All languages">
-                {results.map(renderOption)}
+                {results
+                  .filter(
+                    (language) =>
+                      !favoriteLanguages.some(
+                        (entry) => entry.id === language.id,
+                      ) &&
+                      !recentLanguages.some(
+                        (entry) => entry.id === language.id,
+                      ),
+                  )
+                  .map(renderOption)}
               </CommandGroup>
             )}
           </CommandList>

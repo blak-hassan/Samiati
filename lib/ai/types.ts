@@ -117,7 +117,13 @@ export interface SpeechRecognitionService {
 }
 
 export interface SpeechSynthesisResult {
-  audio: Blob;
+  /**
+   * The rendered audio, when the provider produces a file. The browser
+   * speech synthesiser speaks directly and produces no file.
+   */
+  audio?: Blob;
+  /** True when the text was actually spoken. */
+  spoken: boolean;
   isMock: boolean;
 }
 

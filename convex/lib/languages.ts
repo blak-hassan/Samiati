@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Script metadata for the languages Samiati supports.
  *
  * Convex bundles the files under `convex/` and follows relative imports

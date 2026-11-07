@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { AlertTriangle, CheckCircle2, Info } from "lucide-react";
 

@@ -1,11 +1,18 @@
 "use client";
 
-import { ArrowUp, Square } from "lucide-react";
+import { ArrowUp, Mic, Square } from "lucide-react";
 import * as React from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  BrowserDictation,
+  isSpeechRecognitionSupported,
+  voiceLocale,
+} from "@/lib/ai/browser-voice";
 import { getLanguageOrDefault } from "@/lib/languages";
+import { usePreferences } from "@/lib/preferences/provider";
 import { cn } from "@/lib/utils";
 
 export interface ChatInputProps {
@@ -22,9 +29,9 @@ export interface ChatInputProps {
 /**
  * The chat composer.
  *
- * It is deliberately simple: one field, one send button. The language the
- * assistant will answer in is shown above the field so the user is never
- * guessing which language they are about to use.
+ * It is deliberately simple: one field, one send button, and a microphone when
+ * the browser can dictate the user's language. The language the assistant
+ * will answer in is shown below the field so the user is never guessing.
  */
 export function ChatInput({
   value,
@@ -37,6 +44,10 @@ export function ChatInput({
   className,
 }: ChatInputProps) {
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const dictationRef = React.useRef<BrowserDictation | null>(null);
+  const [listening, setListening] = React.useState(false);
+  const { voiceEnabled } = usePreferences();
+
   const language = getLanguageOrDefault(languageId);
 
   // Grow the textarea with its content, up to a sensible ceiling.
@@ -47,6 +58,12 @@ export function ChatInput({
     element.style.height = `${Math.min(element.scrollHeight, 200)}px`;
   }, [value]);
 
+  React.useEffect(() => {
+    return () => {
+      dictationRef.current?.abort();
+    };
+  }, []);
+
   const canSend = value.trim().length > 0 && !disabled && !isStreaming;
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -56,9 +73,59 @@ export function ChatInput({
     }
   };
 
+  const canDictate =
+    voiceEnabled &&
+    !isStreaming &&
+    !disabled &&
+    isSpeechRecognitionSupported() &&
+    voiceLocale(language.id) !== null;
+
+  const toggleDictation = React.useCallback(() => {
+    if (listening) {
+      dictationRef.current?.stop();
+      setListening(false);
+      return;
+    }
+
+    const dictation = dictationRef.current ?? new BrowserDictation();
+    dictationRef.current = dictation;
+
+    const started = dictation.start(language.id, {
+      onPartial: (text) => onChange(text),
+      onFinal: (text) => {
+        onChange(text);
+        setListening(false);
+      },
+      onError: (message) => {
+        setListening(false);
+        toast.info(message);
+      },
+    });
+
+    setListening(started);
+  }, [language.id, listening, onChange]);
+
   return (
     <div className={cn("w-full", className)}>
       <div className="samiati-surface flex items-end gap-2 rounded-2xl p-2 transition-shadow focus-within:shadow-md">
+        {canDictate ? (
+          <Button
+            type="button"
+            size="icon"
+            variant={listening ? "default" : "ghost"}
+            onClick={toggleDictation}
+            aria-label={listening ? "Stop dictating" : "Dictate your message"}
+            aria-pressed={listening}
+            className="shrink-0"
+          >
+            {listening ? (
+              <Square className="h-4 w-4 fill-current" aria-hidden />
+            ) : (
+              <Mic className="h-4 w-4" aria-hidden />
+            )}
+          </Button>
+        ) : null}
+
         <Textarea
           ref={textareaRef}
           value={value}

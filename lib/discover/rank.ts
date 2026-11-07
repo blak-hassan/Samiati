@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Discover ranking.
  *
  * A reader should see stories in the languages they care about, and stories

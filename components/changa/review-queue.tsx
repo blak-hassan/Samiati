@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { CheckCircle2, MessageSquareWarning, XCircle } from "lucide-react";
 import * as React from "react";

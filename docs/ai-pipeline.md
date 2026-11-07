@@ -257,6 +257,84 @@ Kiswahili conversation, and never shown a fake translation.**
 
 ---
 
+## 5a. Streaming translation
+
+The original design translated the answer in one call, after the model had
+finished writing it. That left the reader waiting — and watching English they
+did not ask for.
+
+Samiati now translates **sentence by sentence, as the model writes**:
+
+```
+model writes "Habari za asubuhi ni ..."   ──▶ window holds the fragment
+model writes "... ni siku nzuri."          ──▶ sentence complete ──▶ translated
+model writes "Ukiwa mzima?"                ──▶ sentence complete ──▶ translated
+```
+
+`lib/ai/sentence-window.ts` implements the window. It has to be careful about
+where a sentence ends:
+
+| Case | Behaviour |
+| --- | --- |
+| "Hello there. How are you?" | Two sentences. |
+| "Dr. Smith arrived late." | One sentence — "Dr." is an abbreviation. |
+| "It costs 3.50" | Not split — the full stop is inside a number. |
+| "Signed by J." | Not split — a single capital letter is an initial. |
+| "Hi." | Held back until more text arrives; too short to translate alone. |
+
+The user sees their own language as it arrives. The English the model wrote
+stays available in a **"Show the English the model wrote"** disclosure, so the
+translation is never a black box.
+
+The trade-off: each sentence is a separate translation request. For a typical
+reply that is three to six requests instead of one. The cost is small (a
+sentence is a few dozen tokens) and the latency win is large.
+
+---
+
+## 5b. Translation routing
+
+Different languages need different models. `lib/ai/router.ts` holds an ordered
+list of routes and picks the first that covers both ends of a language pair:
+
+```
+dedicated-kiswahili  →  Kiswahili ⇄ English
+general              →  everything else
+```
+
+A dedicated model wins because it is listed first. The router is itself a
+`TranslationService`, so the pipeline does not know that routing exists. If no
+route covers a pair, the router **throws** rather than guessing — the same
+rule the Hugging Face provider follows.
+
+---
+
+## 5c. Voice
+
+Voice uses the browser's Web Speech API (`lib/ai/browser-voice.ts`). It is
+the only option that works on a phone without downloading a model, which
+matters for the bandwidth Samiati targets.
+
+**The honest limits**, which the UI states rather than hides:
+
+| Language | Dictation and speech |
+| --- | --- |
+| English | `en-US` |
+| Kiswahili | `sw-KE` |
+| Sheng | `sw-KE` — the closest standard tag; Sheng has none of its own |
+| Somali | `so-SO` |
+| Kikuyu, Dholuo, Luhya, Kamba, Kalenjin, Gusii, Meru, Maasai | Not available — no standard locale exists |
+
+A message dictated in a language the browser cannot recognise is still
+translated exactly the same way as a typed one. Voice is an input
+convenience, never a requirement.
+
+The `SpeechRecognitionService` and `SpeechSynthesisService` interfaces remain
+in `lib/ai/types.ts` for server-side ASR and TTS providers. The browser path
+lives separately because the Web Speech API recognises a *live session* rather
+than a recorded file, which the interface does not model.
+
+---
 ## 6. What the pipeline deliberately does not do yet
 
 | Not implemented | Why | When |

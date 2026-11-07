@@ -8,6 +8,7 @@ import {
   RefreshCw,
   ThumbsDown,
   ThumbsUp,
+  Volume2,
 } from "lucide-react";
 import * as React from "react";
 
@@ -15,8 +16,10 @@ import { Markdown } from "@/components/chat/markdown";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { Message } from "@/lib/data/types";
+import { speakText, voiceLocale } from "@/lib/ai/browser-voice";
 import { getLanguageOrDefault } from "@/lib/languages";
 import { usePreferences } from "@/lib/preferences/provider";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export interface MessageItemProps {
@@ -72,6 +75,15 @@ export function MessageItem({
 
   const language = getLanguageOrDefault(message.languageId);
   const isUser = message.role === "user";
+  const { voiceEnabled } = usePreferences();
+  const voiceAvailable = voiceLocale(language.id) !== null;
+
+  const speak = React.useCallback(async (text: string, languageId: string) => {
+    const spoken = await speakText(text, languageId);
+    if (!spoken) {
+      toast.info("Your browser cannot speak this language yet.");
+    }
+  }, []);
 
   const handleCopy = React.useCallback(async () => {
     try {
@@ -242,6 +254,17 @@ export function MessageItem({
               aria-label="Regenerate response"
             >
               <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+            </Button>
+          ) : null}
+          {voiceEnabled && voiceAvailable ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => void speak(message.content, language.id)}
+              aria-label="Listen to this reply"
+            >
+              <Volume2 className="h-3.5 w-3.5" aria-hidden />
             </Button>
           ) : null}
           {onFeedback ? (

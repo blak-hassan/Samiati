@@ -1,4 +1,4 @@
-﻿export default function AppLoading() {
+export default function AppLoading() {
   return (
     <div className="flex h-full items-center justify-center">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">

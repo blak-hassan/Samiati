@@ -1,4 +1,4 @@
-﻿# Contributing to Samiati
+# Contributing to Samiati
 
 Thanks for helping build an AI that speaks the languages of Africa. This
 document covers how to get set up and what we expect from a change.

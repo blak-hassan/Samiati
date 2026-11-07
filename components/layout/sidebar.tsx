@@ -2,6 +2,7 @@
 
 import {
   Compass,
+  Database,
   Handshake,
   MessageSquarePlus,
   MessagesSquare,
@@ -39,6 +40,7 @@ const NAV_ITEMS = [
   { href: "/discover", label: "Discover", icon: Compass },
   { href: "/changa", label: "Changa", icon: Handshake },
   { href: "/communities", label: "Communities", icon: Users },
+  { href: "/dataset", label: "Dataset", icon: Database },
 ] as const;
 
 export interface SidebarProps {

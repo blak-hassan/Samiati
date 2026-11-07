@@ -72,58 +72,57 @@ scaffolding and UI primitives but builds the chat product itself.
 | Translation feedback | `MessageMeta`, provenance badge, thumbs up/down |
 | Runtime provider resolution | `lib/ai/index.ts` |
 
-**Remaining in this phase:** streaming translation (Phase 6), and a
-model-based language detector (Phase 6).
+## Phase 4 — Changa
 
-## Phase 4 — Changa MVP
+**Status: Done**
 
-**Status: Partial**
-
-| Item | Status |
-| --- | --- |
-| Contribution dashboard | Done |
-| Translation, validation, correction, comparison and terminology tasks | Done |
-| Submission workflow | Done |
-| Validation and review | Done |
-| Contribution profile | Done |
-| Basic review system | Done |
-| Moderator-only review | Planned |
-| Automated quality checks (duplicate, copy, register, script) | Planned |
-| Reviewer reliability scoring | Planned |
-| Community moderation actions and an audit log | Planned |
-
-The gap between "done" and "planned" is the moderation and quality-checking
-layer, which needs a real reviewer pool before it can be implemented
-honestly.
+| Item | Where | Notes |
+| --- | --- | --- |
+| Contribution dashboard | `components/changa/changa-view.tsx` | Open tasks, submitted, accepted, impact points |
+| Translation, validation, correction, comparison and terminology tasks | `lib/data/types.ts`, `convex/changa.ts` | |
+| Submission workflow | `SamiatiStore.submitContribution` | Persisted |
+| Automated quality checks | `lib/changa/quality.ts` | Six checks: empty/trivial, duplicate, copy-of-accepted, register mismatch, length sanity, script mismatch. They **flag**; they never accept. |
+| Composite quality score | `lib/changa/quality.ts` | Weighted across review judgement, agreement, consistency, novelty and reliability — never a raw count. |
+| Review queue | `/changa/review` | Ordered by suspicion, not by age. |
+| Reviewer reliability and recognition tiers | `lib/changa/recognition.ts` | New reviewers may not approve alone. |
+| Moderation actions with an audit log | `convex/changa.ts`, `SamiatiStore.createModerationAction` | Every action is written to the log before it is applied. |
+| Contribution profile | `/profile` | |
+| Voice contribution tasks | — | Planned. Needs audio storage, consent flows and per-language speech quality criteria. |
 
 ## Phase 5 — Discover and Communities
 
-**Status: Partial**
+**Status: Done**
 
-| Item | Status |
-| --- | --- |
-| Discover page with topics, filters, save and "Discuss" | Done |
-| Discover content pipeline | Planned — needs a licensed feed and a summarisation pipeline |
-| Communities list, membership, language scoping | Done |
-| Community discussion threads | Planned |
-| Community moderation tools | Planned |
-| User personalisation of Discover | Planned |
+| Item | Where | Notes |
+| --- | --- | --- |
+| Discover page with topics, filters, save and "Discuss" | `components/discover/discover-view.tsx` | |
+| Discover ingestion pipeline | `lib/discover/ingest.ts`, `scripts/ingest-discover.ts` | Reads RSS, Atom and JSON feeds that publishers have chosen to publish. Samiati does not scrape. |
+| Language-personalised ranking | `lib/discover/rank.ts` | Every score has a named, visible reason. |
+| Communities list, membership, language scoping | `components/communities/communities-view.tsx` | |
+| Community discussion threads | `components/communities/community-view.tsx` | Threads are scoped to one language. |
+| Post moderation | `hideThreadPost` | The post is kept for the audit trail and hidden from the thread. |
+| Live African news from a licensed wire | — | The ingestion pipeline is ready for one; the licence is the remaining gap. |
 
 ## Phase 6 — Advanced language intelligence
 
-**Status: Planned**
+**Status: Done**
 
-| Item | Notes |
-| --- | --- |
-| Voice input and output | Web Speech API first for the browser; per-language ASR/TTS models second. The `SpeechRecognitionService` and `SpeechSynthesisService` interfaces are already defined. |
-| Improved translation models | Per-language models where NLLB's coverage is weak; a routing layer that picks the best model per language pair. |
-| Dataset export | `DatasetExporter` interface, `DatasetVersion` records with provenance and checksums. |
-| Quality scoring | The composite model in `docs/changa-architecture.md` §5.1. |
-| Evaluation | Per-language evaluation sets built from accepted contributions. |
-| Fine-tuning infrastructure | Only from reviewed, scored, versioned datasets. |
-| Streaming translation | Removes the intermediate English text. |
-| Convex live queries | Replaces the re-fetch-after-mutation pattern. |
-| Playwright end-to-end tests | Following thom-chat's approach. |
+| Item | Where | Notes |
+| --- | --- | --- |
+| Voice input | `lib/ai/browser-voice.ts` | Browser dictation. Only languages with a standard BCP-47 locale are supported, and Samiati says so. |
+| Voice output | `lib/ai/browser-voice.ts` | The browser's own synthesiser. No model download, works offline, costs nothing. |
+| Streaming translation | `lib/ai/sentence-window.ts` | The answer is translated sentence by sentence as the model writes it, so the reader sees their own language immediately. The English is available in a disclosure. |
+| Per-language translation routing | `lib/ai/router.ts` | A dedicated model for a language wins over the general multilingual model. |
+| Dataset export | `lib/dataset/pipeline.ts`, `/dataset` | JSONL and CSV, with a checksum and full provenance. |
+| Dataset cleaning | `lib/dataset/pipeline.ts` | Normalisation and per-language de-duplication. |
+| Quality scoring | `lib/changa/quality.ts`, `lib/dataset/pipeline.ts` | |
+| Dataset versioning | `convex/dataset.ts`, `/dataset` | `draft → reviewed → training_ready → released`, with the gates enforced on both sides. |
+| Training-readiness gate | `checkReadiness` | A version with no items, no quality score or no provenance cannot become training-ready. |
+| Evaluation harness | `lib/dataset/evaluate.ts` | chrF (character n-gram F-score) plus word error rate, reported per language with the worst samples kept for inspection. |
+| Fine-tuning infrastructure | `scripts/export-dataset.ts`, `/dataset` | A training-ready manifest and split. **Not** a trainer: Samiati produces the data, it does not train foundation models. |
+| Playwright end-to-end tests | `e2e/samiati.spec.ts` | Runs against the production build with the local backend. |
+| Convex live queries | — | Planned. The store contract is deliberately non-reactive so both backends behave identically; moving to live queries is a change to one provider. |
+| Model-based language identification | — | Planned. The heuristic detector is adequate and free; the seam (`TranslationService.detectLanguage`) already exists. |
 
 ---
 
@@ -134,7 +133,7 @@ honestly.
 | A user-facing model selector | Samiati's differentiator is that there isn't one. |
 | A mobile native app | The web app is mobile-first; a native client is a distribution decision, not a technical necessity. |
 | Training a foundation model from scratch | Out of reach. Samiati fine-tunes and evaluates open models. |
-| Live news scraping | Licensing and reliability. A licensed feed is the right answer. |
+| Live news scraping | Licensing and reliability. A publisher's own feed is the right answer. |
 
 ---
 
@@ -146,9 +145,18 @@ npm run dev        → http://localhost:3000, fully working, no keys needed
 
 npm run typecheck  → tsc --noEmit
 npm run lint       → eslint
-npm test           → vitest (38 tests)
+npm test           → vitest (131 unit tests)
 npm run build      → next build (type errors fail the build)
+npm run test:e2e   → playwright (needs a build first)
 ```
 
 Adding a provider key to `.env.local` switches Samiati from the labelled
 placeholder to a real model, with no code change.
+
+### The scripts
+
+| Script | What it does |
+| --- | --- |
+| `npm run ingest:discover -- --url <feed-url>` | Fetch a publisher's feed and write `public/discover-feed.json`. The app merges it into the catalogue on load. |
+| `node scripts/export-dataset.ts --help` | Build a training-ready dataset manifest from a contributions export. |
+| `node scripts/repair-encoding.mjs <file…>` | Repair UTF-8 files mangled by a Windows PowerShell round-trip. |

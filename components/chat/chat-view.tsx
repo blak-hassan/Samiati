@@ -125,7 +125,9 @@ export function ChatView({
               setStatusMessage(event.message ?? null);
             } else if (event.type === "delta") {
               if (event.stage === "translation") {
-                translated = event.text ?? "";
+                // Translations arrive sentence by sentence, so they are
+                // appended rather than replaced.
+                translated += event.text ?? "";
                 setTranslatedText(translated);
               } else {
                 reasoningText += event.text ?? "";
@@ -319,7 +321,9 @@ export function ChatView({
     id: "streaming",
     conversationId: conversation.id,
     role: "assistant",
-    content: translatedText ?? streamingText,
+    // The translated text is the reply. The English is only shown
+    // while the first sentence is still being translated.
+    content: translatedText || streamingText,
     languageId: conversation.languageId,
     status: "streaming",
     createdAt: Date.now(),
@@ -348,6 +352,16 @@ export function ChatView({
           {isStreaming ? (
             <div className="space-y-2">
               <MessageItem message={streamingMessage} isStreaming />
+              {translatedText && streamingText ? (
+                <details className="text-xs text-muted-foreground">
+                  <summary className="cursor-pointer select-none">
+                    Show the English the model wrote
+                  </summary>
+                  <div className="mt-2 whitespace-pre-wrap rounded-md border bg-muted/30 p-2">
+                    {streamingText}
+                  </div>
+                </details>
+              ) : null}
               {statusMessage ? (
                 <p
                   role="status"

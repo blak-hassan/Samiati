@@ -1,4 +1,4 @@
-﻿import { DEFAULT_LANGUAGE_ID, getLanguageOrDefault } from "@/lib/languages";
+import { DEFAULT_LANGUAGE_ID, getLanguageOrDefault } from "@/lib/languages";
 import { runQualityChecks } from "@/lib/changa/quality";
 import { computeStanding } from "@/lib/changa/recognition";
 
@@ -95,7 +95,7 @@ function createInitialState(): LocalState {
  *
  * This is the default backend so that Samiati runs, end to end, with no
  * accounts, no server and no API keys. It is also the fastest way to explore
- * the product on a phone with poor connectivity â€” the data never leaves the
+ * the product on a phone with poor connectivity — the data never leaves the
  * device.
  */
 export class LocalStore implements SamiatiStore {
@@ -138,7 +138,7 @@ export class LocalStore implements SamiatiStore {
         }
       }
     } catch {
-      // Corrupt or unavailable storage must never break the app â€” fall back
+      // Corrupt or unavailable storage must never break the app — fall back
       // to a clean in-memory state.
     }
 

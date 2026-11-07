@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Discover ingestion.
  *
  * Samiati does not scrape the web. It reads a feed that has been configured

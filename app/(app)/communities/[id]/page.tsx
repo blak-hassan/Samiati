@@ -1,4 +1,4 @@
-﻿import { CommunityView } from "@/components/communities/community-view";
+import { CommunityView } from "@/components/communities/community-view";
 
 export const metadata = {
   title: "Community",

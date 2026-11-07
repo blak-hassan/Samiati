@@ -2,6 +2,7 @@ import { getLanguageOrDefault } from "@/lib/languages";
 
 import type { MessageMeta, PipelineRoute } from "@/lib/data/types";
 
+import { SentenceWindow } from "./sentence-window";
 import type { ReasoningService, TranslationService } from "./types";
 
 export type PipelineStage =
@@ -150,6 +151,39 @@ export async function* runChatPipeline(
     let reasoningModel: string | undefined;
     let tokensUsed: number | undefined;
 
+    // The reply is translated sentence by sentence as the model writes it, so
+    // the reader sees their own language instead of waiting for the whole
+    // English answer to arrive.
+    const window = new SentenceWindow();
+    const translatedParts: string[] = [];
+    let translationFailed = false;
+
+    const translatePart = async (
+      part: string,
+    ): Promise<{ text: string; error?: string }> => {
+      try {
+        const output = await translation.translate({
+          text: part,
+          sourceLanguageId: "en",
+          targetLanguageId: targetLanguage.id,
+          context: englishUserMessage,
+        });
+        translatedParts.push(output.text);
+        return { text: output.text };
+      } catch (error) {
+        translationFailed = true;
+        // Fall back to the English sentence so the reply is never lost.
+        translatedParts.push(part);
+        return {
+          text: part,
+          error:
+            error instanceof Error
+              ? `Translation unavailable (${error.message}). Showing the English answer.`
+              : "Translation unavailable. Showing the English answer.",
+        };
+      }
+    };
+
     for await (const chunk of reasoning.stream(
       {
         messages: contextMessages,
@@ -161,6 +195,20 @@ export async function* runChatPipeline(
       if (chunk.delta) {
         englishAnswer += chunk.delta;
         yield { type: "delta", text: chunk.delta, stage: "reasoning" };
+
+        if (!isEnglish) {
+          for (const sentence of window.push(chunk.delta)) {
+            const result = await translatePart(sentence);
+            if (result.error) {
+              yield {
+                type: "stage",
+                stage: "translate-output",
+                message: result.error,
+              };
+            }
+            yield { type: "delta", text: result.text, stage: "translation" };
+          }
+        }
       }
       if (chunk.model) reasoningModel = chunk.model;
       if (typeof chunk.tokensUsed === "number") tokensUsed = chunk.tokensUsed;
@@ -168,37 +216,33 @@ export async function* runChatPipeline(
 
     /* -------------------------- 4. translate out -------------------------- */
     let finalText = englishAnswer;
+
     if (!isEnglish && englishAnswer.trim()) {
-      yield {
-        type: "stage",
-        stage: "translate-output",
-        message: `Translating into ${targetLanguage.name}…`,
-      };
-      try {
-        const output = await translation.translate({
-          text: englishAnswer,
-          sourceLanguageId: "en",
-          targetLanguageId: targetLanguage.id,
-          context: englishUserMessage,
-        });
-        finalText = output.text;
-        translated.output = true;
-        if (output.text) {
-          yield { type: "delta", text: output.text, stage: "translation" };
-        }
-      } catch (error) {
-        // Degrade honestly: deliver the English answer and say so in the
-        // metadata so the UI can label it.
-        finalText = englishAnswer;
-        translated.output = false;
+      if (translatedParts.length === 0) {
         yield {
           type: "stage",
           stage: "translate-output",
-          message:
-            error instanceof Error
-              ? `Translation unavailable (${error.message}). Showing the English answer.`
-              : "Translation unavailable. Showing the English answer.",
+          message: `Translating into ${targetLanguage.name}…`,
         };
+      }
+
+      // Translate whatever is left over.
+      for (const sentence of window.flush()) {
+        const result = await translatePart(sentence);
+        if (result.error) {
+          yield { type: "stage", stage: "translate-output", message: result.error };
+        }
+        yield { type: "delta", text: result.text, stage: "translation" };
+      }
+
+      if (!translationFailed && translatedParts.length > 0) {
+        finalText = translatedParts.join("");
+        translated.output = true;
+      } else {
+        // Degrade honestly: the English answer is delivered and the metadata
+        // says so, so the UI can label it.
+        finalText = englishAnswer;
+        translated.output = false;
       }
     }
 

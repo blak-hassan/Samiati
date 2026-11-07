@@ -8,6 +8,10 @@ import { LanguageSelector } from "@/components/language/language-selector";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
+  dictatableLanguages,
+  isSpeechRecognitionSupported,
+} from "@/lib/ai/browser-voice";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -69,6 +73,8 @@ export function SettingsView() {
   const { languageId, setLanguage, favorites, recent, toggleFavorite } =
     useLanguagePreferences();
   const preferences = usePreferences();
+  const voiceSupported =
+    isSpeechRecognitionSupported() && dictatableLanguages().length > 0;
 
   const [contributionConsent, setContributionConsent] = React.useState(false);
 
@@ -192,16 +198,22 @@ export function SettingsView() {
 
           <Section
             title="Voice"
-            description="Voice input and output arrive in a later release."
+            description="Dictate your messages and listen to replies, using your browser's own speech support."
           >
             <Row
               label="Voice input and output"
-              description="Not available yet — this stays disabled until speech support ships."
+              description={
+                voiceSupported
+                  ? "Your browser can dictate and speak. Only languages with a standard locale are supported — for the rest, type your message and it will be translated the same way."
+                  : "This browser cannot recognise speech. Chrome and Edge support it; Safari does not yet."
+              }
               control={
                 <Switch
-                  checked={false}
-                  disabled
-                  aria-label="Voice input and output (not available yet)"
+                  checked={preferences.voiceEnabled}
+                  onCheckedChange={(checked) =>
+                    preferences.setPreference("voiceEnabled", checked)
+                  }
+                  aria-label="Voice input and output"
                 />
               }
             />

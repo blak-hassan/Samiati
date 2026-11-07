@@ -100,24 +100,30 @@ generator and a submission UI variant.
 
 `components/changa/changa-view.tsx` and `convex/changa.ts`.
 
-| Capability | Status |
-| --- | --- |
-| Contribution dashboard (open tasks, submitted, accepted, impact points) | **Live** |
-| Task list, filterable by type and by language | **Live** |
-| Task detail dialog with source text, context and existing translation | **Live** |
-| Submit a contribution | **Live** — persisted through `SamiatiStore.submitContribution` |
-| Contribution status tracking | **Live** |
-| Review creation (approve / reject / needs revision) | **Live** — `SamiatiStore.createReview` |
-| Quality score assignment | **Live** — a simple 0.9 / 0.5 / 0.1 mapping today |
-| Contribution history | **Live** — on the Changa page and the profile page |
-| Community membership and language scoping | **Live** |
-| Automated quality checks | **Designed** (§5), not implemented |
-| Duplicate detection | **Designed** (§5), not implemented |
-| Moderator-only review | **Designed**, not implemented |
-| Dataset export and versioning | **Designed** (§7), not implemented |
+| Capability | Status | Where |
+| --- | --- | --- |
+| Contribution dashboard (open tasks, submitted, accepted, impact points) | **Live** | `components/changa/changa-view.tsx` |
+| Task list, filterable by type and by language | **Live** | `components/changa/changa-view.tsx` |
+| Task detail dialog with source text, context and existing translation | **Live** | `components/changa/changa-view.tsx` |
+| Submit a contribution | **Live** — persisted through `SamiatiStore.submitContribution` | |
+| Contribution status tracking | **Live** | |
+| Review creation (approve / reject / needs revision) | **Live** — `SamiatiStore.createReview` | |
+| Review queue, ordered by suspicion | **Live** | `components/changa/review-queue.tsx` |
+| Automated quality checks (six checks, §5.2) | **Live** — they flag, they never accept | `lib/changa/quality.ts` |
+| Composite quality score (§5.1) | **Live** | `lib/changa/quality.ts` |
+| Contributor standing and recognition tiers | **Live** | `lib/changa/recognition.ts` |
+| Reviewer reliability (agreement rate) | **Live** | `lib/changa/recognition.ts` |
+| Moderation actions with an audit log | **Live** | `convex/changa.ts` |
+| Contribution history | **Live** — on the Changa page and the profile page | |
+| Community membership and language scoping | **Live** | |
+| Community discussion threads | **Live** | `components/communities/community-view.tsx` |
+| Dataset export, versioning and readiness gating | **Live** | `/dataset`, `lib/dataset/pipeline.ts` |
+| Evaluation harness (chrF and word error rate) | **Live** | `lib/dataset/evaluate.ts` |
+| Voice contribution tasks | **Planned** — needs audio storage, consent flows and per-language speech quality criteria | |
+| Paid contributor programme | **Planned** — needs real budget, and introduces a volume-optimisation risk the quality model exists to control | |
 
-The seed tasks are **sample content** and the UI says so. The submission and
-review flow is real and persists.
+The seed tasks are **sample content** and the UI says so. The submission,
+review, quality-checking and dataset flows are real and persist.
 
 ---
 

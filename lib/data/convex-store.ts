@@ -1,4 +1,4 @@
-﻿import { ConvexHttpClient } from "convex/browser";
+import { ConvexHttpClient } from "convex/browser";
 
 import type { ContributorStanding } from "@/lib/changa/recognition";
 

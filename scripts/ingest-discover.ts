@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Ingest a Discover feed.
  *
  * Samiati does not scrape publishers. It reads a feed the publisher has

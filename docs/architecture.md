@@ -74,8 +74,10 @@ app/
 components/
 ├── chat/                    chat-view, chat-screen, chat-input,
 │                            message-item, markdown, welcome-panel
-├── changa/                  changa-view
-├── communities/             communities-view
+├── changa/                  changa-view, quality-panel, review-queue,
+│                            standing-card
+├── communities/             communities-view, community-view
+├── dataset/                 dataset-view
 ├── discover/                discover-view
 ├── language/                language-selector
 ├── layout/                  app-shell, sidebar, samiati-logo
@@ -88,9 +90,21 @@ components/
 lib/
 ├── ai/
 │   ├── types.ts             Service interfaces
-│   ├── pipeline.ts          translate → reason → translate
+│   ├── pipeline.ts          translate → reason → translate (streaming)
+│   ├── sentence-window.ts   Sentence-by-sentence streaming translation
+│   ├── router.ts            Per-language translation routing
+│   ├── browser-voice.ts     Web Speech dictation and playback
 │   ├── index.ts             Runtime provider resolution
-│   └── providers/           mock, huggingface, openai-compatible
+│   └── providers/           mock, huggingface, openai-compatible, web-speech
+├── changa/
+│   ├── quality.ts           Automated checks and the composite score
+│   └── recognition.ts       Standing, tiers and reviewer reliability
+├── dataset/
+│   ├── pipeline.ts          Build → clean → score → version → split
+│   └── evaluate.ts          chrF and word error rate
+├── discover/
+│   ├── ingest.ts            RSS, Atom and JSON feed parsing
+│   └── rank.ts              Language-personalised ranking
 ├── data/
 │   ├── types.ts             Domain model
 │   ├── store.ts             SamiatiStore interface
@@ -112,7 +126,9 @@ lib/
 
 convex/                      Convex backend (own tsconfig)
 docs/                        This documentation
-tests/                       vitest suite
+e2e/                         Playwright end-to-end tests
+scripts/                     ingest-discover, export-dataset, repair-encoding
+tests/                       vitest unit tests
 ```
 
 ---

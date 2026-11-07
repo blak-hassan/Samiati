@@ -1,4 +1,4 @@
-﻿# Samiati
+# Samiati
 
 **AI in the languages of Africa.**
 
@@ -76,8 +76,11 @@ No code change is needed to switch any of these.
 | `npm start` | Serve the production build |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | `eslint` |
-| `npm test` | `vitest` — 38 unit tests |
+| `npm test` | `vitest` — 131 unit tests |
 | `npm run test:watch` | Vitest in watch mode |
+| `npm run test:e2e` | Playwright, against the production build |
+| `npm run test:e2e:install` | Download the Chromium build Playwright needs |
+| `npm run ingest:discover -- --url <feed>` | Ingest a publisher feed into Discover |
 
 ---
 
@@ -85,24 +88,33 @@ No code change is needed to switch any of these.
 
 - **Chat** — streaming replies, markdown, code blocks, copy, regenerate,
   edit-and-resend, retry, feedback, stop generation, conversation history and
-  search.
+  search. The reply is translated **sentence by sentence as the model writes
+  it**, so you read your own language while it is still being generated.
 - **Language selector** — searchable, diacritic-insensitive, with favourites,
   recently used, and a coverage badge per language.
-- **Changa** — a contribution platform: task queue, submission, review,
-  contribution history, recognition and impact statistics.
+- **Changa** — a contribution platform: task queue, submission, automated
+  quality checks, a review queue, recognition tiers, a moderation audit log,
+  contribution history and impact statistics.
 - **Discover** — African news, culture, history and education, filterable by
-  topic and language, openable in a conversation.
-- **Communities** — language-scoped spaces with real membership.
+  topic and language, ranked for your languages, openable in a conversation.
+  A real ingestion pipeline reads publisher feeds.
+- **Communities** — language-scoped spaces with real membership and
+  discussion threads.
+- **Dataset** — build a provenance-tracked version from reviewed work, check
+  whether it is ready for training, and download it as JSONL or CSV.
 - **Profile** — languages, contribution statistics, activity heat map,
   recognition.
-- **Settings** — language, appearance, accessibility, privacy, data consent
-  and translation transparency.
+- **Settings** — language, appearance, accessibility, voice, privacy, data
+  consent and translation transparency.
 - **Onboarding** — first-run language selection.
+- **Voice** — dictate your message and listen to replies, using your
+  browser's own speech support. Where a language has no standard locale,
+  Samiati says so rather than pretending.
 
-Discover and Changa currently show **clearly-labelled sample content**. The
-submission, review, membership and save flows are real and persist.
+Discover and Changa show **clearly-labelled sample content** until a feed is
+ingested. The submission, review, quality-checking, membership and save flows
+are real and persist.
 
----
 
 ## Documentation
 

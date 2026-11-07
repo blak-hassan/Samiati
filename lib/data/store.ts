@@ -1,4 +1,4 @@
-﻿import type { ContributorStanding } from "@/lib/changa/recognition";
+import type { ContributorStanding } from "@/lib/changa/recognition";
 
 import type {
   Community,
@@ -23,8 +23,8 @@ import type {
  * The persistence contract for Samiati.
  *
  * Two implementations exist:
- *  - {@link LocalStore}   â€” browser storage, no server required (default).
- *  - {@link ConvexStore}  â€” Convex deployment, used when configured.
+ *  - {@link LocalStore}   — browser storage, no server required (default).
+ *  - {@link ConvexStore}  — Convex deployment, used when configured.
  *
  * Keeping this narrow means the React layer never branches on backend, and a
  * future backend (e.g. a self-hosted API) only needs a new implementation.

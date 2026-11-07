@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Check, MessageSquare, Plus, Send, ShieldAlert } from "lucide-react";
 import Link from "next/link";

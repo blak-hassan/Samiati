@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import {
   Award,
@@ -61,7 +61,7 @@ const STATUS_LABEL: Record<ContributionTask["status"], string> = {
 };
 
 /**
- * Changa â€” Samiati's language contribution platform.
+ * Changa — Samiati's language contribution platform.
  *
  * Contributors translate, validate and correct text so that Samiati's
  * language models get better at the languages people actually speak. The tasks
@@ -148,6 +148,35 @@ export function ChangaView() {
       )
     : undefined;
 
+  /** Downloads the raw contribution data for the dataset export script. */
+  const exportContributions = React.useCallback(async () => {
+    const [contributionList, taskList, reviewList] = await Promise.all([
+      store.listContributions(),
+      store.listContributionTasks(),
+      store.listReviews(),
+    ]);
+
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      contributions: contributionList,
+      tasks: taskList,
+      reviews: reviewList,
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "samiati-contributions.json";
+    anchor.click();
+    URL.revokeObjectURL(url);
+    toast.success(
+      "Downloaded. Run `node scripts/export-dataset.ts --input samiati-contributions.json` to build a dataset.",
+    );
+  }, [store]);
+
   const openTask = React.useCallback((task: ContributionTask) => {
     setActiveTask(task);
     setDraft(task.targetText ?? "");
@@ -187,9 +216,18 @@ export function ChangaView() {
             <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
               Make Samiati better at your language
             </h1>
-            <Button variant="outline" size="sm" asChild className="mt-2">
-              <Link href="/changa/review">Review queue</Link>
-            </Button>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/changa/review">Review queue</Link>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => void exportContributions()}
+              >
+                Export contributions
+              </Button>
+            </div>
           </div>
           <p className="mt-3 max-w-2xl text-pretty text-muted-foreground">
             Every accepted translation makes the assistant more useful for
@@ -410,7 +448,7 @@ export function ChangaView() {
                 <DialogTitle>
                   {TASK_TYPES.find((entry) => entry.id === activeTask.type)?.label ??
                     "Task"}{" "}
-                  Â· {getLanguageOrDefault(activeTask.languageId).name}
+                  · {getLanguageOrDefault(activeTask.languageId).name}
                 </DialogTitle>
                 <DialogDescription>
                   {TASK_TYPES.find((entry) => entry.id === activeTask.type)?.blurb}
@@ -480,7 +518,7 @@ export function ChangaView() {
                   Cancel
                 </Button>
                 <Button onClick={() => void submit()} disabled={submitting}>
-                  {submitting ? "Submittingâ€¦" : "Submit contribution"}
+                  {submitting ? "Submitting…" : "Submit contribution"}
                 </Button>
               </DialogFooter>
             </>

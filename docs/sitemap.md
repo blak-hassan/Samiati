@@ -1,4 +1,4 @@
-﻿# Sitemap
+# Sitemap
 
 Every route in Samiati, what it is for, and who it is for.
 
@@ -21,6 +21,9 @@ Every route in Samiati, what it is for, and who it is for.
 | `/communities` | Language-scoped communities. Join, leave, see topics. | Community cards, join/leave |
 | `/profile` | The member's public face: languages, contribution statistics, activity heat map, recognition, communities. | Stat cards, heat map, recognition list |
 | `/settings` | Language, appearance, accessibility, voice, privacy, account, data consent, translation transparency. | Sectioned settings |
+| `/changa/review` | The review queue. Contributions awaiting a person, most-suspicious first. | Quality panel, accept / needs revision / reject |
+| `/communities/[id]` | A language community and its discussion threads. | Threads, replies, post moderation |
+| `/dataset` | The dataset workspace. Build a version from reviewed work, inspect its provenance, and download it. | Metrics, checksum, readiness checks, JSONL/CSV download |
 
 ## 3. API routes
 
