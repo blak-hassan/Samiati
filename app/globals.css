@@ -1,0 +1,285 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Samiati design system — warm brown / espresso / sand.
+ * Tokens are HSL triplets so they can be used with the `hsl(var(--token))`
+ * pattern used by shadcn/ui components.
+ */
+
+@layer base {
+  :root {
+    /* Neutrals — sand & cream */
+    --background: 40 38% 97%;
+    --foreground: 22 28% 14%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 22 28% 14%;
+
+    --popover: 40 40% 99%;
+    --popover-foreground: 22 28% 14%;
+
+    /* Brand — warm espresso primary */
+    --primary: 22 42% 28%;
+    --primary-foreground: 40 44% 97%;
+
+    --secondary: 34 30% 91%;
+    --secondary-foreground: 22 34% 20%;
+
+    --muted: 36 24% 93%;
+    --muted-foreground: 25 12% 42%;
+
+    --accent: 33 36% 88%;
+    --accent-foreground: 22 40% 22%;
+
+    --destructive: 0 62% 42%;
+    --destructive-foreground: 40 44% 97%;
+
+    --border: 32 20% 87%;
+    --input: 32 20% 87%;
+    --ring: 24 44% 32%;
+
+    /* Brand ramp */
+    --sand-50: 40 40% 97%;
+    --sand-100: 38 36% 93%;
+    --sand-200: 35 30% 87%;
+    --sand-300: 32 24% 79%;
+
+    --espresso-400: 24 30% 48%;
+    --espresso-500: 23 35% 38%;
+    --espresso-600: 22 40% 30%;
+    --espresso-700: 21 40% 24%;
+    --espresso-800: 20 38% 19%;
+    --espresso-900: 19 35% 13%;
+
+    --bronze-300: 34 55% 68%;
+    --bronze-400: 32 52% 58%;
+    --bronze-500: 30 48% 47%;
+    --bronze-600: 28 45% 38%;
+
+    --clay-400: 18 62% 60%;
+    --clay-500: 15 58% 50%;
+    --clay-600: 13 52% 41%;
+
+    --chart-1: 28 52% 45%;
+    --chart-2: 34 48% 56%;
+    --chart-3: 18 58% 52%;
+    --chart-4: 24 32% 42%;
+    --chart-5: 38 40% 66%;
+
+    --sidebar-background: 36 30% 94%;
+    --sidebar-foreground: 22 28% 18%;
+    --sidebar-primary: 22 42% 28%;
+    --sidebar-primary-foreground: 40 44% 97%;
+    --sidebar-accent: 33 32% 87%;
+    --sidebar-accent-foreground: 22 40% 20%;
+    --sidebar-border: 32 20% 85%;
+    --sidebar-ring: 24 44% 32%;
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 22 22% 9%;
+    --foreground: 38 25% 92%;
+
+    --card: 22 20% 12%;
+    --card-foreground: 38 25% 92%;
+
+    --popover: 22 20% 12%;
+    --popover-foreground: 38 25% 92%;
+
+    --primary: 34 52% 62%;
+    --primary-foreground: 20 32% 11%;
+
+    --secondary: 22 16% 17%;
+    --secondary-foreground: 38 25% 92%;
+
+    --muted: 22 16% 17%;
+    --muted-foreground: 32 12% 62%;
+
+    --accent: 24 18% 20%;
+    --accent-foreground: 38 25% 92%;
+
+    --destructive: 0 55% 48%;
+    --destructive-foreground: 40 44% 97%;
+
+    --border: 24 14% 22%;
+    --input: 24 14% 22%;
+    --ring: 34 50% 52%;
+
+    --sand-50: 30 16% 12%;
+    --sand-100: 30 14% 16%;
+    --sand-200: 30 12% 22%;
+    --sand-300: 28 12% 30%;
+
+    --espresso-400: 24 30% 48%;
+    --espresso-500: 23 35% 40%;
+    --espresso-600: 22 40% 34%;
+    --espresso-700: 21 40% 28%;
+    --espresso-800: 20 38% 22%;
+    --espresso-900: 19 35% 15%;
+
+    --bronze-300: 34 55% 68%;
+    --bronze-400: 32 52% 58%;
+    --bronze-500: 30 48% 50%;
+    --bronze-600: 28 45% 42%;
+
+    --clay-400: 18 62% 58%;
+    --clay-500: 15 58% 48%;
+    --clay-600: 13 52% 40%;
+
+    --chart-1: 34 52% 60%;
+    --chart-2: 30 46% 52%;
+    --chart-3: 18 58% 54%;
+    --chart-4: 24 34% 48%;
+    --chart-5: 38 40% 66%;
+
+    --sidebar-background: 22 20% 11%;
+    --sidebar-foreground: 38 22% 88%;
+    --sidebar-primary: 34 52% 62%;
+    --sidebar-primary-foreground: 20 32% 11%;
+    --sidebar-accent: 24 16% 18%;
+    --sidebar-accent-foreground: 38 25% 92%;
+    --sidebar-border: 24 14% 20%;
+    --sidebar-ring: 34 50% 52%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: hsl(var(--bronze-300) / 0.4);
+  }
+
+  /* Keyboard focus must always be visible — Samiati is used on shared and
+     low-end devices where pointer affordances are often unavailable. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* Thin, unobtrusive scrollbars that match the warm palette. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.5);
+  }
+}
+
+@layer components {
+  /* A soft, warm surface used for assistant message bubbles. */
+  .samiati-surface {
+    @apply bg-card border border-border/70;
+    box-shadow:
+      0 1px 2px 0 hsl(var(--espresso-900) / 0.04),
+      0 8px 24px -12px hsl(var(--espresso-900) / 0.12);
+  }
+
+  .samiati-grain {
+    background-image:
+      radial-gradient(
+        circle at 15% 12%,
+        hsl(var(--bronze-300) / 0.16) 0,
+        transparent 45%
+      ),
+      radial-gradient(
+        circle at 85% 0%,
+        hsl(var(--clay-400) / 0.12) 0,
+        transparent 40%
+      );
+  }
+
+  .dark .samiati-grain {
+    background-image:
+      radial-gradient(
+        circle at 15% 12%,
+        hsl(var(--bronze-500) / 0.14) 0,
+        transparent 45%
+      ),
+      radial-gradient(
+        circle at 85% 0%,
+        hsl(var(--clay-600) / 0.16) 0,
+        transparent 40%
+      );
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .text-pretty {
+    text-wrap: pretty;
+  }
+
+  /* Marks a region that renders right-to-left when a language requires it. */
+  .rtl {
+    direction: rtl;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Respect the in-app "reduce motion" preference. */
+  .reduce-motion *,
+  .reduce-motion *::before,
+  .reduce-motion *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

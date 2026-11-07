@@ -1,0 +1,176 @@
+import { defineSchema, defineTable } from "convex/server";
+import { v } from "convex/values";
+
+/**
+ * The Samiati Convex schema.
+ *
+ * The shape mirrors `lib/data/types.ts` exactly, so the `ConvexStore` adapter
+ * and the `LocalStore` adapter return identical objects to the UI.
+ *
+ * Indexes are chosen around the queries the application actually runs:
+ *  - conversations are always read "for this user, newest first"
+ *  - messages are always read "for this conversation, in order"
+ *  - contributions are read "for this contributor" and "for this task"
+ */
+export default defineSchema({
+  users: defineTable({
+    clerkId: v.optional(v.string()),
+    username: v.string(),
+    displayName: v.string(),
+    avatarUrl: v.optional(v.string()),
+    createdAt: v.number(),
+
+    defaultLanguageId: v.string(),
+    preferredLanguageIds: v.array(v.string()),
+    favoriteLanguageIds: v.array(v.string()),
+    recentLanguageIds: v.array(v.string()),
+    contributionConsent: v.boolean(),
+    plan: v.union(v.literal("free"), v.literal("supporter")),
+  })
+    .index("by_clerk_id", ["clerkId"])
+    .index("by_username", ["username"]),
+
+  conversations: defineTable({
+    ownerId: v.id("users"),
+    title: v.string(),
+    languageId: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    pinned: v.boolean(),
+    archived: v.boolean(),
+    branchedFromId: v.optional(v.id("conversations")),
+  })
+    .index("by_owner", ["ownerId"])
+    .index("by_owner_updated", ["ownerId", "updatedAt"]),
+
+  messages: defineTable({
+    conversationId: v.id("conversations"),
+    role: v.union(v.literal("user"), v.literal("assistant"), v.literal("system")),
+    content: v.string(),
+    languageId: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("streaming"),
+      v.literal("complete"),
+      v.literal("error"),
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    error: v.optional(v.string()),
+    feedback: v.optional(v.union(v.literal("up"), v.literal("down"), v.null())),
+    meta: v.optional(
+      v.object({
+        pipeline: v.union(
+          v.literal("direct"),
+          v.literal("translated"),
+          v.literal("mock"),
+        ),
+        reasoningModel: v.optional(v.string()),
+        translationModel: v.optional(v.string()),
+        reasoningLanguageId: v.optional(v.string()),
+        translated: v.boolean(),
+        inputTranslated: v.optional(v.boolean()),
+        translationConfidence: v.optional(v.number()),
+        tokensUsed: v.optional(v.number()),
+        latencyMs: v.optional(v.number()),
+      }),
+    ),
+  })
+    .index("by_conversation", ["conversationId"])
+    .index("by_conversation_created", ["conversationId", "createdAt"]),
+
+  contributionTasks: defineTable({
+    type: v.union(
+      v.literal("translate"),
+      v.literal("validate"),
+      v.literal("correct"),
+      v.literal("compare"),
+      v.literal("terminology"),
+    ),
+    languageId: v.string(),
+    sourceText: v.string(),
+    targetText: v.optional(v.string()),
+    context: v.optional(v.string()),
+    difficulty: v.union(v.literal("easy"), v.literal("medium"), v.literal("hard")),
+    status: v.union(
+      v.literal("open"),
+      v.literal("in_progress"),
+      v.literal("submitted"),
+      v.literal("validated"),
+      v.literal("rejected"),
+      v.literal("accepted"),
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    claimedBy: v.optional(v.id("users")),
+    rewardPoints: v.number(),
+  })
+    .index("by_language", ["languageId"])
+    .index("by_type", ["type"])
+    .index("by_status", ["status"]),
+
+  contributions: defineTable({
+    taskId: v.id("contributionTasks"),
+    contributorId: v.id("users"),
+    submittedText: v.string(),
+    languageId: v.string(),
+    status: v.union(
+      v.literal("submitted"),
+      v.literal("validated"),
+      v.literal("accepted"),
+      v.literal("rejected"),
+    ),
+    qualityScore: v.optional(v.number()),
+    createdAt: v.number(),
+    reviewedAt: v.optional(v.number()),
+  })
+    .index("by_contributor", ["contributorId"])
+    .index("by_task", ["taskId"])
+    .index("by_status", ["status"]),
+
+  reviews: defineTable({
+    contributionId: v.id("contributions"),
+    reviewerId: v.id("users"),
+    decision: v.union(
+      v.literal("approve"),
+      v.literal("reject"),
+      v.literal("needs_revision"),
+    ),
+    feedback: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_contribution", ["contributionId"])
+    .index("by_reviewer", ["reviewerId"]),
+
+  communities: defineTable({
+    name: v.string(),
+    languageId: v.string(),
+    description: v.string(),
+    memberIds: v.array(v.id("users")),
+    moderatorIds: v.array(v.id("users")),
+    topics: v.array(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_language", ["languageId"]),
+
+  discoverItems: defineTable({
+    title: v.string(),
+    summary: v.string(),
+    topic: v.union(
+      v.literal("trending"),
+      v.literal("news"),
+      v.literal("technology"),
+      v.literal("culture"),
+      v.literal("history"),
+      v.literal("education"),
+      v.literal("community"),
+    ),
+    languages: v.array(v.string()),
+    source: v.string(),
+    publishedAt: v.number(),
+    readingMinutes: v.number(),
+    savedBy: v.array(v.id("users")),
+  })
+    .index("by_topic", ["topic"])
+    .index("by_published", ["publishedAt"]),
+});
