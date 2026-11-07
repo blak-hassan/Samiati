@@ -52,5 +52,5 @@ yarn-error.log*
 
 # local build / run logs
 *.log
-.build.out
-.build.err
+*.out
+*.err
