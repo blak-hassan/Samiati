@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   Award,
@@ -10,6 +10,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import * as React from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { QualityPanel } from "@/components/changa/quality-panel";
+import { StandingCard } from "@/components/changa/standing-card";
+import type { ContributorStanding } from "@/lib/changa/recognition";
 import {
   Select,
   SelectContent,
@@ -35,6 +39,7 @@ import type {
   Contribution,
   ContributionTask,
   ContributionTaskType,
+  QualityReportRecord,
 } from "@/lib/data/types";
 import { getLanguageOrDefault } from "@/lib/languages";
 
@@ -56,7 +61,7 @@ const STATUS_LABEL: Record<ContributionTask["status"], string> = {
 };
 
 /**
- * Changa — Samiati's language contribution platform.
+ * Changa â€” Samiati's language contribution platform.
  *
  * Contributors translate, validate and correct text so that Samiati's
  * language models get better at the languages people actually speak. The tasks
@@ -73,15 +78,26 @@ export function ChangaView() {
   const [draft, setDraft] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
+  const [standing, setStanding] = React.useState<ContributorStanding | null>(null);
+  const [qualityReports, setQualityReports] = React.useState<
+    QualityReportRecord[]
+  >([]);
+  const [submittedContribution, setSubmittedContribution] =
+    React.useState<Contribution | null>(null);
 
   const load = React.useCallback(async () => {
     try {
-      const [taskList, contributionList] = await Promise.all([
-        store.listContributionTasks(),
-        store.listContributions(),
-      ]);
+      const [taskList, contributionList, reports, currentStanding] =
+        await Promise.all([
+          store.listContributionTasks(),
+          store.listContributions(),
+          store.listQualityReports(),
+          store.getContributorStanding(),
+        ]);
       setTasks(taskList);
       setContributions(contributionList);
+      setQualityReports(reports);
+      setStanding(currentStanding);
     } finally {
       setLoading(false);
     }
@@ -126,6 +142,12 @@ export function ChangaView() {
     };
   }, [contributions, tasks]);
 
+  const submittedReport = submittedContribution
+    ? qualityReports.find(
+        (report) => report.contributionId === submittedContribution.id,
+      )
+    : undefined;
+
   const openTask = React.useCallback((task: ContributionTask) => {
     setActiveTask(task);
     setDraft(task.targetText ?? "");
@@ -139,13 +161,13 @@ export function ChangaView() {
     }
     setSubmitting(true);
     try {
-      await store.submitContribution({
+      const contribution = await store.submitContribution({
         taskId: activeTask.id,
         submittedText: draft.trim(),
       });
       toast.success("Contribution submitted for review.");
-      setActiveTask(null);
       setDraft("");
+      setSubmittedContribution(contribution);
       await load();
     } catch {
       toast.error("Could not submit the contribution.");
@@ -161,9 +183,14 @@ export function ChangaView() {
           <p className="font-display text-sm uppercase tracking-[0.2em] text-muted-foreground">
             Changa
           </p>
-          <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-            Make Samiati better at your language
-          </h1>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
+              Make Samiati better at your language
+            </h1>
+            <Button variant="outline" size="sm" asChild className="mt-2">
+              <Link href="/changa/review">Review queue</Link>
+            </Button>
+          </div>
           <p className="mt-3 max-w-2xl text-pretty text-muted-foreground">
             Every accepted translation makes the assistant more useful for
             everyone who speaks that language. Start with one task.
@@ -191,6 +218,12 @@ export function ChangaView() {
             );
           })}
         </dl>
+
+        {standing ? (
+          <div className="mb-6">
+            <StandingCard standing={standing} />
+          </div>
+        ) : null}
 
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="font-display text-xl font-semibold">Tasks</h2>
@@ -347,13 +380,37 @@ export function ChangaView() {
         }}
       >
         <DialogContent className="sm:max-w-lg">
-          {activeTask ? (
+          {submittedContribution ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Contribution submitted</DialogTitle>
+                <DialogDescription>
+                  A reviewer will look at it. Here is what the automated checks
+                  noticed — they flag, they never approve.
+                </DialogDescription>
+              </DialogHeader>
+              {submittedReport ? (
+                <QualityPanel report={submittedReport} />
+              ) : null}
+              <DialogFooter>
+                <Button
+                  onClick={() => {
+                    setSubmittedContribution(null);
+                    setActiveTask(null);
+                    setDraft("");
+                  }}
+                >
+                  Done
+                </Button>
+              </DialogFooter>
+            </>
+          ) : activeTask ? (
             <>
               <DialogHeader>
                 <DialogTitle>
                   {TASK_TYPES.find((entry) => entry.id === activeTask.type)?.label ??
                     "Task"}{" "}
-                  · {getLanguageOrDefault(activeTask.languageId).name}
+                  Â· {getLanguageOrDefault(activeTask.languageId).name}
                 </DialogTitle>
                 <DialogDescription>
                   {TASK_TYPES.find((entry) => entry.id === activeTask.type)?.blurb}
@@ -423,7 +480,7 @@ export function ChangaView() {
                   Cancel
                 </Button>
                 <Button onClick={() => void submit()} disabled={submitting}>
-                  {submitting ? "Submitting…" : "Submit contribution"}
+                  {submitting ? "Submittingâ€¦" : "Submit contribution"}
                 </Button>
               </DialogFooter>
             </>

@@ -200,4 +200,135 @@ export interface DiscoverItem {
   publishedAt: number;
   readingMinutes: number;
   saved: boolean;
+  /** Set when the item came from an ingested feed rather than the seed set. */
+  sourceUrl?: string;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                             Changa: quality                                */
+/* -------------------------------------------------------------------------- */
+
+export type QualityCheckId =
+  | "empty_or_trivial"
+  | "duplicate"
+  | "copy_of_accepted"
+  | "register_mismatch"
+  | "length_outlier"
+  | "script_mismatch";
+
+export type QualitySeverity = "info" | "warn" | "block";
+
+export interface QualityCheckResult {
+  id: QualityCheckId;
+  severity: QualitySeverity;
+  passed: boolean;
+  message: string;
+}
+
+/**
+ * The result of the automated checks for one contribution.
+ *
+ * `autoAccepted` is always false. Automation may flag a contribution for
+ * human review; it may never accept one.
+ */
+export interface QualityReportRecord {
+  contributionId: string;
+  checks: QualityCheckResult[];
+  flagged: boolean;
+  autoAccepted: false;
+  score: number;
+  createdAt: number;
+}
+
+export type ModerationActionKind =
+  | "remove_contribution"
+  | "restore_contribution"
+  | "suspend_contributor"
+  | "reinstate_contributor"
+  | "edit_task"
+  | "promote_reviewer";
+
+/** An audit-log entry for a moderation action. */
+export interface ModerationAction {
+  id: string;
+  kind: ModerationActionKind;
+  /** The contribution, contributor or task the action applies to. */
+  targetId: string;
+  reason: string;
+  moderatorId: string;
+  /** The language community the action was taken in. */
+  communityId?: string;
+  createdAt: number;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                            Communities: threads                             */
+/* -------------------------------------------------------------------------- */
+
+export interface Thread {
+  id: string;
+  communityId: string;
+  authorId: string;
+  title: string;
+  languageId: string;
+  topic: string;
+  createdAt: number;
+  updatedAt: number;
+  pinned: boolean;
+  locked: boolean;
+  postCount: number;
+}
+
+export interface ThreadPost {
+  id: string;
+  threadId: string;
+  authorId: string;
+  content: string;
+  languageId: string;
+  createdAt: number;
+  /** Moderated posts are hidden from the thread but kept for the audit trail. */
+  hidden: boolean;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                            Dataset versions                                 */
+/* -------------------------------------------------------------------------- */
+
+export type DatasetReviewStatus =
+  | "draft"
+  | "reviewed"
+  | "training_ready"
+  | "released";
+
+export interface DatasetVersion {
+  id: string;
+  /** e.g. "kiswahili-2026.03.1" */
+  version: string;
+  languageIds: string[];
+  createdAt: number;
+  provenance: {
+    contributionIds: string[];
+    reviewIds: string[];
+    cleaningReportId?: string;
+    qualityReportId?: string;
+  };
+  metrics: {
+    itemCount: number;
+    meanQualityScore: number;
+    contributorCount: number;
+    /** Distinct terms per 1,000 words. */
+    languageCoverage: number;
+  };
+  export: {
+    format: "jsonl" | "csv";
+    checksum: string;
+    /** The exported rows, held in the store for the local backend. */
+    itemCount: number;
+  };
+  review: {
+    status: DatasetReviewStatus;
+    reviewedBy?: string;
+    reviewedAt?: number;
+    notes?: string;
+  };
 }

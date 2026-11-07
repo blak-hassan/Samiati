@@ -1,4 +1,6 @@
-import { ConvexHttpClient } from "convex/browser";
+﻿import { ConvexHttpClient } from "convex/browser";
+
+import type { ContributorStanding } from "@/lib/changa/recognition";
 
 import type { SamiatiStore } from "./store";
 import type {
@@ -7,11 +9,16 @@ import type {
   ContributionTask,
   Conversation,
   ConversationId,
+  DatasetVersion,
   DiscoverItem,
   Message,
   MessageId,
+  ModerationAction,
+  QualityReportRecord,
   Review,
   SamiatiUser,
+  Thread,
+  ThreadPost,
 } from "./types";
 
 /**
@@ -182,4 +189,97 @@ export class ConvexStore implements SamiatiStore {
   async toggleDiscoverItemSaved(id: string): Promise<DiscoverItem> {
     return this.mutate<DiscoverItem>("discover/toggleSaved", { id });
   }
+  /* ------------------------- quality and standing ---------------------- */
+
+  async listReviewQueue(): Promise<Contribution[]> {
+    return this.query<Contribution[]>("changa/listReviewQueue");
+  }
+
+  async listQualityReports(): Promise<QualityReportRecord[]> {
+    return this.query<QualityReportRecord[]>("changa/listQualityReports");
+  }
+
+  async getContributorStanding(userId?: string): Promise<ContributorStanding> {
+    return this.query<ContributorStanding>("changa/getContributorStanding", {
+      userId,
+    });
+  }
+
+  async listModerationActions(): Promise<ModerationAction[]> {
+    return this.query<ModerationAction[]>("changa/listModerationActions");
+  }
+
+  async createModerationAction(input: {
+    kind: ModerationAction["kind"];
+    targetId: string;
+    reason: string;
+    communityId?: string;
+  }): Promise<ModerationAction> {
+    return this.mutate<ModerationAction>("changa/createModerationAction", input);
+  }
+
+  /* ------------------------------ threads ------------------------------ */
+
+  async listThreads(communityId: string): Promise<Thread[]> {
+    return this.query<Thread[]>("threads/list", { communityId });
+  }
+
+  async getThread(id: string): Promise<Thread | null> {
+    return this.query<Thread | null>("threads/get", { id });
+  }
+
+  async listThreadPosts(threadId: string): Promise<ThreadPost[]> {
+    return this.query<ThreadPost[]>("threads/listPosts", { threadId });
+  }
+
+  async createThread(input: {
+    communityId: string;
+    title: string;
+    topic: string;
+    languageId: string;
+  }): Promise<Thread> {
+    return this.mutate<Thread>("threads/create", input);
+  }
+
+  async createThreadPost(input: {
+    threadId: string;
+    content: string;
+    languageId: string;
+  }): Promise<ThreadPost> {
+    return this.mutate<ThreadPost>("threads/createPost", input);
+  }
+
+  async hideThreadPost(id: string): Promise<ThreadPost> {
+    return this.mutate<ThreadPost>("threads/hidePost", { id });
+  }
+
+  /* ------------------------------ dataset ------------------------------ */
+
+  async listDatasetVersions(): Promise<DatasetVersion[]> {
+    return this.query<DatasetVersion[]>("dataset/list");
+  }
+
+  async getDatasetVersion(id: string): Promise<DatasetVersion | null> {
+    return this.query<DatasetVersion | null>("dataset/get", { id });
+  }
+
+  async createDatasetVersion(input: {
+    version: string;
+    languageIds: string[];
+    contributionIds: string[];
+    reviewIds: string[];
+    metrics: DatasetVersion["metrics"];
+    format: DatasetVersion["export"]["format"];
+    checksum: string;
+  }): Promise<DatasetVersion> {
+    return this.mutate<DatasetVersion>("dataset/create", input);
+  }
+
+  async updateDatasetVersion(
+    id: string,
+    patch: Partial<Omit<DatasetVersion, "id">>,
+  ): Promise<DatasetVersion> {
+    return this.mutate<DatasetVersion>("dataset/update", { id, patch });
+  }
 }
+

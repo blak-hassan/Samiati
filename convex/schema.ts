@@ -1,4 +1,4 @@
-import { defineSchema, defineTable } from "convex/server";
+﻿import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 /**
@@ -173,4 +173,120 @@ export default defineSchema({
   })
     .index("by_topic", ["topic"])
     .index("by_published", ["publishedAt"]),
+
+  /* -------------------------------------------------------------------- */
+  /*                        Changa: quality and audit                      */
+  /* -------------------------------------------------------------------- */
+
+  qualityReports: defineTable({
+    contributionId: v.id("contributions"),
+    checks: v.array(
+      v.object({
+        id: v.union(
+          v.literal("empty_or_trivial"),
+          v.literal("duplicate"),
+          v.literal("copy_of_accepted"),
+          v.literal("register_mismatch"),
+          v.literal("length_outlier"),
+          v.literal("script_mismatch"),
+        ),
+        severity: v.union(v.literal("info"), v.literal("warn"), v.literal("block")),
+        passed: v.boolean(),
+        message: v.string(),
+      }),
+    ),
+    flagged: v.boolean(),
+    // Always false. Automation may flag a contribution; it may never accept one.
+    autoAccepted: v.boolean(),
+    score: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_contribution", ["contributionId"])
+    .index("by_flagged", ["flagged"]),
+
+  moderationActions: defineTable({
+    kind: v.union(
+      v.literal("remove_contribution"),
+      v.literal("restore_contribution"),
+      v.literal("suspend_contributor"),
+      v.literal("reinstate_contributor"),
+      v.literal("edit_task"),
+      v.literal("promote_reviewer"),
+    ),
+    targetId: v.string(),
+    reason: v.string(),
+    moderatorId: v.id("users"),
+    communityId: v.optional(v.id("communities")),
+    createdAt: v.number(),
+  })
+    .index("by_moderator", ["moderatorId"])
+    .index("by_target", ["targetId"])
+    .index("by_created", ["createdAt"]),
+
+  /* -------------------------------------------------------------------- */
+  /*                          Communities: threads                         */
+  /* -------------------------------------------------------------------- */
+
+  threads: defineTable({
+    communityId: v.id("communities"),
+    authorId: v.id("users"),
+    title: v.string(),
+    languageId: v.string(),
+    topic: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    pinned: v.boolean(),
+    locked: v.boolean(),
+    postCount: v.number(),
+  })
+    .index("by_community", ["communityId"])
+    .index("by_community_updated", ["communityId", "updatedAt"]),
+
+  threadPosts: defineTable({
+    threadId: v.id("threads"),
+    authorId: v.id("users"),
+    content: v.string(),
+    languageId: v.string(),
+    createdAt: v.number(),
+    hidden: v.boolean(),
+  })
+    .index("by_thread", ["threadId"]),
+
+  /* -------------------------------------------------------------------- */
+  /*                            Dataset versions                           */
+  /* -------------------------------------------------------------------- */
+
+  datasetVersions: defineTable({
+    version: v.string(),
+    languageIds: v.array(v.string()),
+    createdAt: v.number(),
+    provenance: v.object({
+      contributionIds: v.array(v.id("contributions")),
+      reviewIds: v.array(v.id("reviews")),
+      cleaningReportId: v.optional(v.string()),
+      qualityReportId: v.optional(v.string()),
+    }),
+    metrics: v.object({
+      itemCount: v.number(),
+      meanQualityScore: v.number(),
+      contributorCount: v.number(),
+      languageCoverage: v.number(),
+    }),
+    export: v.object({
+      format: v.union(v.literal("jsonl"), v.literal("csv")),
+      checksum: v.string(),
+      itemCount: v.number(),
+    }),
+    review: v.object({
+      status: v.union(
+        v.literal("draft"),
+        v.literal("reviewed"),
+        v.literal("training_ready"),
+        v.literal("released"),
+      ),
+      reviewedBy: v.optional(v.id("users")),
+      reviewedAt: v.optional(v.number()),
+      notes: v.optional(v.string()),
+    }),
+  }).index("by_version", ["version"]),
 });

@@ -1,14 +1,21 @@
+import type { ContributorStanding } from "@/lib/changa/recognition";
+
 import type {
   Community,
   Contribution,
   ContributionTask,
   Conversation,
   ConversationId,
+  DatasetVersion,
   DiscoverItem,
   Message,
   MessageId,
+  ModerationAction,
+  QualityReportRecord,
   Review,
   SamiatiUser,
+  Thread,
+  ThreadPost,
   UserId,
 } from "./types";
 
@@ -71,6 +78,14 @@ export interface SamiatiStore {
   }): Promise<ContributionTask[]>;
   getContributionTask(id: string): Promise<ContributionTask | null>;
   listContributions(): Promise<Contribution[]>;
+  /**
+   * Contributions awaiting a human decision, most-suspicious first.
+   *
+   * This is the review queue. It is ordered by the composite quality score
+   * rather than by age, because the interesting work is the work that looks
+   * wrong.
+   */
+  listReviewQueue(): Promise<Contribution[]>;
   submitContribution(input: {
     taskId: string;
     submittedText: string;
@@ -81,13 +96,57 @@ export interface SamiatiStore {
     decision: Review["decision"];
     feedback?: string;
   }): Promise<Review>;
+  /** The automated quality checks recorded for each contribution. */
+  listQualityReports(): Promise<QualityReportRecord[]>;
+  /** A contributor's standing and recognition tier. */
+  getContributorStanding(userId?: string): Promise<ContributorStanding>;
+  /** The moderation audit log. */
+  listModerationActions(): Promise<ModerationAction[]>;
+  createModerationAction(input: {
+    kind: ModerationAction["kind"];
+    targetId: string;
+    reason: string;
+    communityId?: string;
+  }): Promise<ModerationAction>;
 
   /* ---------------------------- communities ---------------------------- */
   listCommunities(): Promise<Community[]>;
   joinCommunity(id: string): Promise<Community>;
   leaveCommunity(id: string): Promise<Community>;
+  listThreads(communityId: string): Promise<Thread[]>;
+  getThread(id: string): Promise<Thread | null>;
+  listThreadPosts(threadId: string): Promise<ThreadPost[]>;
+  createThread(input: {
+    communityId: string;
+    title: string;
+    topic: string;
+    languageId: string;
+  }): Promise<Thread>;
+  createThreadPost(input: {
+    threadId: string;
+    content: string;
+    languageId: string;
+  }): Promise<ThreadPost>;
+  hideThreadPost(id: string): Promise<ThreadPost>;
 
   /* ----------------------------- discover ------------------------------ */
   listDiscoverItems(): Promise<DiscoverItem[]>;
   toggleDiscoverItemSaved(id: string): Promise<DiscoverItem>;
+
+  /* ----------------------------- dataset ------------------------------- */
+  listDatasetVersions(): Promise<DatasetVersion[]>;
+  getDatasetVersion(id: string): Promise<DatasetVersion | null>;
+  createDatasetVersion(input: {
+    version: string;
+    languageIds: string[];
+    contributionIds: string[];
+    reviewIds: string[];
+    metrics: DatasetVersion["metrics"];
+    format: DatasetVersion["export"]["format"];
+    checksum: string;
+  }): Promise<DatasetVersion>;
+  updateDatasetVersion(
+    id: string,
+    patch: Partial<Omit<DatasetVersion, "id">>,
+  ): Promise<DatasetVersion>;
 }
