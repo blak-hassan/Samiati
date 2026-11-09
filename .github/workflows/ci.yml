@@ -9,7 +9,10 @@ on:
 # after a full browser run.
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    # Pinned, not `ubuntu-latest`: the rolling image is now ubuntu-26.04, and
+    # Playwright 1.56 has no browser build for it. `playwright install` fails
+    # with "Playwright does not support chromium on ubuntu26.04-x64".
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
 
     steps:
