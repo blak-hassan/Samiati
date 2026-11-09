@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { changaTaskShortLabel } from '@/lib/changa';
+import { changaTaskShortLabel, nextUnreviewedSubmission } from '@/lib/changa';
 import { CheckCircle2, Flag, Languages, Loader2, ShieldAlert, Wrench, XCircle } from 'lucide-react';
 
 const REJECT_CODES: Array<{
@@ -50,7 +50,7 @@ function LiveValidationRunner({ languageCode, goBack }: ValidationRunnerProps) {
   const submitValidationVote = useMutation(api.changa.validation.submitValidationVote);
   const escalateSubmission = useMutation(api.changa.validation.escalateSubmission);
 
-  const [index, setIndex] = useState(0);
+  const [reviewedIds, setReviewedIds] = useState<ReadonlySet<string>>(() => new Set());
   const [isVoting, setIsVoting] = useState(false);
   const [showRejectCodes, setShowRejectCodes] = useState(false);
   const [selectedCode, setSelectedCode] = useState<(typeof REJECT_CODES)[number]['code'] | null>(
@@ -58,9 +58,7 @@ function LiveValidationRunner({ languageCode, goBack }: ValidationRunnerProps) {
   );
   const [comment, setComment] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
-
-  const current = queue?.[index];
+  const current = nextUnreviewedSubmission(queue, reviewedIds);
 
   // Blind review: the bundle hides earlier votes unless the reviewer is a
   // moderator. Assets and transcript are shown so the verdict is informed.
@@ -74,16 +72,12 @@ function LiveValidationRunner({ languageCode, goBack }: ValidationRunnerProps) {
     audioAsset ? { assetId: audioAsset._id } : 'skip'
   );
 
-  const advance = () => {
+  const advance = (submissionId: Id<'changaSubmissions'>) => {
     setSelectedCode(null);
     setShowRejectCodes(false);
     setComment('');
     setError(null);
-    if (queue && index + 1 >= queue.length) {
-      setDone(true);
-    } else {
-      setIndex((value) => value + 1);
-    }
+    setReviewedIds((previous) => new Set([...previous, submissionId]));
   };
 
   const handleVote = async (vote: 'accept' | 'minor_fix' | 'reject') => {
@@ -102,7 +96,7 @@ function LiveValidationRunner({ languageCode, goBack }: ValidationRunnerProps) {
         issueCodes: vote === 'reject' ? [selectedCode ?? 'reject'] : undefined,
         comment: comment.trim() || undefined,
       });
-      advance();
+      advance(current._id);
     } catch (voteError) {
       setError(
         voteError instanceof Error
@@ -122,7 +116,7 @@ function LiveValidationRunner({ languageCode, goBack }: ValidationRunnerProps) {
         submissionId: current._id,
         reason: comment.trim() || undefined,
       });
-      advance();
+      advance(current._id);
     } catch (escalateError) {
       setError(
         escalateError instanceof Error
@@ -134,7 +128,7 @@ function LiveValidationRunner({ languageCode, goBack }: ValidationRunnerProps) {
     }
   };
 
-  if (done) {
+  if (queue !== undefined && !current && reviewedIds.size > 0) {
     return (
       <ChangaShell>
         <Card className="mx-auto max-w-lg space-y-4 p-8 text-center">
@@ -143,20 +137,7 @@ function LiveValidationRunner({ languageCode, goBack }: ValidationRunnerProps) {
           <p className="text-sm text-muted-foreground">
             Thanks for reviewing. New submissions appear here as they pass quality checks.
           </p>
-          <div className="flex gap-3">
-            <Button variant="outline" className="flex-1" onClick={goBack}>
-              Back
-            </Button>
-            <Button
-              className="flex-1"
-              onClick={() => {
-                setDone(false);
-                setIndex(0);
-              }}
-            >
-              Keep reviewing
-            </Button>
-          </div>
+          <Button variant="outline" onClick={goBack}>Back</Button>
         </Card>
       </ChangaShell>
     );
@@ -172,7 +153,7 @@ function LiveValidationRunner({ languageCode, goBack }: ValidationRunnerProps) {
           </button>
         </div>
 
-        {queue === undefined || (queue.length === 0 && !current) ? (
+        {queue === undefined || !current ? (
           <Card className="space-y-3 p-8 text-center">
             {queue === undefined ? (
               <Loader2 className="mx-auto size-6 animate-spin" />

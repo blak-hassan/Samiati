@@ -54,6 +54,7 @@ const FeedbackBar: React.FC<FeedbackBarProps> = ({
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
   const [showCorrection, setShowCorrection] = useState(false);
   const [correction, setCorrection] = useState("");
+  const [submittedCorrection, setSubmittedCorrection] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   // The id and public code of the report the user just filed. Both are needed
@@ -72,6 +73,10 @@ const FeedbackBar: React.FC<FeedbackBarProps> = ({
   };
 
   const handleVote = async (type: "up" | "down") => {
+    setSubmittedCorrection("");
+    setFeedbackId(null);
+    setFeedbackCode(null);
+    setShowPromote(false);
     // Toggle off if same vote
     if (vote === type) {
       setVote(null);
@@ -140,7 +145,8 @@ const FeedbackBar: React.FC<FeedbackBarProps> = ({
   };
 
   const handleCorrectionSubmit = async () => {
-    if (!correction.trim()) return;
+    const correctionText = correction.trim();
+    if (!correctionText || isSubmitting) return;
     try {
       setIsSubmitting(true);
       const result = await submitFeedback({
@@ -148,12 +154,13 @@ const FeedbackBar: React.FC<FeedbackBarProps> = ({
         conversationId,
         type: "down",
         reason: selectedReason ?? undefined,
-        correction: correction.trim(),
+        correction: correctionText,
         contextType,
         language,
         originalText,
       });
       trackSubmission(result);
+      setSubmittedCorrection(correctionText);
       setSubmitted(true);
       setShowCorrection(false);
       setCorrection("");
@@ -303,7 +310,7 @@ const FeedbackBar: React.FC<FeedbackBarProps> = ({
       )}
 
       {/* Thank you after correction */}
-      {submitted && !showCorrection && selectedReason && !correction && (
+      {submitted && !showCorrection && selectedReason && !submittedCorrection && !correction && (
         <div className="animate-in fade-in duration-300">
           <button
             onClick={() => {
@@ -319,7 +326,7 @@ const FeedbackBar: React.FC<FeedbackBarProps> = ({
 
       {/* The correction has been filed. Offer to send it for community review,
           and give the user a quotable reference for it. */}
-      {submitted && correction && feedbackId && (
+      {submitted && submittedCorrection && feedbackId && (
         <div className="animate-in fade-in duration-300 space-y-1.5">
           <button
             onClick={() => setShowPromote(true)}
@@ -339,7 +346,7 @@ const FeedbackBar: React.FC<FeedbackBarProps> = ({
       {showPromote && feedbackId && (
         <PromoteFeedbackDialog
           feedbackId={feedbackId}
-          correction={correction}
+          correction={submittedCorrection}
           language={language}
           onClose={() => setShowPromote(false)}
         />

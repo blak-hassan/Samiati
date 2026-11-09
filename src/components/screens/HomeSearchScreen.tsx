@@ -224,7 +224,9 @@ function ChatSurface({
   const [selectedLanguage, setSelectedLanguage] = useState<Language>(
     () => LANGUAGES.find((language) => language.code === initialLanguageCode) ?? LANGUAGES[0]
   );
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(() =>
+    !user || user.isGuest ? initialQuery ?? '' : ''
+  );
   const [lastQuery, setLastQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -313,7 +315,9 @@ function ChatSurface({
       const searchQuery = rawQuery.trim();
       if (!searchQuery || searchQuery.length > 5000 || isSearching) return;
       if (!user || user.isGuest) {
-        navigate(Screen.SIGN_IN);
+        navigate(Screen.SIGN_IN, {
+          redirect_url: `/dashboard?q=${encodeURIComponent(searchQuery)}`,
+        });
         return;
       }
       if (!searchAction) {
@@ -422,7 +426,7 @@ function ChatSurface({
   );
 
   useEffect(() => {
-    if (!initialQuery || initialQueryRef.current === initialQuery || !user) return;
+    if (!initialQuery || initialQueryRef.current === initialQuery || !user || user.isGuest) return;
     initialQueryRef.current = initialQuery;
     void handleSearch(initialQuery);
   }, [initialQuery, user, handleSearch]);

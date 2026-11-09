@@ -45,11 +45,12 @@ Flow: Queued -> Ready -> Working -> Review -> Done. A blocked item names its dep
 | --- | --- | --- | --- | --- |
 | ORCH-001 | Lead | Create roster, shared ownership and briefs | Done | This file and `plans/orchestration/*` |
 | BASE-001 | Lead | Record fresh tests, lint, format, typecheck and build baseline | Done | Fresh results below; pre-existing limitations recorded |
-| QA-001 | QA & Review | Read-only review of actual user journeys and browser test readiness | Working | `plans/orchestration/user-journeys.md`; run linked below |
+| QA-001 | QA & Review | Read-only review of actual user journeys and browser test readiness | Done | Five source-confirmed UI defects; preview navigate/snapshot timeouts; `plans/orchestration/reports/QA-001.md` |
+| UI-FIX-001 | Lead / feature owners | Correct feedback promotion, review advancement, Recent history, guest handoff and invalid checkout plan | Review | 116 tests, typecheck and build pass; targeted lint zero errors; `plans/orchestration/reports/UI-FIX-001.md` |
 | SEC-001 | Account & Settings / backend review | Read-only authorization, ownership and consent audit | Done | Five confirmed source findings; `plans/orchestration/reports/SEC-001.md`; deployed behavior untested |
-| SNAP-001 | Lead | Prepare reviewed local application checkpoint for worktrees | Working | Local integration branch `work/samiati-orchestration-20261109`; main preserved; staged source excludes datasets, notebooks, caches and credential files |
-| SEC-FIX-001 | Account & Settings | Protect billing/usage access and prevent handle collisions | Ready | SEC-001 findings 1 and 5; isolated worktree after SNAP-001 |
-| SEC-FIX-002 | Changa & Feedback | Enforce submission provenance/consent and revoke future release eligibility | Ready | SEC-001 findings 2 and 3; isolated worktree after SNAP-001 |
+| SNAP-001 | Lead | Prepare reviewed local application checkpoint for worktrees | Done | Commit `f5d971b6cdbafe8ac2d5ec168880056e75ef8c86`, branch `work/samiati-orchestration-20261109`; main preserved; no datasets, notebooks, caches or credential files staged |
+| SEC-FIX-001 | Account & Settings | Protect billing/usage access and prevent handle collisions | Review | Candidate `90a53d5d13ac190bab4e3b2b1d89f776a395a8d3`; 47 new handler tests; `plans/orchestration/reports/SEC-FIX-001.md` |
+| SEC-FIX-002 | Changa & Feedback | Enforce submission provenance/consent and revoke future release eligibility | Working | SEC-001 findings 2 and 3; isolated worktree; `plans/orchestration/changa-consent-fixes.md` |
 | SEC-FIX-003 | Changa upload owner | Bind stored recordings to authenticated uploader/submission | Queued | SEC-FIX-002; trusted upload design and schema/API coordination before implementation |
 | TOOL-001 | Lead / tooling | Keep full lint from scanning nested agent worktrees and bundled skill scripts | Queued | Full lint reached `.kilo/worktrees/*` and `.github/skills/*`; review ignore boundaries before changing config |
 | STYLE-001 | Assigned when scheduled | Address existing formatting drift in small batches | Queued | Format check reports 222 files; avoid mixing broad formatting into feature work |
@@ -81,7 +82,16 @@ Logs use the existing ignored `.log` extension. The coordinator also starts the 
   - Task ID: `node:delegated-task:command%3Amcp%3Aa57b702e-d0c4-429a-9714-b91c49c1e125%3Adelegate-task%3Asamiati-orchestration-20261109-sec-001-v1`
   - State at launch: running; completion notification resumes the coordinator.
 
-Local production server: unified exec session `9789`, `http://127.0.0.1:3100`. It was started by the coordinator for this audit; leave other sessions alone. Baseline commands are complete. Existing application files have not been edited by this orchestration setup.
+The local production server from unified exec session `9789` was stopped after QA-001 finished so the next build cannot race its output directory. QA-001 closed its own browser tab. Baseline commands are complete; UI-FIX-001 now contains explicit application changes recorded in `plans/orchestration/reports/UI-FIX-001.md`.
+
+- SEC-FIX-001: <t3-thread://v2/e200690b-4a5a-4db7-94de-4bd2418dc7e3/thread:delegated-task:command%3Amcp%3Aa57b702e-d0c4-429a-9714-b91c49c1e125%3Adelegate-task%3Asamiati-orchestration-20261109-sec-fix-001-v1>
+  - Task ID: `node:delegated-task:command%3Amcp%3Aa57b702e-d0c4-429a-9714-b91c49c1e125%3Adelegate-task%3Asamiati-orchestration-20261109-sec-fix-001-v1`
+  - State at launch: running; isolated worktree from local checkpoint `f5d971b`.
+- SEC-FIX-002: <t3-thread://v2/e200690b-4a5a-4db7-94de-4bd2418dc7e3/thread:delegated-task:command%3Amcp%3Aa57b702e-d0c4-429a-9714-b91c49c1e125%3Adelegate-task%3Asamiati-orchestration-20261109-sec-fix-002-v1>
+  - Task ID: `node:delegated-task:command%3Amcp%3Aa57b702e-d0c4-429a-9714-b91c49c1e125%3Adelegate-task%3Asamiati-orchestration-20261109-sec-fix-002-v1`
+  - State at launch: running; isolated worktree from local checkpoint `f5d971b`.
+
+The SEC-001 audit is complete. Parent source review confirmed the initial security assignments; no fix is integrated or deployed yet. SEC-FIX-003 remains queued behind the shared Changa submission changes. Untracked training data, notebooks, caches, earlier gates and unrelated scripts remain in the original checkout.
 
 ## Adding an assignment
 

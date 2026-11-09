@@ -14,18 +14,17 @@ const planDetails: Record<Plan, { name: string; price: string; period: string }>
 };
 
 function CheckoutContent() {
-    const router = useRouter();
     const searchParams = useSearchParams();
-    const planParam = searchParams.get("plan") as Plan | null;
+    const planParam = searchParams.get("plan");
+    const initialPlan: Plan = planParam === "free" || planParam === "fluent" || planParam === "learner"
+        ? planParam
+        : "learner";
+    return <CheckoutPlan key={initialPlan} initialPlan={initialPlan} />;
+}
 
-    const [plan, setPlan] = React.useState<Plan>(planParam ?? "learner");
-
-    React.useEffect(() => {
-        if (planParam && (planParam === "free" || planParam === "learner" || planParam === "fluent")) {
-            setPlan(planParam);
-        }
-    }, [planParam]);
-
+function CheckoutPlan({ initialPlan }: { initialPlan: Plan }) {
+    const router = useRouter();
+    const [plan, setPlan] = React.useState<Plan>(initialPlan);
     const details = planDetails[plan];
 
     return (

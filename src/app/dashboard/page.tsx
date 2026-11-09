@@ -99,7 +99,13 @@ export default function DashboardPage() {
 
   // If not signed in, show the same search interface as homepage (guest mode)
   if (!clerkUser) {
-    return <HomeSearchScreen navigate={navigate} />;
+    return (
+      <HomeSearchScreen
+        key={discoverQuery ?? 'guest'}
+        navigate={navigate}
+        initialQuery={discoverQuery || undefined}
+      />
+    );
   }
 
   const appUser = {

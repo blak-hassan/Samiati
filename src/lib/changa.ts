@@ -51,6 +51,14 @@ export function changaCampaignTaskLabel(taskType: string | undefined): string {
     return (taskType && CHANGA_CAMPAIGN_TASK_TYPE_LABELS[taskType]) || "Tasks";
 }
 
+/** Keep selection stable while a reactive queue removes completed reviews. */
+export function nextUnreviewedSubmission<T extends { _id: string }>(
+    queue: readonly T[] | undefined,
+    reviewedIds: ReadonlySet<string>,
+): T | undefined {
+    return queue?.find((submission) => !reviewedIds.has(submission._id));
+}
+
 /** The languages the quick-contribute flow offers today. */
 export const CHANGA_LANGUAGE_OPTIONS = [
     { id: "sheng", label: "Sheng", emoji: "🔥" },

@@ -28,7 +28,7 @@ export const useNavigation = () => {
 
         switch (screen) {
             case Screen.WELCOME: go("/"); break;
-            case Screen.SIGN_IN: go("/sign-in"); break;
+            case Screen.SIGN_IN: go("/sign-in" + queryString); break;
             case Screen.SIGN_UP: go("/sign-up"); break;
             case Screen.HOME_CHAT: go("/dashboard" + queryString); break;
             case Screen.FORGOT_PASSWORD: go("/forgot-password"); break;

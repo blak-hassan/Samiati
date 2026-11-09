@@ -62,7 +62,9 @@ const SavedConversationsScreen: React.FC<Props> = ({
     }
 
     const pinned = displayedConversations.filter(c => c.isPinned);
-    const others = displayedConversations.filter(c => !c.isPinned);
+    const others = activeTab === 'Recent'
+        ? displayedConversations
+        : displayedConversations.filter(c => !c.isPinned);
 
     const handleDelete = (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
