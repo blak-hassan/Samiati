@@ -172,6 +172,11 @@ export default defineSchema({
     ),
     languages: v.array(v.string()),
     source: v.string(),
+    /**
+     * Set when the item came from an ingested feed rather than the seed set.
+     * Optional, so the rows that predate the ingestion pipeline stay valid.
+     */
+    sourceUrl: v.optional(v.string()),
     publishedAt: v.number(),
     readingMinutes: v.number(),
     savedBy: v.array(v.id("users")),

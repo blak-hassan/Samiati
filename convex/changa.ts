@@ -1,13 +1,13 @@
 import { v } from "convex/values";
 
-import { runQualityChecks } from "../../lib/changa/quality";
+import { runQualityChecks } from "../lib/changa/quality";
 import {
   canReviewAlone,
   computeStanding,
   isDecisiveReview,
   reviewDecisionScore,
   type ContributorStanding,
-} from "../../lib/changa/recognition";
+} from "../lib/changa/recognition";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { getOrCreateUser } from "./lib/currentUser";
 import { scriptForLanguage } from "./lib/languages";

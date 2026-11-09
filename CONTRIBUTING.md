@@ -29,6 +29,19 @@ npm run build
 
 All four must pass. Type errors fail the build — that is deliberate.
 
+`npm run typecheck` covers both halves of the project: the app
+(`tsc --noEmit`) and the Convex backend
+(`npm run typecheck:convex`). The backend check needs the generated
+`convex/_generated` types, which `scripts/generate-convex-types.mjs` writes
+from the installed `convex` package — `npx convex codegen` needs a
+deployment, so it cannot run in CI or on a fresh clone. The generated files
+are git-ignored; the script regenerates them from the schema whenever they
+are needed.
+
+Two bugs got through because the backend was never typechecked: an import
+path that pointed outside the repository, and a field the schema did not
+have. The backend is now part of the typecheck, and of CI.
+
 ## Continuous integration
 
 Every push and pull request runs `.github/workflows/ci.yml`, which does
