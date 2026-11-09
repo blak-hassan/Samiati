@@ -166,6 +166,10 @@ export class ConvexStore implements SamiatiStore {
     return this.mutate<Review>("changa/createReview", input);
   }
 
+  async canAcceptAlone(): Promise<boolean> {
+    return this.query<boolean>("changa/canAcceptAlone");
+  }
+
   /* ---------------------------- communities ---------------------------- */
 
   async listCommunities(): Promise<Community[]> {

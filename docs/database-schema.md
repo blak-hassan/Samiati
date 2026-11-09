@@ -220,6 +220,17 @@ version has items, a non-zero mean quality score and provenance. That gate
 is the last line of defence between a pile of contributions and a training
 run.
 
+### 3.4 Deploying a schema change
+
+A schema change is a deployment, not just a commit. See
+[CONTRIBUTING.md](../CONTRIBUTING.md#deploying-a-schema-change) for the
+procedure and the two rules that keep it safe: new columns are optional, and
+new tables are additive.
+
+The `reviews` table carries one optional field, `decisive`, which records
+whether a review decided the contribution on its own. It is optional so that
+reviews written before the field existed keep their original meaning.
+
 ---
 ## 4. Access control
 

@@ -1,10 +1,68 @@
 import { v } from "convex/values";
 
 import { runQualityChecks } from "../../lib/changa/quality";
-import { computeStanding } from "../../lib/changa/recognition";
-import { mutation, query } from "./_generated/server";
+import {
+  canReviewAlone,
+  computeStanding,
+  isDecisiveReview,
+  reviewDecisionScore,
+  type ContributorStanding,
+} from "../../lib/changa/recognition";
+import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { getOrCreateUser } from "./lib/currentUser";
 import { scriptForLanguage } from "./lib/languages";
+
+/**
+ * A contributor's standing, read the same way by the query and the mutation.
+ *
+ * The review rule needs the standing at the moment the review is written, so
+ * it is read from the database rather than taken from the client.
+ */
+async function standingForUser(
+  ctx: QueryCtx | MutationCtx,
+  userId: string,
+): Promise<ContributorStanding> {
+  const contributions = await ctx.db
+    .query("contributions")
+    .withIndex("by_contributor", (q) => q.eq("contributorId", userId as any))
+    .collect();
+  const reviews = await ctx.db
+    .query("reviews")
+    .withIndex("by_reviewer", (q) => q.eq("reviewerId", userId as any))
+    .collect();
+
+  const accepted = contributions.filter((c) => c.status === "accepted");
+  const rejected = contributions.filter((c) => c.status === "rejected");
+  const needsRevision = contributions.filter((c) => c.status === "validated");
+
+  const meanQuality =
+    accepted.length === 0
+      ? 0
+      : accepted.reduce((total, c) => total + (c.qualityScore ?? 0), 0) /
+        accepted.length;
+
+  const agreement =
+    reviews.length === 0
+      ? 0
+      : reviews.filter((r) => r.decision === "approve").length / reviews.length;
+
+  const moderated = await ctx.db
+    .query("moderationActions")
+    .withIndex("by_moderator", (q) => q.eq("moderatorId", userId as any))
+    .first();
+
+  return computeStanding({
+    userId,
+    accepted: accepted.length,
+    rejected: rejected.length,
+    needsRevision: needsRevision.length,
+    reviews: reviews.length,
+    agreement,
+    meanQuality,
+    points: accepted.length * 10,
+    hasModerated: Boolean(moderated),
+  });
+}
 
 /* ------------------------------- tasks -------------------------------- */
 
@@ -157,37 +215,51 @@ export const createReview = mutation({
     const contribution = await ctx.db.get(args.contributionId);
     if (!contribution) throw new Error("Contribution not found");
 
+    // The approval rule is enforced here, on the server, and not in the
+    // interface: a new reviewer's approval is provisional and needs an
+    // established reviewer to agree with it.
+    const standing = await standingForUser(ctx, user._id);
+    const decisive = isDecisiveReview(args.decision, canReviewAlone(standing));
+
     const timestamp = Date.now();
     const id = await ctx.db.insert("reviews", {
       contributionId: args.contributionId,
       reviewerId: user._id,
       decision: args.decision,
       feedback: args.feedback,
+      decisive,
       createdAt: timestamp,
     });
 
-    const status =
-      args.decision === "approve"
-        ? "accepted"
-        : args.decision === "reject"
-          ? "rejected"
-          : "validated";
-    const qualityScore =
-      args.decision === "approve"
-        ? 0.9
-        : args.decision === "needs_revision"
-          ? 0.5
-          : 0.1;
+    if (decisive) {
+      const status =
+        args.decision === "approve"
+          ? "accepted"
+          : args.decision === "reject"
+            ? "rejected"
+            : "validated";
 
-    await ctx.db.patch(args.contributionId, {
-      status,
-      qualityScore,
-      reviewedAt: timestamp,
-    });
-    await ctx.db.patch(contribution.taskId, {
-      status,
-      updatedAt: timestamp,
-    });
+      // The automated score is kept: a human decision does not overwrite what
+      // the checks found. The decision score is only the fallback for a
+      // contribution that was never screened.
+      const report = await ctx.db
+        .query("qualityReports")
+        .withIndex("by_contribution", (q) =>
+          q.eq("contributionId", args.contributionId),
+        )
+        .first();
+      const qualityScore = report?.score ?? reviewDecisionScore(args.decision);
+
+      await ctx.db.patch(args.contributionId, {
+        status,
+        qualityScore,
+        reviewedAt: timestamp,
+      });
+      await ctx.db.patch(contribution.taskId, {
+        status,
+        updatedAt: timestamp,
+      });
+    }
 
     const review = await ctx.db.get(id);
     return { ...review!, id: review!._id };
@@ -256,46 +328,23 @@ export const getContributorStanding = query({
     const current = await getOrCreateUser(ctx);
     const targetId = args.userId ?? (current._id as string);
 
-    const contributions = await ctx.db
-      .query("contributions")
-      .withIndex("by_contributor", (q) => q.eq("contributorId", targetId as any))
-      .collect();
-    const reviews = await ctx.db
-      .query("reviews")
-      .withIndex("by_reviewer", (q) => q.eq("reviewerId", targetId as any))
-      .collect();
+    return standingForUser(ctx, targetId);
+  },
+});
 
-    const accepted = contributions.filter((c) => c.status === "accepted");
-    const rejected = contributions.filter((c) => c.status === "rejected");
-    const needsRevision = contributions.filter((c) => c.status === "validated");
-
-    const meanQuality =
-      accepted.length === 0
-        ? 0
-        : accepted.reduce((total, c) => total + (c.qualityScore ?? 0), 0) /
-          accepted.length;
-
-    const agreement =
-      reviews.length === 0
-        ? 0
-        : reviews.filter((r) => r.decision === "approve").length / reviews.length;
-
-    const moderated = await ctx.db
-      .query("moderationActions")
-      .withIndex("by_moderator", (q) => q.eq("moderatorId", targetId as any))
-      .first();
-
-    return computeStanding({
-      userId: targetId,
-      accepted: accepted.length,
-      rejected: rejected.length,
-      needsRevision: needsRevision.length,
-      reviews: reviews.length,
-      agreement,
-      meanQuality,
-      points: accepted.length * 10,
-      hasModerated: Boolean(moderated),
-    });
+/**
+ * Whether the current member may accept a contribution on their own.
+ *
+ * A new reviewer can review, but their approval is provisional: it needs an
+ * established reviewer to agree with it. The client asks the server, so the
+ * interface and the server can never disagree.
+ */
+export const canAcceptAlone = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getOrCreateUser(ctx);
+    const standing = await standingForUser(ctx, user._id);
+    return canReviewAlone(standing);
   },
 });
 

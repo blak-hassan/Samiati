@@ -1,6 +1,6 @@
 import { DEFAULT_LANGUAGE_ID, getLanguageOrDefault } from "@/lib/languages";
 import { runQualityChecks } from "@/lib/changa/quality";
-import { computeStanding } from "@/lib/changa/recognition";
+import { computeStanding, isDecisiveReview, reviewDecisionScore } from "@/lib/changa/recognition";
 
 import {
   SEED_COMMUNITIES,
@@ -427,8 +427,16 @@ export class LocalStore implements SamiatiStore {
     decision: Review["decision"];
     feedback?: string;
   }): Promise<Review> {
+    const mayApproveAlone = await this.canAcceptAlone();
+
     return this.commit((state) => {
       const timestamp = Date.now();
+
+      // The automated checks can only flag a contribution. Accepting one is a
+      // human decision, and it only decides the contribution when the
+      // reviewer may approve alone.
+      const decisive = isDecisiveReview(input.decision, mayApproveAlone);
+
       const review: Review = {
         id: createId("review"),
         contributionId: input.contributionId,
@@ -436,13 +444,14 @@ export class LocalStore implements SamiatiStore {
         decision: input.decision,
         feedback: input.feedback,
         createdAt: timestamp,
+        decisive,
       };
       state.reviews.push(review);
 
       const contribution = state.contributions.find(
         (c) => c.id === input.contributionId,
       );
-      if (contribution) {
+      if (contribution && decisive) {
         contribution.status =
           input.decision === "approve"
             ? "accepted"
@@ -450,12 +459,15 @@ export class LocalStore implements SamiatiStore {
               ? "rejected"
               : "validated";
         contribution.reviewedAt = timestamp;
+
+        // The automated score is kept: a human decision does not overwrite
+        // what the checks found. The decision score is only the fallback for
+        // a contribution that was never screened.
+        const report = state.qualityReports.find(
+          (entry) => entry.contributionId === contribution.id,
+        );
         contribution.qualityScore =
-          input.decision === "approve"
-            ? 0.9
-            : input.decision === "needs_revision"
-              ? 0.5
-              : 0.1;
+          report?.score ?? reviewDecisionScore(input.decision);
 
         const task = state.tasks.find((t) => t.id === contribution.taskId);
         if (task) {
@@ -471,6 +483,17 @@ export class LocalStore implements SamiatiStore {
 
       return { ...review };
     });
+  }
+
+  /**
+   * The local backend has exactly one member, so there is nobody whose
+   * agreement an approval could be checked against. The single member is
+   * therefore the established reviewer.
+   *
+   * The rule bites in the shared backend, where it is enforced on the server.
+   */
+  async canAcceptAlone(): Promise<boolean> {
+    return true;
   }
 
   /* ------------------------- quality and standing ---------------------- */

@@ -96,6 +96,14 @@ export interface SamiatiStore {
     decision: Review["decision"];
     feedback?: string;
   }): Promise<Review>;
+  /**
+   * Whether the current member may accept a contribution on their own.
+   *
+   * A new reviewer's approval is provisional: it needs an established reviewer
+   * to agree with it. The store decides, so the interface and the backend can
+   * never disagree about what the current member is allowed to do.
+   */
+  canAcceptAlone(): Promise<boolean>;
   /** The automated quality checks recorded for each contribution. */
   listQualityReports(): Promise<QualityReportRecord[]>;
   /** A contributor's standing and recognition tier. */

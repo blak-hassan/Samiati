@@ -140,6 +140,50 @@ describe("LocalStore", () => {
     expect(reviewed?.qualityScore).toBeGreaterThan(0.5);
   });
 
+  it("keeps the automated quality score when a person accepts", async () => {
+    const tasks = await store.listContributionTasks();
+    const task = tasks[0]!;
+    const contribution = await store.submitContribution({
+      taskId: task.id,
+      submittedText: "A translation",
+    });
+
+    const report = (await store.listQualityReports()).find(
+      (entry) => entry.contributionId === contribution.id,
+    );
+    expect(report).toBeDefined();
+
+    await store.createReview({
+      contributionId: contribution.id,
+      decision: "approve",
+    });
+
+    const contributions = await store.listContributions();
+    const reviewed = contributions.find((c) => c.id === contribution.id);
+
+    // A human decision does not overwrite what the automated checks found.
+    expect(reviewed?.qualityScore).toBe(report?.score);
+  });
+
+  it("records who decided the contribution", async () => {
+    const tasks = await store.listContributionTasks();
+    const task = tasks[0]!;
+    const contribution = await store.submitContribution({
+      taskId: task.id,
+      submittedText: "A translation",
+    });
+
+    const review = await store.createReview({
+      contributionId: contribution.id,
+      decision: "approve",
+    });
+
+    // The local backend has one member, so that member is the established
+    // reviewer and the approval is decisive.
+    expect(review.decisive).toBe(true);
+    expect(await store.canAcceptAlone()).toBe(true);
+  });
+
   it("joins and leaves a community", async () => {
     const communities = await store.listCommunities();
     expect(communities.length).toBeGreaterThan(0);

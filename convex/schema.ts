@@ -137,6 +137,11 @@ export default defineSchema({
       v.literal("needs_revision"),
     ),
     feedback: v.optional(v.string()),
+    /**
+     * Whether this review decided the contribution on its own. Optional, so
+     * reviews recorded before the field existed keep their original meaning.
+     */
+    decisive: v.optional(v.boolean()),
     createdAt: v.number(),
   })
     .index("by_contribution", ["contributionId"])

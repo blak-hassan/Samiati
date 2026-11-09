@@ -13,6 +13,8 @@ import {
   canModerate,
   canReviewAlone,
   computeStanding,
+  isDecisiveReview,
+  reviewDecisionScore,
   tierLabel,
 } from "@/lib/changa/recognition";
 
@@ -295,5 +297,26 @@ describe("standing and recognition", () => {
     for (const tier of ["none", "first", "trusted", "reviewer", "steward"] as const) {
       expect(tierLabel(tier).length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("review decisions", () => {
+  it("does not let a new reviewer's approval decide on its own", () => {
+    expect(isDecisiveReview("approve", false)).toBe(false);
+  });
+
+  it("lets an established reviewer's approval decide", () => {
+    expect(isDecisiveReview("approve", true)).toBe(true);
+  });
+
+  it("always lets a rejection or a revision request stand", () => {
+    expect(isDecisiveReview("reject", false)).toBe(true);
+    expect(isDecisiveReview("needs_revision", false)).toBe(true);
+  });
+
+  it("only falls back to the decision score when nothing was scored", () => {
+    expect(reviewDecisionScore("approve")).toBe(0.9);
+    expect(reviewDecisionScore("needs_revision")).toBe(0.5);
+    expect(reviewDecisionScore("reject")).toBe(0.1);
   });
 });

@@ -10,6 +10,8 @@
 /*                                   Types                                     */
 /* -------------------------------------------------------------------------- */
 
+import type { ReviewDecision } from "../data/types";
+
 export type RecognitionTier =
   | "none"
   | "first"
@@ -178,6 +180,41 @@ function progress(input: StandingInput, requirement: TierRequirement): number {
  */
 export function canReviewAlone(standing: ContributorStanding): boolean {
   return standing.tier === "reviewer" || standing.tier === "steward";
+}
+
+/**
+ * Whether a review decides the contribution on its own.
+ *
+ * A rejection or a revision request always stands. An approval only stands
+ * when the reviewer may approve alone: a new reviewer can approve, but that
+ * approval is provisional until an established reviewer agrees with it.
+ *
+ * The rule lives here, in the domain layer, so the backends and the interface
+ * cannot disagree about what a review means.
+ */
+export function isDecisiveReview(
+  decision: ReviewDecision,
+  mayApproveAlone: boolean,
+): boolean {
+  return decision !== "approve" || mayApproveAlone;
+}
+
+/**
+ * The score a human decision implies when there is no automated score.
+ *
+ * The automated score always wins: a human decision does not overwrite what
+ * the checks found. This is only the fallback for a contribution that was
+ * never screened.
+ */
+export function reviewDecisionScore(decision: ReviewDecision): number {
+  switch (decision) {
+    case "approve":
+      return 0.9;
+    case "needs_revision":
+      return 0.5;
+    case "reject":
+      return 0.1;
+  }
 }
 
 /** Whether a member may perform moderation actions. */

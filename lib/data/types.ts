@@ -160,6 +160,15 @@ export interface Review {
   decision: ReviewDecision;
   feedback?: string;
   createdAt: number;
+  /**
+   * Whether this review decided the contribution on its own.
+   *
+   * An approval by a reviewer who may not approve alone is provisional: it is
+   * recorded and counted, but the contribution stays in the queue until an
+   * established reviewer agrees. Missing means true, so reviews recorded
+   * before this field existed keep their original meaning.
+   */
+  decisive?: boolean;
 }
 
 /* -------------------------------------------------------------------------- */

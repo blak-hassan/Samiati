@@ -170,6 +170,29 @@ Reviewers are themselves scored. A reviewer whose approvals are frequently
 overturned by a second reviewer loses weight, and eventually loses the ability
 to approve alone. New reviewers approve only alongside an established one.
 
+That rule is enforced by the backends, not by the interface:
+
+| Decision | Reviewer below the reviewer tier | Reviewer at the reviewer tier or above |
+| --- | --- | --- |
+| Reject | Decides | Decides |
+| Needs revision | Decides | Decides |
+| Approve | **Provisional** — recorded and counted, but the contribution stays in the queue until an established reviewer agrees | Decides |
+
+`isDecisiveReview()` in `lib/changa/recognition.ts` is the single definition of
+the rule, and both backends call it. The Convex backend enforces it inside the
+`createReview` mutation, so no other client can approve alone; the local
+backend uses the same call.
+
+The local backend has exactly one member, so there is nobody whose agreement an
+approval could be checked against. The single member is therefore the
+established reviewer there. `SamiatiStore.canAcceptAlone()` is how the
+interface asks, so the interface and the backend can never disagree about what
+the current member may do.
+
+A human decision never overwrites the automated quality score. The score in
+`qualityReports` is what the checks found; `reviewDecisionScore()` is only the
+fallback for a contribution that was never screened.
+
 ### 5.4 Community moderation
 
 `Community.moderatorIds` is the moderation surface. A moderator can:

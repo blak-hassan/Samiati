@@ -9,9 +9,9 @@ import { StandingCard } from "@/components/changa/standing-card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useStore } from "@/lib/data/provider";
-import type { Contribution, QualityReportRecord } from "@/lib/data/types";
+import type { Contribution, QualityReportRecord, Review } from "@/lib/data/types";
 import { getLanguageOrDefault } from "@/lib/languages";
-import { canReviewAlone, type ContributorStanding } from "@/lib/changa/recognition";
+import type { ContributorStanding } from "@/lib/changa/recognition";
 
 /**
  * The review queue.
@@ -25,27 +25,33 @@ export function ReviewQueueView() {
 
   const [queue, setQueue] = React.useState<Contribution[]>([]);
   const [reports, setReports] = React.useState<QualityReportRecord[]>([]);
+  const [reviews, setReviews] = React.useState<Review[]>([]);
   const [tasks, setTasks] = React.useState<
     Awaited<ReturnType<typeof store.listContributionTasks>>
   >([]);
   const [standing, setStanding] = React.useState<ContributorStanding | null>(null);
+  const [canAcceptAlone, setCanAcceptAlone] = React.useState(true);
   const [feedback, setFeedback] = React.useState<Record<string, string>>({});
   const [loading, setLoading] = React.useState(true);
   const [busyId, setBusyId] = React.useState<string | null>(null);
 
   const load = React.useCallback(async () => {
     try {
-      const [queueItems, qualityReports, taskList, currentStanding] =
+      const [queueItems, qualityReports, reviewList, taskList, currentStanding, acceptAlone] =
         await Promise.all([
           store.listReviewQueue(),
           store.listQualityReports(),
+          store.listReviews(),
           store.listContributionTasks(),
           store.getContributorStanding(),
+          store.canAcceptAlone(),
         ]);
       setQueue(queueItems);
       setReports(qualityReports);
+      setReviews(reviewList);
       setTasks(taskList);
       setStanding(currentStanding);
+      setCanAcceptAlone(acceptAlone);
     } finally {
       setLoading(false);
     }
@@ -57,6 +63,21 @@ export function ReviewQueueView() {
 
   const reportFor = (contributionId: string) =>
     reports.find((report) => report.contributionId === contributionId);
+
+  /**
+   * Approvals that are waiting for an established reviewer to agree.
+   *
+   * A reviewer below the reviewer tier can approve, but the approval is
+   * provisional: the contribution stays in the queue until somebody
+   * established agrees with it.
+   */
+  const provisionalApprovals = (contributionId: string) =>
+    reviews.filter(
+      (review) =>
+        review.contributionId === contributionId &&
+        review.decision === "approve" &&
+        review.decisive === false,
+    ).length;
 
   const decide = React.useCallback(
     async (
@@ -70,13 +91,19 @@ export function ReviewQueueView() {
           decision,
           feedback: feedback[contribution.id]?.trim() || undefined,
         });
-        toast.success(
-          decision === "approve"
-            ? "Contribution accepted."
-            : decision === "reject"
-              ? "Contribution rejected."
-              : "Sent back for revision.",
-        );
+        if (decision === "approve" && !canAcceptAlone) {
+          toast.success(
+            "Approval recorded. An established reviewer still has to agree before the contribution is accepted.",
+          );
+        } else {
+          toast.success(
+            decision === "approve"
+              ? "Contribution accepted."
+              : decision === "reject"
+                ? "Contribution rejected."
+                : "Sent back for revision.",
+          );
+        }
         setFeedback((current) => ({ ...current, [contribution.id]: "" }));
         await load();
       } catch {
@@ -85,7 +112,7 @@ export function ReviewQueueView() {
         setBusyId(null);
       }
     },
-    [feedback, load, store],
+    [canAcceptAlone, feedback, load, store],
   );
 
   if (loading) {
@@ -119,7 +146,7 @@ export function ReviewQueueView() {
           </div>
         ) : null}
 
-        {standing && !canReviewAlone(standing) ? (
+        {standing && !canAcceptAlone ? (
           <p className="mb-6 rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
             You can review, but your decisions are checked against an
             established reviewer. Keep going — agreement with other reviewers
@@ -141,6 +168,7 @@ export function ReviewQueueView() {
               const report = reportFor(contribution.id);
               const language = getLanguageOrDefault(contribution.languageId);
               const busy = busyId === contribution.id;
+              const pending = provisionalApprovals(contribution.id);
 
               return (
                 <li key={contribution.id} className="rounded-xl border bg-card p-5">
@@ -181,6 +209,14 @@ export function ReviewQueueView() {
 
                   {report ? (
                     <QualityPanel report={report} className="mt-3" />
+                  ) : null}
+
+                  {pending > 0 ? (
+                    <p className="mt-3 rounded-lg border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                      {pending} provisional approval{pending === 1 ? "" : "s"} —
+                      waiting for an established reviewer to confirm before the
+                      contribution is accepted.
+                    </p>
                   ) : null}
 
                   <Textarea
