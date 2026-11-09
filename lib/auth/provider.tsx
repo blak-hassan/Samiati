@@ -1,10 +1,13 @@
 "use client";
 
-import { ClerkProvider, useClerk, useUser } from "@clerk/nextjs";
+import { ClerkProvider, useAuth, useClerk, useUser } from "@clerk/nextjs";
 import {
   createContext,
+  useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   type ReactNode,
 } from "react";
 
@@ -25,6 +28,14 @@ export interface SamiatiAuthContextValue {
   isLoading: boolean;
   provider: "clerk" | "local";
   signOut: () => Promise<void>;
+  /**
+   * The session token of the signed-in member, when there is one.
+   *
+   * The cloud backend needs it to know which member a request comes from.
+   * Without it every member shares the one local account. It is undefined
+   * when no identity provider is live.
+   */
+  getToken?: () => Promise<string | null>;
 }
 
 const SamiatiAuthContext = createContext<SamiatiAuthContextValue | null>(null);
@@ -46,6 +57,16 @@ export function useSamiatiAuth(): SamiatiAuthContextValue {
 function ClerkAuthLayer({ children }: { children: ReactNode }) {
   const { user, isLoaded } = useUser();
   const clerk = useClerk();
+  const { getToken } = useAuth();
+
+  // The token is kept in a ref so that the getter the rest of the app holds
+  // never changes identity: a new one would build a new backend every render.
+  const getTokenRef = useRef(getToken);
+  useEffect(() => {
+    getTokenRef.current = getToken;
+  }, [getToken]);
+
+  const fetchToken = useCallback(async () => getTokenRef.current(), []);
 
   const value = useMemo<SamiatiAuthContextValue>(
     () => ({
@@ -69,8 +90,9 @@ function ClerkAuthLayer({ children }: { children: ReactNode }) {
       signOut: async () => {
         await clerk.signOut();
       },
+      getToken: fetchToken,
     }),
-    [user, isLoaded, clerk],
+    [user, isLoaded, clerk, fetchToken],
   );
 
   return (
