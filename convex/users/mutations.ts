@@ -226,6 +226,18 @@ export const store = mutation({
             .unique();
 
         if (user !== null) {
+            if (user.handle !== handle) {
+                // Keep the indexed read in this mutation so concurrent renames
+                // to the same handle conflict and are retried by Convex.
+                const existingHandle = await ctx.db
+                    .query("users")
+                    .withIndex("by_handle", (q) => q.eq("handle", handle))
+                    .unique();
+                if (existingHandle && existingHandle._id !== user._id) {
+                    throw new Error("Handle is already taken");
+                }
+            }
+
             if (user.name !== name || user.handle !== handle || user.avatar !== avatar || user.email !== email || user.emailVerified !== emailVerified) {
                 await ctx.db.patch(user._id, { name, handle, avatar, email, emailVerified });
             }

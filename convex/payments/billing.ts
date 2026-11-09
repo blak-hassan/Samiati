@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { internalAction, internalMutation, internalQuery, query, mutation } from "../_generated/server";
 import { internal } from "../_generated/api";
+import { getCurrentUser } from "../users/utils";
 
 const PRICING = {
     learner: { monthly: 500, annual: 4800 },   // $5/mo, $48/yr (in cents)
@@ -12,6 +13,9 @@ const PRICING = {
 export const getActiveSubscription = query({
     args: { userId: v.id("users") },
     handler: async (ctx, args) => {
+        const user = await getCurrentUser(ctx);
+        if (!user || user._id !== args.userId) throw new Error("Unauthorized");
+
         return await ctx.db
             .query("subscriptions")
             .withIndex("by_user", (q) => q.eq("userId", args.userId))
@@ -75,6 +79,9 @@ export const getRetryableSubscriptions = internalQuery({
 export const getBillingHistory = query({
     args: { userId: v.id("users") },
     handler: async (ctx, args) => {
+        const user = await getCurrentUser(ctx);
+        if (!user || user._id !== args.userId) throw new Error("Unauthorized");
+
         return await ctx.db
             .query("billingEvents")
             .withIndex("by_user", (q) => q.eq("userId", args.userId))
@@ -221,8 +228,12 @@ export const downgradePlan = internalMutation({
 export const cancelSubscription = mutation({
     args: { subscriptionId: v.id("subscriptions") },
     handler: async (ctx, args) => {
+        const user = await getCurrentUser(ctx);
+        if (!user) throw new Error("Unauthorized");
+
         const sub = await ctx.db.get(args.subscriptionId);
         if (!sub) throw new Error("Subscription not found");
+        if (sub.userId !== user._id) throw new Error("Unauthorized");
 
         const now = Date.now();
         await ctx.db.patch(args.subscriptionId, {

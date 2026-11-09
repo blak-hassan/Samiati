@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { internalMutation, query } from "../_generated/server";
 import type { GenericDatabaseReader, GenericDatabaseWriter } from "convex/server";
 import type { DataModel, Doc, Id } from "../_generated/dataModel";
+import { getCurrentUser } from "../users/utils";
 
 export type PlanTier = "free" | "learner" | "fluent" | "organization";
 
@@ -179,6 +180,9 @@ export const checkUsageLimit = query({
         ),
     },
     handler: async (ctx, args) => {
+        const user = await getCurrentUser(ctx);
+        if (!user || user._id !== args.userId) throw new Error("Unauthorized");
+
         const limits = PLAN_LIMITS[args.tier];
         const { counts } = await readUsagePeriod(ctx.db, args.userId);
 
@@ -217,6 +221,9 @@ export const getUsageStats = query({
         ),
     },
     handler: async (ctx, args) => {
+        const user = await getCurrentUser(ctx);
+        if (!user || user._id !== args.userId) throw new Error("Unauthorized");
+
         const limits = PLAN_LIMITS[args.tier];
         const { counts, periodStart, periodEnd } = await readUsagePeriod(ctx.db, args.userId);
 
