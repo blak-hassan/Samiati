@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Build a training-ready dataset manifest.
  *
  * Samiati produces the data; it does not train foundation models. This script

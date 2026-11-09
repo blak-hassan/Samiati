@@ -39,6 +39,9 @@ npm install
 npm run dev
 ```
 
+Node **22.18 or newer** is required: the CLI scripts run TypeScript directly,
+and Node has to be able to execute it without a loader.
+
 Open <http://localhost:3000>. That's it — no API keys, no account, no
 database. Samiati runs in **local mode**: conversations and contributions are
 stored in your browser and never leave the device.
@@ -78,7 +81,7 @@ No code change is needed to switch any of these.
 | `npm start` | Serve the production build |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | `eslint` |
-| `npm test` | `vitest` — 131 unit tests |
+| `npm test` | `vitest` — the unit test suite |
 | `npm run test:watch` | Vitest in watch mode |
 | `npm run test:e2e` | Playwright, against the production build |
 | `npm run test:e2e:install` | Download the Chromium build Playwright needs |

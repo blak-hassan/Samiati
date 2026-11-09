@@ -12,6 +12,9 @@ npm install
 npm run dev
 ```
 
+Node **22.18 or newer** is required: the CLI scripts run TypeScript directly,
+and Node has to be able to execute it without a loader.
+
 You do **not** need API keys, an account or a Convex deployment. Samiati runs
 in local mode by default.
 
@@ -25,6 +28,43 @@ npm run build
 ```
 
 All four must pass. Type errors fail the build — that is deliberate.
+
+## Continuous integration
+
+Every push and pull request runs `.github/workflows/ci.yml`, which does
+exactly the four checks above and then the end-to-end suite against the
+production build:
+
+```bash
+npx playwright install --with-deps chromium
+npm run test:e2e
+```
+
+The end-to-end tests need a build first, so the workflow builds before it runs
+them. A pull request is not mergeable until the whole pipeline is green.
+
+## Deploying a schema change
+
+`convex/schema.ts` and `lib/data/types.ts` have to stay in step, and a schema
+change is a deployment, not just a commit:
+
+```bash
+npx convex dev        # pushes the schema to the development deployment
+npx convex deploy     # pushes it to production
+```
+
+Two rules keep the deploy safe:
+
+- **New columns are optional.** Adding a required field to a table that already
+  has rows makes Convex reject the existing documents. Add it as
+  `v.optional(...)` and backfill separately if it is needed.
+- **New tables are additive.** The Phase 4–6 tables (`qualityReports`,
+  `moderationActions`, `threads`, `threadPosts`, `datasetVersions`) need no
+  backfill: they simply start empty.
+
+The local backend does not need a migration. It merges any collection it does
+not recognise into the stored state on read, so a browser that saved data
+before a schema change keeps it.
 
 ## How to think about this codebase
 

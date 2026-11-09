@@ -2,6 +2,7 @@
   "name": "samiati",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Samiati — African-language-first AI chat and community language contribution platform.",
   "scripts": {
     "dev": "next dev",
@@ -66,6 +67,6 @@
     "vitest": "^3.2.4"
   },
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=22.18.0"
   }
 }

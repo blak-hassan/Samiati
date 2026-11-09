@@ -1,4 +1,4 @@
-﻿# Implementation Roadmap
+# Implementation Roadmap
 
 Where Samiati is, and what comes next. Phases follow the brief; each one
 ends with a runnable application.
@@ -145,7 +145,7 @@ npm run dev        → http://localhost:3000, fully working, no keys needed
 
 npm run typecheck  → tsc --noEmit
 npm run lint       → eslint
-npm test           → vitest (131 unit tests)
+npm test           → vitest (the unit test suite)
 npm run build      → next build (type errors fail the build)
 npm run test:e2e   → playwright (needs a build first)
 ```

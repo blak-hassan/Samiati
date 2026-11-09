@@ -1,0 +1,17 @@
+# Line endings are normalised so that a Windows checkout and a Linux checkout
+# produce the same bytes, and so a CRLF round-trip can never show up as a
+# whole-file diff. Text is stored with LF in the repository and checked out
+# with LF everywhere.
+* text=auto eol=lf
+
+# Binary files are never touched.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.parquet binary
+*.pdf binary
