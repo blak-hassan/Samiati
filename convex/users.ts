@@ -16,6 +16,20 @@ export const getCurrentUser = query({
   },
 });
 
+/**
+ * The account for the current member, created when it does not exist yet.
+ *
+ * This is a mutation and not a query because creating the account is a write,
+ * and a Convex query cannot write. The client calls it once, before it reads
+ * anything, so every later query finds the account.
+ */
+export const ensureCurrentUser = mutation({
+  args: {},
+  handler: async (ctx) => {
+    return getOrCreateUser(ctx);
+  },
+});
+
 export const updateCurrentUser = mutation({
   args: {
     patch: v.object({

@@ -38,17 +38,37 @@ export class ConvexStore implements SamiatiStore {
 
   private readonly client: ConvexHttpClient;
 
+  /**
+   * The account for this member, created once before anything is read.
+   *
+   * A Convex query cannot write, so the account has to be created by a
+   * mutation. Every call waits for the same promise, so the account is created
+   * once and the later queries find it.
+   */
+  private account: Promise<unknown> | null = null;
+
   constructor(url: string) {
     this.client = new ConvexHttpClient(url);
   }
 
+  private ensureAccount(): Promise<unknown> {
+    if (!this.account) {
+      this.account = (this.client as unknown as {
+        mutation: (n: string, a: Record<string, unknown>) => Promise<unknown>;
+      }).mutation("users/ensureCurrentUser", {});
+    }
+    return this.account;
+  }
+
   private async query<T>(name: string, args: Record<string, unknown> = {}) {
+    await this.ensureAccount();
     return (this.client as unknown as {
       query: (n: string, a: Record<string, unknown>) => Promise<T>;
     }).query(name, args);
   }
 
   private async mutate<T>(name: string, args: Record<string, unknown> = {}) {
+    await this.ensureAccount();
     return (this.client as unknown as {
       mutation: (n: string, a: Record<string, unknown>) => Promise<T>;
     }).mutation(name, args);

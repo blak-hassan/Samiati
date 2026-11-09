@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { ChatInput } from "@/components/chat/chat-input";
 import { MessageItem } from "@/components/chat/message-item";
+import { ReplySession } from "@/lib/chat/reply-session";
 import { useStore } from "@/lib/data/provider";
 import type { Conversation, Message } from "@/lib/data/types";
 import { getLanguageOrDefault } from "@/lib/languages";
@@ -48,7 +49,7 @@ export function ChatView({
   const [streamingText, setStreamingText] = React.useState("");
   const [translatedText, setTranslatedText] = React.useState<string | null>(null);
 
-  const abortRef = React.useRef<AbortController | null>(null);
+  const session = React.useMemo(() => new ReplySession(), []);
   const bottomRef = React.useRef<HTMLDivElement>(null);
   const language = getLanguageOrDefault(conversation.languageId);
 
@@ -66,9 +67,7 @@ export function ChatView({
 
   const runAssistant = React.useCallback(
     async (userMessageContent: string, history: HistoryEntry[]) => {
-      abortRef.current?.abort();
-      const controller = new AbortController();
-      abortRef.current = controller;
+      const controller = session.begin();
 
       setIsStreaming(true);
       setStatusMessage("Preparing…");
@@ -154,44 +153,54 @@ export function ChatView({
         });
         setMessages((current) => [...current, persisted]);
       } catch (caught) {
-        if (caught instanceof DOMException && caught.name === "AbortError") {
-          // The user pressed stop — keep whatever was produced so far.
-          const partial = translated || reasoningText;
-          if (partial.trim()) {
-            const persisted = await store.addMessage({
+        // A newer turn may have taken over while this one was in flight. That
+        // turn owns the conversation now, so this one must not write to it: a
+        // superseded reply would land next to its own replacement.
+        if (session.owns(controller)) {
+          if (caught instanceof DOMException && caught.name === "AbortError") {
+            // The user pressed stop — keep whatever was produced so far.
+            const partial = translated || reasoningText;
+            if (partial.trim()) {
+              const persisted = await store.addMessage({
+                conversationId: conversation.id,
+                role: "assistant",
+                content: partial,
+                languageId: conversation.languageId,
+                status: "complete",
+              });
+              setMessages((current) => [...current, persisted]);
+            }
+          } else {
+            const message =
+              caught instanceof Error
+                ? caught.message
+                : "Something went wrong while answering.";
+            toast.error(message);
+            await store.addMessage({
               conversationId: conversation.id,
               role: "assistant",
-              content: partial,
+              content: "",
               languageId: conversation.languageId,
-              status: "complete",
+              status: "error",
+              error: message,
             });
-            setMessages((current) => [...current, persisted]);
+            await refresh();
           }
-        } else {
-          const message =
-            caught instanceof Error
-              ? caught.message
-              : "Something went wrong while answering.";
-          toast.error(message);
-          await store.addMessage({
-            conversationId: conversation.id,
-            role: "assistant",
-            content: "",
-            languageId: conversation.languageId,
-            status: "error",
-            error: message,
-          });
-          await refresh();
         }
       } finally {
-        setIsStreaming(false);
-        setStatusMessage(null);
-        setStreamingText("");
-        setTranslatedText(null);
-        abortRef.current = null;
+        // Only the run that still owns the conversation may clear the state
+        // the runs share. A superseded run that cleared it would stop the
+        // live reply from being stopped, and would leave two replies writing
+        // to the same conversation.
+        if (session.release(controller)) {
+          setIsStreaming(false);
+          setStatusMessage(null);
+          setStreamingText("");
+          setTranslatedText(null);
+        }
       }
     },
-    [conversation.id, conversation.languageId, refresh, store],
+    [conversation.id, conversation.languageId, refresh, session, store],
   );
 
   // Send the opening message exactly once, when the view first mounts.
@@ -384,7 +393,7 @@ export function ChatView({
             value={input}
             onChange={setInput}
             onSend={sendMessage}
-            onStop={() => abortRef.current?.abort()}
+            onStop={() => session.stop()}
             isStreaming={isStreaming}
             languageId={conversation.languageId}
           />

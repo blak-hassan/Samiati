@@ -52,11 +52,6 @@ export const toggleSaved = mutation({
   },
 });
 
-import { v } from "convex/values";
-
-import { mutation, query } from "./_generated/server";
-import { getOrCreateUser } from "./lib/currentUser";
-
 /**
  * Merges items from an ingested feed into the catalogue.
  *

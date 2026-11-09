@@ -127,7 +127,7 @@ export function MessageItem({
                 >
                   Cancel
                 </Button>
-                <Button size="sm" onClick={commitEdit}>
+                <Button size="sm" onClick={commitEdit} disabled={isBusy}>
                   Save &amp; resend
                 </Button>
               </div>
@@ -164,6 +164,7 @@ export function MessageItem({
                     setDraft(message.content);
                     setEditing(true);
                   }}
+                  disabled={isBusy}
                   aria-label="Edit message"
                 >
                   <Pencil className="h-3.5 w-3.5" aria-hidden />
@@ -175,6 +176,7 @@ export function MessageItem({
                   size="icon"
                   className="h-7 w-7"
                   onClick={() => onRegenerate(message)}
+                  disabled={isBusy}
                   aria-label="Try again"
                 >
                   <RefreshCw className="h-3.5 w-3.5" aria-hidden />
