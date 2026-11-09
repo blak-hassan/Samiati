@@ -2,9 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: ["**"]
   pull_request:
-    branches: [main]
 
 # One job, cheapest check first: a type error fails in seconds instead of
 # after a full browser run.
