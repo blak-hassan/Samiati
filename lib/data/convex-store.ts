@@ -32,43 +32,75 @@ import type {
  * Convex deployment, and `npx convex dev` regenerates the typed API in
  * `convex/_generated` for the backend itself.
  */
+export interface ConvexStoreOptions {
+  /**
+   * Returns the session token of the signed-in member, when there is one.
+   *
+   * The token is what tells Convex which member a request comes from. Without
+   * it every member shares the one local account.
+   */
+  getAuthToken?: () => Promise<string | null>;
+}
+
 export class ConvexStore implements SamiatiStore {
   readonly kind = "convex" as const;
   readonly label = "Convex cloud";
 
   private readonly client: ConvexHttpClient;
+  private readonly getAuthToken?: () => Promise<string | null>;
 
   /**
-   * The account for this member, created once before anything is read.
+   * The account for this member, created before anything is read.
    *
    * A Convex query cannot write, so the account has to be created by a
-   * mutation. Every call waits for the same promise, so the account is created
-   * once and the later queries find it.
+   * mutation. The promise is kept per token: the token says which member the
+   * account belongs to, and a member who signs in after the first request
+   * needs an account of their own.
    */
-  private account: Promise<unknown> | null = null;
+  private account: { token: string | null; ready: Promise<unknown> } | null = null;
 
-  constructor(url: string) {
+  constructor(url: string, options: ConvexStoreOptions = {}) {
     this.client = new ConvexHttpClient(url);
+    this.getAuthToken = options.getAuthToken;
   }
 
-  private ensureAccount(): Promise<unknown> {
-    if (!this.account) {
-      this.account = (this.client as unknown as {
-        mutation: (n: string, a: Record<string, unknown>) => Promise<unknown>;
-      }).mutation("users/ensureCurrentUser", {});
+  /**
+   * Sends the member's session token with the request.
+   *
+   * The token expires, so a fresh one is fetched for every request. When
+   * there is none the request goes out unauthenticated, which is what the
+   * zero-configuration path needs.
+   */
+  private async authorize(): Promise<string | null> {
+    if (!this.getAuthToken) return null;
+    const token = await this.getAuthToken().catch(() => null);
+    if (token) this.client.setAuth(token);
+    return token ?? null;
+  }
+
+  private async ensureAccount(token: string | null): Promise<void> {
+    if (!this.account || this.account.token !== token) {
+      this.account = {
+        token,
+        ready: (this.client as unknown as {
+          mutation: (n: string, a: Record<string, unknown>) => Promise<unknown>;
+        }).mutation("users/ensureCurrentUser", {}),
+      };
     }
-    return this.account;
+    await this.account.ready;
   }
 
   private async query<T>(name: string, args: Record<string, unknown> = {}) {
-    await this.ensureAccount();
+    const token = await this.authorize();
+    await this.ensureAccount(token);
     return (this.client as unknown as {
       query: (n: string, a: Record<string, unknown>) => Promise<T>;
     }).query(name, args);
   }
 
   private async mutate<T>(name: string, args: Record<string, unknown> = {}) {
-    await this.ensureAccount();
+    const token = await this.authorize();
+    await this.ensureAccount(token);
     return (this.client as unknown as {
       mutation: (n: string, a: Record<string, unknown>) => Promise<T>;
     }).mutation(name, args);

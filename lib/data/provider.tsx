@@ -12,6 +12,8 @@ import {
 
 import { getRuntimeConfig } from "@/lib/runtime";
 
+import { useSamiatiAuth } from "@/lib/auth/provider";
+
 import { ConvexStore } from "./convex-store";
 import { LocalStore } from "./local-store";
 import type { SamiatiStore } from "./store";
@@ -26,10 +28,10 @@ interface SamiatiDataContextValue {
 
 const SamiatiDataContext = createContext<SamiatiDataContextValue | null>(null);
 
-function createStore(): SamiatiStore {
+function createStore(getAuthToken?: () => Promise<string | null>): SamiatiStore {
   const config = getRuntimeConfig();
   if (config.dataBackend === "convex" && config.convexUrl) {
-    return new ConvexStore(config.convexUrl);
+    return new ConvexStore(config.convexUrl, { getAuthToken });
   }
   return new LocalStore();
 }
@@ -41,7 +43,8 @@ function createStore(): SamiatiStore {
  * component ever branches on "local versus Convex".
  */
 export function SamiatiDataProvider({ children }: { children: ReactNode }) {
-  const store = useMemo(() => createStore(), []);
+  const auth = useSamiatiAuth();
+  const store = useMemo(() => createStore(auth.getToken), [auth.getToken]);
   const [user, setUser] = useState<SamiatiUser | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
 
