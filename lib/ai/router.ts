@@ -44,7 +44,7 @@ export class RoutedTranslationService implements TranslationService {
       ...new Set(
         routes.flatMap((route) =>
           route.languages.includes("*")
-            ? []
+            ? [...route.service.supportedLanguageIds]
             : [...route.languages],
         ),
       ),
@@ -90,7 +90,11 @@ export class RoutedTranslationService implements TranslationService {
   }
 
   async detectLanguage(text: string) {
-    const route = this.routes[0];
+    // Detection is a general task: a dedicated model is tuned for one
+    // language, so the general route is the one to ask.
+    const route =
+      this.routes.find((candidate) => candidate.languages.includes("*")) ??
+      this.routes[0];
     if (!route) {
       return { languageId: "en", confidence: 0, isMock: true };
     }

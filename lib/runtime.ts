@@ -31,7 +31,9 @@ export interface RuntimeConfig {
  *  2. Convex only.
  *  3. Local storage only (the zero-configuration default).
  */
-export function getRuntimeConfig(env: NodeJS.ProcessEnv = process.env): RuntimeConfig {
+export function getRuntimeConfig(
+  env: Record<string, string | undefined> = process.env,
+): RuntimeConfig {
   const convexUrl = env.NEXT_PUBLIC_CONVEX_URL?.trim();
   const clerkEnabled = Boolean(env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim());
 

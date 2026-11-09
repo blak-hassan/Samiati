@@ -60,6 +60,8 @@ npm run dev
 | `SAMIATI_REASONING_BASE_URL` | Any OpenAI-compatible endpoint — OpenRouter, Groq, Together, vLLM, Ollama. |
 | `SAMIATI_REASONING_MODEL` | Defaults to `gpt-4o-mini`. |
 | `HUGGINGFACE_API_KEY` | Turns on the real translation model (NLLB-200). |
+| `SAMIATI_TRANSLATION_MODEL` | The translation model to use. Defaults to `facebook/nllb-200-distilled-600M`. |
+| `SAMIATI_TRANSLATION_MODEL_<LANGUAGE>` | A dedicated translation model for one language, e.g. `SAMIATI_TRANSLATION_MODEL_KISWAHILI`. The router prefers it over the general model. |
 | `NEXT_PUBLIC_CONVEX_URL` | Switches persistence from local storage to Convex. |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Turns on accounts. |
 

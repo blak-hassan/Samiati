@@ -6,6 +6,7 @@ import {
   splitSentences,
 } from "@/lib/ai/sentence-window";
 import { dictatableLanguages, voiceLocale } from "@/lib/ai/browser-voice";
+import { resolveAiRuntime } from "@/lib/ai";
 import { RoutedTranslationService, buildTranslationRoutes } from "@/lib/ai/router";
 import type { TranslationRequest, TranslationService } from "@/lib/ai/types";
 
@@ -88,6 +89,7 @@ class FakeService implements TranslationService {
   readonly isMock = false;
   readonly supportedLanguageIds: readonly string[];
   calls: TranslationRequest[] = [];
+  detections: string[] = [];
 
   constructor(id: string, languages: string[]) {
     this.id = id;
@@ -104,7 +106,8 @@ class FakeService implements TranslationService {
     };
   }
 
-  async detectLanguage() {
+  async detectLanguage(text: string) {
+    this.detections.push(text);
     return { languageId: "en", confidence: 1, isMock: false };
   }
 }
@@ -163,5 +166,54 @@ describe("translation routing", () => {
   it("reports whether it is a mock", () => {
     const router = new RoutedTranslationService([]);
     expect(router.isMock).toBe(true);
+  });
+
+  it("asks the general route to detect the language", async () => {
+    const dedicated = new FakeService("kiswahili-model", ["kiswahili", "en"]);
+    const general = new FakeService("general", ["en", "kiswahili", "kikuyu"]);
+
+    const router = buildTranslationRoutes({
+      general,
+      dedicated: { kiswahili: dedicated },
+    });
+
+    await router.detectLanguage("Habari");
+
+    expect(general.detections).toHaveLength(1);
+    expect(dedicated.detections).toHaveLength(0);
+  });
+});
+
+describe("the runtime", () => {
+  it("routes a language pair to the model configured for it", () => {
+    const runtime = resolveAiRuntime({
+      HUGGINGFACE_API_KEY: "test-key",
+      SAMIATI_TRANSLATION_MODEL_KISWAHILI: "some/kiswahili-model",
+    });
+
+    expect(runtime.translation).toBeInstanceOf(RoutedTranslationService);
+    const router = runtime.translation as RoutedTranslationService;
+    expect(router.routeList.map((route) => route.id)).toEqual([
+      "dedicated-kiswahili",
+      "general",
+    ]);
+    expect(runtime.translationConnected).toBe(true);
+    expect(
+      runtime.notes.some((note) => note.includes("kiswahili")),
+    ).toBe(true);
+  });
+
+  it("keeps the general model when no dedicated one is configured", () => {
+    const runtime = resolveAiRuntime({ HUGGINGFACE_API_KEY: "test-key" });
+
+    const router = runtime.translation as RoutedTranslationService;
+    expect(router.routeList.map((route) => route.id)).toEqual(["general"]);
+  });
+
+  it("says plainly when nothing is connected", () => {
+    const runtime = resolveAiRuntime({});
+
+    expect(runtime.translationConnected).toBe(false);
+    expect(runtime.isMock).toBe(true);
   });
 });
