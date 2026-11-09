@@ -1,26 +1,21 @@
-"use client";
+'use client';
 
-import React from "react";
-import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { ArrowRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface FollowUpChipsProps {
   suggestions: string[];
   onSelect: (query: string) => void;
 }
 
-const FollowUpChips: React.FC<FollowUpChipsProps> = ({
-  suggestions,
-  onSelect,
-}) => {
+const FollowUpChips: React.FC<FollowUpChipsProps> = ({ suggestions, onSelect }) => {
   if (!suggestions.length) return null;
 
   return (
     <div className="w-full">
-      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2.5">
-        Ask follow-up
-      </p>
+      <p className="mb-2.5 text-xs font-semibold text-muted-foreground">Explore another question</p>
       <div className="flex flex-wrap gap-2">
         {suggestions.map((suggestion, i) => (
           <Button
@@ -29,11 +24,11 @@ const FollowUpChips: React.FC<FollowUpChipsProps> = ({
             size="sm"
             onClick={() => onSelect(suggestion)}
             className={cn(
-              "h-auto py-2 px-3.5 rounded-xl text-xs font-bold",
-              "bg-card/40 border border-border/30 text-muted-foreground",
-              "hover:bg-card hover:text-foreground hover:border-border/60",
-              "hover:shadow-md transition-all duration-200",
-              "gap-2 group"
+              'h-auto min-h-11 max-w-full whitespace-normal py-2 px-3.5 rounded-xl text-xs font-medium',
+              'bg-card border border-border text-muted-foreground',
+              'hover:bg-secondary hover:text-foreground',
+              'transition-colors duration-200',
+              'gap-2 group'
             )}
           >
             <span className="text-left leading-snug">{suggestion}</span>

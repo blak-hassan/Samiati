@@ -82,6 +82,7 @@ export const createTaskTemplate = mutation({
 export const listAvailableTasks = query({
     args: {
         languageCode: v.optional(v.string()),
+        dialectCode: v.optional(v.string()),
         campaignId: v.optional(v.id("changaCampaigns")),
         taskType: v.optional(changaTaskTypeValidator),
         limit: v.optional(v.number()),
@@ -97,11 +98,18 @@ export const listAvailableTasks = query({
                     ? q.eq("languageCode", args.languageCode).eq("status", "open")
                     : q.eq("status", "open")
             )
-            .collect();
+            .take(500);
 
         return tasks
             .filter((task) => !args.campaignId || task.campaignId === args.campaignId)
             .filter((task) => !args.taskType || task.taskType === args.taskType)
+            // A dialect filter only narrows the queue when the task actually
+            // declares one; tasks without a dialect stay available to everyone.
+            .filter((task) =>
+                !args.dialectCode
+                    || task.dialectCode === args.dialectCode
+                    || task.dialectCode === undefined,
+            )
             .filter((task) => !task.expiresAt || task.expiresAt > now)
             .sort((left, right) => {
                 const priorityDelta =

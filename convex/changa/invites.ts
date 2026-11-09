@@ -3,6 +3,11 @@ import { v } from "convex/values";
 import { getCurrentUser } from "../users/utils";
 
 // Generate a unique invite code for a user.
+//
+// A contributor keeps a single code for their lifetime: sharing again returns
+// the existing code instead of inserting a second row. Previously every share
+// created a new invite, which made `getInviteStats` count shares rather than
+// distinct invitees.
 export const generateInviteCode = mutation({
     args: {
         channel: v.optional(v.string()),
@@ -10,6 +15,16 @@ export const generateInviteCode = mutation({
     handler: async (ctx, args) => {
         const user = await getCurrentUser(ctx);
         if (!user) throw new Error("Unauthorized");
+
+        const existing = await ctx.db
+            .query("changaInvites")
+            .withIndex("by_inviter", (q) => q.eq("inviterUserId", user._id))
+            .order("desc")
+            .first();
+
+        if (existing) {
+            return existing.inviteCode;
+        }
 
         // Generate a short code from user ID + timestamp
         const code = `changa_${user._id.slice(-6)}_${Date.now().toString(36)}`;
@@ -40,10 +55,14 @@ export const recordInviteClick = mutation({
 
         if (!invite) return null;
 
-        await ctx.db.patch(invite._id, {
-            clickedAt: Date.now(),
-            clickedByUserId: user?._id,
-        });
+        // Keep the first click for attribution — a later click must not
+        // overwrite who the invite actually brought in.
+        if (!invite.clickedAt) {
+            await ctx.db.patch(invite._id, {
+                clickedAt: Date.now(),
+                clickedByUserId: user?._id,
+            });
+        }
 
         return invite.inviterUserId;
     },

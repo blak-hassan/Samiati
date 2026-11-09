@@ -1,74 +1,165 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from 'react';
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, Wifi, Image, Download } from "lucide-react";
+import { Database, Download, Image as ImageIcon, Trash2, Wifi } from 'lucide-react';
+import { useConvex } from 'convex/react';
+import { Switch } from '@/components/ui/switch';
+import SettingsRow from '@/components/settings/SettingsRow';
+import SettingsSection from '@/components/settings/SettingsSection';
+import SettingsShell from '@/components/settings/SettingsShell';
+import RestoreDefaultsButton, {
+  useChangedLabels,
+} from '@/components/settings/RestoreDefaultsButton';
+import { useSettings } from '@/hooks/useSettings';
+import { DeviceSettingKey } from '@/lib/settings';
+import { api } from '../../../convex/_generated/api';
 
 interface Props {
-  goBack: () => void;
+  /**
+   * Hands account deletion to the identity provider, which owns the sign-in
+   * identity as well as the Samiati data.
+   */
+  onDeleteAccount?: () => void;
 }
 
-const SettingsDataScreen: React.FC<Props> = ({ goBack }) => {
-  const [dataSaver, setDataSaver] = useState(false);
-  const [highQuality, setHighQuality] = useState(true);
-  const [autoDownload, setAutoDownload] = useState(true);
+/**
+ * Data and storage settings.
+ *
+ * Previously local `useState` — these toggles were lost on every refresh.
+ * They are now part of the persisted device settings.
+ *
+ * The "export my data" action uses the `exportUserData` query that already
+ * existed on the server but had no way to be reached.
+ */
+const SettingsDataScreen: React.FC<Props> = ({ onDeleteAccount }) => {
+  const { settings, updateSetting, resetSetting, resetAll, isChanged } = useSettings();
+  const changedLabels = useChangedLabels();
+  const convex = useConvex();
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  const resetKeys = (keys: DeviceSettingKey[]) => {
+    keys.forEach((key) => resetSetting(key));
+  };
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    setExportError(null);
+    try {
+      const data = await convex.query(api.users.mutations.exportUserData, {});
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `samiati-data-export-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setExportError(
+        error instanceof Error ? error.message : 'Could not export your data. Please try again.'
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
-    <div className="flex flex-col min-h-screen bg-background transition-colors duration-300">
-      <header className="flex items-center px-4 h-14 sticky top-0 bg-background/95 backdrop-blur-md z-30 border-b border-border/50">
-        <Button variant="ghost" size="icon" onClick={goBack} className="rounded-full" aria-label="Go back">
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <h1 className="text-lg font-bold text-foreground ml-2 tracking-tight">Data Settings</h1>
-      </header>
+    <SettingsShell
+      title="Data & Storage"
+      activeSection="data"
+      headerAction={
+        <RestoreDefaultsButton changedLabels={changedLabels} onRestore={() => resetAll()} />
+      }
+    >
+      <div className="space-y-8">
+        <SettingsSection title="Usage">
+          <SettingsRow
+            id="data.dataSaver"
+            title="Data saver"
+            description="Reduce image quality and stop autoplay on mobile data"
+            icon={<Wifi className="w-5 h-5" />}
+            changed={isChanged('dataSaver')}
+            onReset={() => resetKeys(['dataSaver'])}
+            control={
+              <Switch
+                checked={settings.dataSaver}
+                onCheckedChange={(checked) => updateSetting('dataSaver', checked)}
+                aria-label="Data saver"
+                className="data-[state=checked]:bg-primary"
+              />
+            }
+          />
+        </SettingsSection>
 
-      <main className="flex-1 overflow-y-auto p-4 space-y-6">
-        {/* Usage */}
-        <div>
-          <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 ml-2">Usage</h3>
-          <div className="bg-muted/20 rounded-2xl border border-border/50 overflow-hidden">
-            <div className="flex items-center justify-between p-4">
-              <div className="flex items-center gap-3">
-                <Wifi className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <p className="font-medium text-foreground">Data Saver</p>
-                  <p className="text-xs text-muted-foreground">Reduce image quality and stop autoplay</p>
-                </div>
-              </div>
-              <Switch checked={dataSaver} onCheckedChange={setDataSaver} className="data-[state=checked]:bg-primary" />
-            </div>
-          </div>
-        </div>
+        <SettingsSection title="Media quality">
+          <SettingsRow
+            id="data.highQualityUploads"
+            title="High quality uploads"
+            description="Upload photos and videos in higher resolution"
+            icon={<ImageIcon className="w-5 h-5" />}
+            changed={isChanged('highQualityUploads')}
+            onReset={() => resetKeys(['highQualityUploads'])}
+            control={
+              <Switch
+                checked={settings.highQualityUploads}
+                onCheckedChange={(checked) => updateSetting('highQualityUploads', checked)}
+                aria-label="High quality uploads"
+                className="data-[state=checked]:bg-primary"
+              />
+            }
+          />
+          <SettingsRow
+            id="data.autoDownloadMedia"
+            title="Auto-download media"
+            description="Automatically download photos on mobile data"
+            icon={<Download className="w-5 h-5" />}
+            changed={isChanged('autoDownloadMedia')}
+            onReset={() => resetKeys(['autoDownloadMedia'])}
+            control={
+              <Switch
+                checked={settings.autoDownloadMedia}
+                onCheckedChange={(checked) => updateSetting('autoDownloadMedia', checked)}
+                aria-label="Auto-download media"
+                className="data-[state=checked]:bg-primary"
+              />
+            }
+          />
+        </SettingsSection>
 
-        {/* Media Quality */}
-        <div>
-          <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 ml-2">Media Quality</h3>
-          <div className="bg-muted/20 rounded-2xl border border-border/50 overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-border/30">
-              <div className="flex items-center gap-3">
-                <Image className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <p className="font-medium text-foreground">High Quality Uploads</p>
-                  <p className="text-xs text-muted-foreground">Upload photos and videos in higher resolution</p>
-                </div>
-              </div>
-              <Switch checked={highQuality} onCheckedChange={setHighQuality} className="data-[state=checked]:bg-primary" />
-            </div>
-            <div className="flex items-center justify-between p-4">
-              <div className="flex items-center gap-3">
-                <Download className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <p className="font-medium text-foreground">Auto-download Media</p>
-                  <p className="text-xs text-muted-foreground">Automatically download photos on mobile data</p>
-                </div>
-              </div>
-              <Switch checked={autoDownload} onCheckedChange={setAutoDownload} className="data-[state=checked]:bg-primary" />
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
+        <SettingsSection
+          title="Your data"
+          description="Take a copy of everything Samiati holds about you, or close your account."
+        >
+          <SettingsRow
+            id="data.export"
+            title="Export my data"
+            description={
+              exportError ??
+              'Download a JSON copy of your profile, posts, comments and saved content.'
+            }
+            icon={<Database className="w-5 h-5" />}
+            onClick={handleExport}
+            control={
+              <span className="text-xs font-bold text-primary">
+                {isExporting ? 'Preparing…' : 'Export'}
+              </span>
+            }
+          />
+          {onDeleteAccount ? (
+            <SettingsRow
+              id="data.delete"
+              title="Delete account"
+              description="Permanently remove your account and all of its data"
+              icon={<Trash2 className="w-5 h-5" />}
+              tone="danger"
+              onClick={onDeleteAccount}
+            />
+          ) : null}
+        </SettingsSection>
+      </div>
+    </SettingsShell>
   );
 };
 

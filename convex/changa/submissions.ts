@@ -2,7 +2,7 @@ import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser, isModerator } from "../users/utils";
 import { enqueueSubmissionProcessing, runSubmissionChecks } from "./processing";
-import { FALLBACK_CONSENT_POLICY_VERSION, insertConsentRecord } from "./consent";
+import { getActiveConsentPolicyVersion, insertConsentRecord } from "./consent";
 import {
     changaAutoChecksValidator,
     changaConsentValidator,
@@ -11,6 +11,12 @@ import {
     changaSubmissionStatusValidator,
     changaTaskTypeValidator,
 } from "./validators";
+import {
+    DAY_WINDOW_MS,
+    MAX_SUBMISSIONS_PER_DAY,
+    MAX_SUBMISSIONS_PER_HOUR,
+    VELOCITY_WINDOW_MS,
+} from "./constants";
 
 function createDefaultConsent() {
     // Consent is never assumed: a contributor must opt in explicitly before
@@ -40,7 +46,6 @@ const MAX_TRANSCRIPT_TEXT = 5000;
 const MAX_CONTEXT_NOTE = 1000;
 const MAX_GLOSS = 500;
 const MAX_OPEN_SUBMISSIONS_PER_TASK = 3;
-const ACTIVE_CONSENT_POLICY_VERSION = FALLBACK_CONSENT_POLICY_VERSION;
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024; // 25 MB
 // The client's declared MIME type is never trusted; the real stored file is
 // verified against this whitelist via storage metadata.
@@ -60,10 +65,9 @@ const ALLOWED_AUDIO_MIME_TYPES = new Set([
 
 // Anti-abuse velocity limits. These are deliberately conservative for the
 // pilot; they prevent a single account from flooding the review queue.
-const MAX_SUBMISSIONS_PER_HOUR = 50;
-const MAX_SUBMISSIONS_PER_DAY = 300;
-const VELOCITY_WINDOW_MS = 60 * 60 * 1000;
-const DAY_WINDOW_MS = 24 * 60 * 60 * 1000;
+//
+// The limits live in ./constants.ts so every path that creates a submission —
+// including the feedback-correction promotion — shares one budget.
 
 export const listUserSubmissions = query({
     args: {
@@ -277,7 +281,12 @@ export const startClaimedSubmission = mutation({
         if (!args.consent.isGranted || !args.consent.allowTraining) {
             throw new Error("Training consent is required for this task");
         }
-        if (args.consentPolicyVersion !== ACTIVE_CONSENT_POLICY_VERSION) {
+        // The client must have agreed to the policy version that is actually in
+        // force. Resolving it from the database (instead of pinning the pilot
+        // fallback) means a newly published policy is honoured, while a stale
+        // client is still told to refresh.
+        const activePolicyVersion = await getActiveConsentPolicyVersion(ctx.db);
+        if (args.consentPolicyVersion !== activePolicyVersion) {
             throw new Error("This task needs the latest consent policy. Please refresh and try again.");
         }
 

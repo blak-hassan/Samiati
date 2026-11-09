@@ -20,6 +20,37 @@ function isProfileVisible(user: Record<string, unknown>, viewerId?: string): boo
     return user.profileVisible !== false;
 }
 
+/**
+ * Read the signed-in user's account-scoped settings.
+ *
+ * The settings screens need the saved notification preferences and privacy
+ * flags so they render the real state instead of local component state.
+ * Guests have no persisted preferences, so the defaults are returned.
+ */
+export const getAccountSettings = query({
+    args: {},
+    handler: async (ctx) => {
+        const user = await getCurrentUser(ctx);
+        if (!user) return null;
+
+        return {
+            notificationPreferences: {
+                pauseAll: user.notificationPreferences?.pauseAll ?? false,
+                changa: user.notificationPreferences?.changa ?? true,
+                moderation: user.notificationPreferences?.moderation ?? true,
+                sessions: user.notificationPreferences?.sessions ?? true,
+                emailDigest: user.notificationPreferences?.emailDigest ?? false,
+            },
+            privacy: {
+                profileVisible: user.profileVisible ?? true,
+                showChanga: user.showChanga ?? true,
+                voiceDataAllowed: user.voiceDataAllowed ?? true,
+                culturalDataAllowed: user.culturalDataAllowed ?? true,
+            },
+        };
+    },
+});
+
 export const getProfile = query({
     args: {
         userId: v.optional(v.id("users")),

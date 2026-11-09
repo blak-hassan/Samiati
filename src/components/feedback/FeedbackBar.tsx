@@ -7,18 +7,14 @@ import {
   ThumbsUp,
   ThumbsDown,
   Pencil,
-  X,
   Send,
   Check,
-  AlertCircle,
-  Languages,
-  Mic,
-  Volume2,
-  MessageCircle,
-  Search,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { FEEDBACK_REASONS } from "../../../convex/feedbackConstants";
+import { PromoteFeedbackDialog } from "./PromoteFeedbackDialog";
 
 export type FeedbackContext = "chat" | "translate" | "voice" | "tts" | "search";
 
@@ -32,43 +28,7 @@ interface FeedbackBarProps {
   compact?: boolean;
 }
 
-const DOWN_REASONS: Record<FeedbackContext, { id: string; label: string }[]> = {
-  chat: [
-    { id: "incorrect", label: "Incorrect" },
-    { id: "not_natural", label: "Not natural" },
-    { id: "offensive", label: "Offensive" },
-    { id: "wrong_language", label: "Wrong language" },
-    { id: "missing_context", label: "Missing context" },
-    { id: "other", label: "Other" },
-  ],
-  translate: [
-    { id: "bad_translation", label: "Bad translation" },
-    { id: "not_natural", label: "Not natural" },
-    { id: "wrong_register", label: "Wrong formality" },
-    { id: "missing_meaning", label: "Lost meaning" },
-    { id: "wrong_dialect", label: "Wrong dialect" },
-    { id: "other", label: "Other" },
-  ],
-  voice: [
-    { id: "wrong_transcript", label: "Wrong transcript" },
-    { id: "wrong_language", label: "Wrong language" },
-    { id: "misheard", label: "Misheard words" },
-    { id: "other", label: "Other" },
-  ],
-  tts: [
-    { id: "bad_pronunciation", label: "Bad pronunciation" },
-    { id: "unnatural", label: "Unnatural voice" },
-    { id: "wrong_language", label: "Wrong language accent" },
-    { id: "other", label: "Other" },
-  ],
-  search: [
-    { id: "incorrect", label: "Incorrect answer" },
-    { id: "outdated", label: "Outdated info" },
-    { id: "hallucination", label: "Hallucination" },
-    { id: "irrelevant", label: "Irrelevant" },
-    { id: "other", label: "Other" },
-  ],
-};
+const DOWN_REASONS = FEEDBACK_REASONS as Record<FeedbackContext, { id: string; label: string }[]>;
 
 const CONTEXT_HINTS: Record<FeedbackContext, string> = {
   chat: "Suggest a better response",
@@ -96,8 +56,20 @@ const FeedbackBar: React.FC<FeedbackBarProps> = ({
   const [correction, setCorrection] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // The id and public code of the report the user just filed. Both are needed
+  // to offer the correction for review and to let the user quote it.
+  const [feedbackId, setFeedbackId] = useState<string | null>(null);
+  const [feedbackCode, setFeedbackCode] = useState<string | null>(null);
+  const [showPromote, setShowPromote] = useState(false);
 
   const reasons = DOWN_REASONS[contextType];
+
+  // Record the id/code the server returned so the correction can be promoted
+  // and quoted afterwards.
+  const trackSubmission = (result: { id?: string; code?: string | null }) => {
+    if (result.id) setFeedbackId(result.id);
+    if (result.code) setFeedbackCode(result.code);
+  };
 
   const handleVote = async (type: "up" | "down") => {
     // Toggle off if same vote
@@ -121,7 +93,7 @@ const FeedbackBar: React.FC<FeedbackBarProps> = ({
       // Submit thumbs up immediately
       try {
         setIsSubmitting(true);
-        await submitFeedback({
+        const result = await submitFeedback({
           messageId,
           conversationId,
           type: "up",
@@ -129,6 +101,7 @@ const FeedbackBar: React.FC<FeedbackBarProps> = ({
           language,
           originalText,
         });
+        trackSubmission(result);
         setSubmitted(true);
       } catch (err) {
         console.error("Failed to submit feedback:", err);
@@ -146,7 +119,7 @@ const FeedbackBar: React.FC<FeedbackBarProps> = ({
     // Submit thumbs down with reason
     try {
       setIsSubmitting(true);
-      await submitFeedback({
+      const result = await submitFeedback({
         messageId,
         conversationId,
         type: "down",
@@ -155,6 +128,7 @@ const FeedbackBar: React.FC<FeedbackBarProps> = ({
         language,
         originalText,
       });
+      trackSubmission(result);
       setSubmitted(true);
       // Show correction prompt after a brief moment
       setTimeout(() => setShowCorrection(true), 300);
@@ -169,7 +143,7 @@ const FeedbackBar: React.FC<FeedbackBarProps> = ({
     if (!correction.trim()) return;
     try {
       setIsSubmitting(true);
-      await submitFeedback({
+      const result = await submitFeedback({
         messageId,
         conversationId,
         type: "down",
@@ -179,6 +153,7 @@ const FeedbackBar: React.FC<FeedbackBarProps> = ({
         language,
         originalText,
       });
+      trackSubmission(result);
       setSubmitted(true);
       setShowCorrection(false);
       setCorrection("");
@@ -340,6 +315,34 @@ const FeedbackBar: React.FC<FeedbackBarProps> = ({
             {CONTEXT_HINTS[contextType]} (optional)
           </button>
         </div>
+      )}
+
+      {/* The correction has been filed. Offer to send it for community review,
+          and give the user a quotable reference for it. */}
+      {submitted && correction && feedbackId && (
+        <div className="animate-in fade-in duration-300 space-y-1.5">
+          <button
+            onClick={() => setShowPromote(true)}
+            className="flex items-center gap-1.5 text-[11px] font-medium text-primary hover:underline"
+          >
+            <Sparkles className="w-3 h-3" />
+            Send this correction for community review
+          </button>
+          {feedbackCode && (
+            <p className="text-[10px] text-muted-foreground/70">
+              Reference: <span className="font-mono">{feedbackCode}</span>
+            </p>
+          )}
+        </div>
+      )}
+
+      {showPromote && feedbackId && (
+        <PromoteFeedbackDialog
+          feedbackId={feedbackId}
+          correction={correction}
+          language={language}
+          onClose={() => setShowPromote(false)}
+        />
       )}
     </div>
   );

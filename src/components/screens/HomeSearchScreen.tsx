@@ -1,22 +1,42 @@
-"use client";
+'use client';
 
-import React, { useState, useRef, useCallback, useEffect } from "react";
-import { useAction } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Screen, Message, Conversation } from "@/types";
-import SamiatiLogo from "@/components/SamiatiLogo";
-import { Language, LANGUAGES } from "@/components/chat/LanguageSelector";
-import SearchHero from "@/components/search/SearchHero";
-import SuggestionSentences from "@/components/search/SuggestionSentences";
-import SearchPhaseIndicator from "@/components/search/SearchPhaseIndicator";
-import SearchResults from "@/components/search/SearchResults";
-import { fetchWikipediaLinks, fetchCommonsImages, SearchResult, SearchImage, SearchAttachment } from "@/services/sunflowerService";
-import { Source } from "@/components/search/SourceCard";
-import { Button } from "@/components/ui/button";
-import { Menu, SquarePen, ArrowDown, Compass } from "lucide-react";
-import { AppSidebar } from "@/components/shared/AppSidebar";
-import FeedbackBar from "@/components/feedback/FeedbackBar";
-import { cn } from "@/lib/utils";
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { useAction } from 'convex/react';
+import {
+  ArrowDown,
+  Check,
+  Compass,
+  Copy,
+  HeartHandshake,
+  Languages,
+  Menu,
+  MessageCircle,
+  SquarePen,
+} from 'lucide-react';
+import { api } from '../../../convex/_generated/api';
+import { type Conversation, type Message, Screen } from '@/types';
+import { LanguageSelector, LANGUAGES, type Language } from '@/components/chat/LanguageSelector';
+import SearchHero from '@/components/search/SearchHero';
+import SuggestionSentences from '@/components/search/SuggestionSentences';
+import SearchPhaseIndicator from '@/components/search/SearchPhaseIndicator';
+import SearchResults from '@/components/search/SearchResults';
+import {
+  fetchWikipediaLinks,
+  fetchCommonsImages,
+  type SearchImage,
+  type SearchAttachment,
+} from '@/services/sunflowerService';
+import { type Source } from '@/components/search/SourceCard';
+import { Button } from '@/components/ui/button';
+import { AppSidebar } from '@/components/shared/AppSidebar';
+import FeedbackBar from '@/components/feedback/FeedbackBar';
+import { ThemeToggle } from '@/components/product/ThemeToggle';
+import { getProductLanguage } from '@/lib/productLanguages';
+import { useSettings } from '@/hooks/useSettings';
+import { formatMessageTime } from '@/lib/settings';
+import { getSavedLanguageCode, isServiceError } from '@/components/chat/history';
+import { cn } from '@/lib/utils';
 
 interface Props {
   user?: {
@@ -30,673 +50,766 @@ interface Props {
   };
   navigate: (screen: Screen, params?: Record<string, unknown>) => void;
   unreadCount?: number;
-  notificationCounts?: {
-    contributions?: number;
-    moderation?: number;
-  };
+  notificationCounts?: { contributions?: number; moderation?: number };
   activeConversation?: Conversation | null;
   onNewChat?: () => void;
-  onSaveChat?: (conversationId: string | null, messages: Message[]) => void;
+  onSaveChat?: (conversationId: string | null, messages: Message[], language?: Language) => void;
   conversations?: Conversation[];
   initialQuery?: string;
 }
+interface ChatActions {
+  searchAction?: (args: {
+    query: string;
+    language: string;
+    links: Source[];
+    document: string;
+  }) => Promise<{ answer: string; sources: Source[]; followUps: string[] }>;
+  transcribeAction?: (args: {
+    audioBase64: string;
+  }) => Promise<{ text: string; error: string | null }>;
+  ttsAction?: (args: {
+    text: string;
+    language: string;
+  }) => Promise<{ audioBase64: string | null; contentType?: string; error: string | null }>;
+}
 
-// User queries keep a bubble; AI replies render as plain text (Perplexity style)
-const ThreadMessage: React.FC<{
+function ThreadMessage({
+  msg,
+  conversationId,
+  language,
+  children,
+  feedbackEnabled = true,
+}: {
   msg: Message;
-  contextType?: "chat" | "translate" | "voice" | "tts" | "search";
   conversationId?: string;
   language?: string;
-}> = ({ msg, contextType = "search", conversationId, language }) => (
-  <div
-    className={cn(
-      "w-full animate-in fade-in slide-in-from-bottom-2 duration-300",
-      msg.sender === "user" && "flex justify-end"
-    )}
-  >
-    {msg.sender === "user" ? (
-      <div className="max-w-[85%] px-4 py-3 rounded-2xl rounded-br-md bg-primary text-primary-foreground text-sm md:text-base leading-relaxed tracking-tight whitespace-pre-wrap shadow-sm">
-        {msg.text}
-      </div>
-    ) : (
-      <div className="space-y-1.5">
-        <p className="text-sm md:text-base leading-relaxed tracking-tight whitespace-pre-wrap font-medium text-foreground/85">
-          {msg.text}
-        </p>
-        <FeedbackBar
-          contextType={contextType}
-          messageId={msg.id}
-          conversationId={conversationId}
-          language={language}
-          originalText={msg.text}
-          compact
-        />
-      </div>
-    )}
-  </div>
-);
+  children?: React.ReactNode;
+  feedbackEnabled?: boolean;
+}) {
+  const { settings } = useSettings();
+  const [copyStatus, setCopyStatus] = useState('');
+  const timestamp = msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp);
+  const validTimestamp = Number.isFinite(timestamp.getTime());
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(msg.text);
+      setCopyStatus('Answer copied.');
+    } catch {
+      setCopyStatus('Copy is unavailable. Select and copy the answer text instead.');
+    }
+  };
+  return (
+    <article
+      aria-label={msg.sender === 'user' ? 'Your message' : 'Samiati response'}
+      className={cn('min-w-0 py-2', msg.sender === 'user' && 'flex justify-end')}
+    >
+      {msg.sender === 'user' ? (
+        <div className="max-w-[90%] rounded-2xl rounded-br-md border border-border bg-secondary px-4 py-3 leading-relaxed [overflow-wrap:anywhere]">
+          <p className="whitespace-pre-wrap">{msg.text}</p>
+          {settings.showTimestamps && validTimestamp && (
+            <time
+              dateTime={timestamp.toISOString()}
+              className="mt-2 block text-xs text-muted-foreground"
+            >
+              {formatMessageTime(timestamp, settings.timeFormat)}
+            </time>
+          )}
+        </div>
+      ) : (
+        <div className="min-w-0">
+          <p className="mb-3 flex items-center gap-2 text-xs font-semibold text-primary">
+            <span aria-hidden="true" className="size-1.5 rounded-full bg-ai" />
+            Samiati
+          </p>
+          {children ?? (
+            <>
+              <p className="whitespace-pre-wrap leading-7 [overflow-wrap:anywhere]">{msg.text}</p>
+              {msg.translatedText && (
+                <details className="mt-3 rounded-xl border border-border p-3">
+                  <summary className="cursor-pointer text-sm font-medium">
+                    View saved translation
+                  </summary>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed [overflow-wrap:anywhere]">
+                    {msg.translatedText}
+                  </p>
+                </details>
+              )}
+              <div className="mt-2 flex flex-wrap items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-11 text-muted-foreground"
+                  aria-label={copyStatus === 'Answer copied.' ? 'Answer copied' : 'Copy answer'}
+                  onClick={copy}
+                >
+                  {copyStatus === 'Answer copied.' ? (
+                    <Check className="size-4" />
+                  ) : (
+                    <Copy className="size-4" />
+                  )}
+                </Button>
+                {feedbackEnabled && (
+                  <div className="ml-auto [&_button]:min-h-11 [&_button]:min-w-11">
+                    <FeedbackBar
+                      contextType="search"
+                      messageId={msg.id}
+                      conversationId={conversationId}
+                      language={language}
+                      originalText={msg.text}
+                      compact
+                    />
+                  </div>
+                )}
+              </div>
+              {copyStatus && (
+                <p role="status" className="text-xs text-muted-foreground">
+                  {copyStatus}
+                </p>
+              )}
+            </>
+          )}
+          {settings.showTimestamps && validTimestamp && (
+            <time
+              dateTime={timestamp.toISOString()}
+              className="mt-2 block text-xs text-muted-foreground"
+            >
+              {formatMessageTime(timestamp, settings.timeFormat)}
+            </time>
+          )}
+        </div>
+      )}
+    </article>
+  );
+}
 
-const HomeSearchScreen: React.FC<Props> = ({
+function ConnectedChat(props: Props) {
+  const searchAction = useAction(api.sunflower.search);
+  const transcribeAction = useAction(api.asr.transcribeAudio);
+  const ttsAction = useAction(api.tts.synthesizeSpeech);
+  return (
+    <ChatSurface
+      {...props}
+      searchAction={searchAction}
+      transcribeAction={transcribeAction}
+      ttsAction={ttsAction}
+    />
+  );
+}
+
+// Local UI remains usable when the optional backend has not been configured.
+export default function HomeSearchScreen(props: Props) {
+  return process.env.NEXT_PUBLIC_CONVEX_URL ? (
+    <ConnectedChat {...props} />
+  ) : (
+    <ChatSurface {...props} />
+  );
+}
+
+function ChatSurface({
   user,
   navigate,
-  unreadCount = 0,
   notificationCounts,
   activeConversation,
   onNewChat,
   onSaveChat,
   conversations = [],
   initialQuery,
-}) => {
-  // Convex actions — auth handled automatically by the Convex React client
-  const searchAction = useAction(api.sunflower.search);
-  const transcribeAction = useAction(api.asr.transcribeAudio);
-  const ttsAction = useAction(api.tts.synthesizeSpeech);
-
-  // Language
+  searchAction,
+  transcribeAction,
+  ttsAction,
+}: Props & ChatActions) {
+  const { settings, updateSetting } = useSettings();
+  const initialLanguageCode =
+    getSavedLanguageCode(activeConversation) ?? settings.preferredLanguage;
   const [selectedLanguage, setSelectedLanguage] = useState<Language>(
-    LANGUAGES.find((l) => l.code === "sw") || LANGUAGES[0]
+    () => LANGUAGES.find((language) => language.code === initialLanguageCode) ?? LANGUAGES[0]
   );
-
-  // Search state
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState('');
+  const [lastQuery, setLastQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const [answer, setAnswer] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState('');
   const [sources, setSources] = useState<Source[]>([]);
   const [images, setImages] = useState<SearchImage[]>([]);
   const [followUps, setFollowUps] = useState<string[]>([]);
-  const [searchComplete, setSearchComplete] = useState(false);
-
-  // Voice state
-  const [isRecording, setIsRecording] = useState(false);
-  const [isTranscribing, setIsTranscribing] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-
-  // TTS state
-  const [isPlaying, setIsPlaying] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  // Attachments (documents feed the model; images are kept as context chips)
-  const [attachments, setAttachments] = useState<SearchAttachment[]>([]);
-  const docInputRef = useRef<HTMLInputElement>(null);
-  const imageInputRef = useRef<HTMLInputElement>(null);
-
-  // Navigation drawer
-  const [isNavOpen, setIsNavOpen] = useState(false);
-
-  // Pre-fill search from Discover "Explore with Samiati"
-  const [hasAutoSearched, setHasAutoSearched] = useState(false);
-  useEffect(() => {
-    if (initialQuery && !hasAutoSearched && user) {
-      setQuery(initialQuery);
-      setHasAutoSearched(true);
-      // Auto-trigger search after a short delay
-      const timer = setTimeout(() => {
-        handleSearch(initialQuery);
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [initialQuery, hasAutoSearched, user]);
-
-  // Chat-scroll state — auto-scroll to the latest message when the user is
-  // near the bottom; otherwise offer a scroll-to-bottom button.
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [latestMessageId, setLatestMessageId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>(activeConversation?.messages ?? []);
+  const messagesRef = useRef(messages);
+  const requestIdRef = useRef(0);
+  const ownSaveRef = useRef(false);
+  const previousConversationId = useRef(activeConversation?.id);
+  const initialQueryRef = useRef<string | undefined>(undefined);
+  const scrollRef = useRef<HTMLElement>(null);
   const nearBottomRef = useRef(true);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
-
-  const handleScroll = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
-    nearBottomRef.current = dist < 160;
-    setShowScrollBtn(dist > 240);
-  }, []);
-
-  const scrollToBottom = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-    nearBottomRef.current = true;
-    setShowScrollBtn(false);
-  }, []);
-
-  // Conversation thread — synced with the active conversation from the parent
-  const [messages, setMessages] = useState<Message[]>(activeConversation?.messages ?? []);
-  const messagesRef = useRef<Message[]>(messages);
-
-  // Follow the latest message while chatting
-  useEffect(() => {
-    if (!nearBottomRef.current) return;
-    const el = scrollRef.current;
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-  }, [messages, isSearching, searchComplete, answer]);
+  const [isNavOpen, setIsNavOpen] = useState(false);
+  const [attachments, setAttachments] = useState<SearchAttachment[]>([]);
+  const docInputRef = useRef<HTMLInputElement>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const languageInfo = getProductLanguage(selectedLanguage.code);
+  const voiceDisabledReason =
+    languageInfo?.voice === 'unavailable'
+      ? 'Voice is not available for this language.'
+      : 'Voice is not available yet. Write your question below.';
+  const latestAnswer = messages.find((message) => message.id === latestMessageId)?.text ?? '';
 
   useEffect(() => {
-    const msgs = activeConversation?.messages ?? [];
-    messagesRef.current = msgs;
-    setMessages(msgs);
-  }, [activeConversation]);
+    const next = activeConversation?.messages ?? [];
+    messagesRef.current = next;
+    setMessages(next);
+    if (!activeConversation) {
+      setSelectedLanguage(
+        LANGUAGES.find((language) => language.code === settings.preferredLanguage) ?? LANGUAGES[0]
+      );
+    }
+    if (previousConversationId.current !== activeConversation?.id && !ownSaveRef.current) {
+      requestIdRef.current += 1;
+      setQuery('');
+      setLastQuery('');
+      setError(null);
+      setStatus('');
+      setIsSearching(false);
+      setSources([]);
+      setImages([]);
+      setFollowUps([]);
+      setLatestMessageId(null);
+      setAttachments([]);
+      const savedCode = getSavedLanguageCode(activeConversation) ?? settings.preferredLanguage;
+      setSelectedLanguage(
+        LANGUAGES.find((language) => language.code === savedCode) ?? LANGUAGES[0]
+      );
+      audioRef.current?.pause();
+      setIsPlaying(false);
+    }
+    previousConversationId.current = activeConversation?.id;
+    ownSaveRef.current = false;
+  }, [activeConversation, settings.preferredLanguage]);
+
+  useEffect(() => {
+    if (nearBottomRef.current)
+      scrollRef.current?.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: settings.reduceMotion ? 'instant' : 'smooth',
+      });
+  }, [messages, isSearching, error, settings.reduceMotion]);
+
+  useEffect(
+    () => () => {
+      requestIdRef.current += 1;
+      if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      audioRef.current?.pause();
+    },
+    []
+  );
 
   const handleSearch = useCallback(
-    async (searchQuery: string) => {
-      // Guests can browse the hero, but AI features require sign-in.
-      // The backend rejects anonymous actions, so gate up front instead of
-      // surfacing a raw "Unauthorized" error as if it were an AI answer.
-      if (!user) {
+    async (rawQuery: string) => {
+      const searchQuery = rawQuery.trim();
+      if (!searchQuery || searchQuery.length > 5000 || isSearching) return;
+      if (!user || user.isGuest) {
         navigate(Screen.SIGN_IN);
         return;
       }
-
-      setQuery(searchQuery);
+      if (!searchAction) {
+        setStatus(
+          'Sending messages is not available in this preview. You can still explore the interface.'
+        );
+        return;
+      }
+      const requestId = ++requestIdRef.current;
+      setQuery('');
+      setLastQuery(searchQuery);
       setIsSearching(true);
-      setSearchComplete(false);
-      setAnswer("");
       setError(null);
+      setStatus('');
+      setLatestMessageId(null);
       setSources([]);
       setImages([]);
       setFollowUps([]);
       nearBottomRef.current = true;
-
-      // Timeout: if no response in 12 seconds, show a retry message
-      // (covers slow 3G where the phase indicator looks broken)
-      let timedOut = false;
-      const timeoutId = setTimeout(() => {
-        timedOut = true;
+      const timeout = setTimeout(() => {
+        if (requestId !== requestIdRef.current) return;
+        requestIdRef.current += 1;
         setIsSearching(false);
-        setSearchComplete(true);
-        setError("Still working — this can take longer on slower connections. Tap to retry.");
-      }, 12_000);
-
+        setError('The response is taking longer than expected. Please try again.');
+      }, 60_000);
       try {
-        // Attached documents become grounding context for the answer
         const documentText = attachments
-          .filter((a) => a.kind === "doc" && a.text)
-          .map((a) => a.text as string)
-          .join("\n\n")
+          .filter((attachment) => attachment.kind === 'doc' && attachment.text)
+          .map((attachment) => attachment.text)
+          .join('\n\n')
           .slice(0, 8000);
-
-        // Fetch Wikipedia links + images in parallel while calling the search action
-        const wikiLang = selectedLanguage.code === 'sw' ? 'sw' : 'en';
-        const [links, images, actionResult] = await Promise.all([
-          fetchWikipediaLinks(searchQuery, wikiLang),
-          fetchCommonsImages(searchQuery).catch(() => []),
+        // These searches are related reading, not sources used to generate the answer.
+        const [links, relatedImages, result] = await Promise.all([
+          fetchWikipediaLinks(searchQuery, selectedLanguage.code === 'sw' ? 'sw' : 'en').catch(
+            () => []
+          ),
+          settings.dataSaver
+            ? Promise.resolve([])
+            : fetchCommonsImages(searchQuery).catch(() => []),
           searchAction({
             query: searchQuery,
-            language: selectedLanguage.name,
+            language:
+              selectedLanguage.code === 'sw'
+                ? 'Swahili'
+                : selectedLanguage.code === 'luo'
+                  ? 'Luo'
+                  : selectedLanguage.name,
             links: [],
             document: documentText,
           }),
         ]);
-
-        if (timedOut) return; // response arrived after timeout — discard
-
-        clearTimeout(timeoutId);
-        const result: SearchResult = {
-          answer: actionResult?.answer ?? '',
-          sources: Array.isArray(actionResult?.sources) && actionResult.sources.length > 0
-            ? actionResult.sources.map((s: { title: string; url: string; snippet?: string }) => ({
-                title: s.title,
-                url: s.url,
-                snippet: s.snippet ?? '',
-              }))
-            : links,
-          followUps: Array.isArray(actionResult?.followUps) ? actionResult.followUps : [],
-          images,
-        };
-
-        setAnswer(result.answer);
-        setSources(result.sources);
-        setImages(result.images);
-        setFollowUps(result.followUps);
-
-        // Persist the Q&A pair into the current conversation
-        const userMsg: Message = {
-          id: `u_${Date.now()}`,
-          sender: "user",
+        if (requestId !== requestIdRef.current) return;
+        if (!result.answer?.trim() || isServiceError(result.answer))
+          throw new Error('No response available');
+        setSources(links);
+        setImages(relatedImages);
+        setFollowUps(result.followUps ?? []);
+        const timestamp = Date.now();
+        const userMessage: Message = {
+          id: `u_${timestamp}`,
+          sender: 'user',
           text: searchQuery,
-          timestamp: new Date(),
+          targetLanguage: selectedLanguage.code,
+          timestamp: new Date(timestamp),
         };
-        const aiMsg: Message = {
-          id: `a_${Date.now()}`,
-          sender: "ai",
+        const assistantMessage: Message = {
+          id: `a_${timestamp}`,
+          sender: 'ai',
           text: result.answer,
-          timestamp: new Date(),
+          targetLanguage: selectedLanguage.code,
+          timestamp: new Date(timestamp),
         };
-        const next = [...messagesRef.current, userMsg, aiMsg];
+        const next = [...messagesRef.current, userMessage, assistantMessage];
         messagesRef.current = next;
         setMessages(next);
-        onSaveChat?.(activeConversation?.id ?? null, next);
-      } catch (err) {
-        if (timedOut) return;
-        clearTimeout(timeoutId);
-        console.error("Search failed:", err);
-        setError(
-          "Sorry, I encountered an error while searching. Please try again."
-        );
-      } finally {
-        if (!timedOut) {
-          setIsSearching(false);
-          setSearchComplete(true);
+        setLatestMessageId(assistantMessage.id);
+        setAttachments([]);
+        ownSaveRef.current = true;
+        try {
+          onSaveChat?.(activeConversation?.id ?? null, next, selectedLanguage);
+        } catch {
+          ownSaveRef.current = false;
+          setStatus(
+            'Your answer is here, but this browser could not save the conversation. Copy anything you want to keep.'
+          );
         }
+      } catch {
+        if (requestId === requestIdRef.current)
+          setError('Samiati could not answer this time. Check your connection and try again.');
+      } finally {
+        clearTimeout(timeout);
+        if (requestId === requestIdRef.current) setIsSearching(false);
       }
     },
-    [selectedLanguage, onSaveChat, activeConversation?.id, attachments, searchAction, user, navigate]
+    [
+      isSearching,
+      user,
+      navigate,
+      searchAction,
+      attachments,
+      selectedLanguage,
+      settings.dataSaver,
+      onSaveChat,
+      activeConversation?.id,
+    ]
   );
 
-  const handleSuggestionSelect = (suggestionQuery: string) => {
-    handleSearch(suggestionQuery);
+  useEffect(() => {
+    if (!initialQuery || initialQueryRef.current === initialQuery || !user) return;
+    initialQueryRef.current = initialQuery;
+    void handleSearch(initialQuery);
+  }, [initialQuery, user, handleSearch]);
+
+  const handleNewChat = () => {
+    requestIdRef.current += 1;
+    ownSaveRef.current = false;
+    setQuery('');
+    setLastQuery('');
+    setError(null);
+    setStatus('');
+    setIsSearching(false);
+    setSources([]);
+    setImages([]);
+    setFollowUps([]);
+    setLatestMessageId(null);
+    setAttachments([]);
+    messagesRef.current = [];
+    setMessages([]);
+    audioRef.current?.pause();
+    setIsPlaying(false);
+    setSelectedLanguage(
+      LANGUAGES.find((language) => language.code === settings.preferredLanguage) ?? LANGUAGES[0]
+    );
+    onNewChat?.();
   };
 
-  const handleFollowUpSelect = (followUpQuery: string) => {
-    handleSearch(followUpQuery);
+  const handleLanguageSelect = (language: Language) => {
+    if (isSearching) return;
+    setSelectedLanguage(language);
+    updateSetting('preferredLanguage', language.code);
   };
 
-  const startRecording = async () => {
-    try {
-      if (!user) {
-        navigate(Screen.SIGN_IN);
-        return;
-      }
-
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        alert("Microphone access is not supported. Please use a secure connection (HTTPS) or localhost.");
-        return;
-      }
-
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = async () => {
-        setIsTranscribing(true);
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-
-        const reader = new FileReader();
-        reader.readAsDataURL(audioBlob);
-        reader.onloadend = async () => {
-          try {
-            const base64String = String(reader.result ?? "").split(",")[1];
-            if (base64String) {
-              const response = await transcribeAction({ audioBase64: base64String }) as { text?: string; error?: string | null };
-              if (response.text) {
-                setQuery((prev) => (prev ? `${prev} ${response.text}` : response.text ?? ''));
-              } else if (response.error) {
-                console.error("Transcription error:", response.error);
-              }
-            }
-          } catch (err) {
-            console.error("Transcription failed:", err);
-          } finally {
-            setIsTranscribing(false);
-          }
-        };
-
-        stream.getTracks().forEach((track) => track.stop());
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-    } catch (err) {
-      console.error("Failed to start recording:", err);
-      alert("Could not access microphone.");
-    }
-  };
-
-  const handleVoiceInput = () => {
-    if (isRecording) {
-      if (mediaRecorderRef.current) {
-        mediaRecorderRef.current.stop();
-        setIsRecording(false);
-      }
-    } else {
-      startRecording();
-    }
-  };
-
-  const handlePlayAudio = async () => {
-    if (!user) {
-      navigate(Screen.SIGN_IN);
-      return;
-    }
-
-    if (isPlaying) {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-      setIsPlaying(false);
-      return;
-    }
-
-    if (!answer) return;
-
-    try {
-      const result = await ttsAction({ text: answer, language: selectedLanguage.code }) as { audioBase64?: string | null; contentType?: string; error?: string | null };
-      if (result.audioBase64) {
-        const audio = new Audio(`data:${result.contentType};base64,${result.audioBase64}`);
-        audioRef.current = audio;
-        audio.onended = () => {
-          setIsPlaying(false);
-          audioRef.current = null;
-        };
-        audio.play();
-        setIsPlaying(true);
-      } else if (result.error) {
-        console.error("TTS error:", result.error);
-      }
-    } catch (err) {
-      console.error("Failed to play audio:", err);
-    }
-  };
-
-  const handleDocumentSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
+  const handleDocumentSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
     if (!file) return;
-
-    if (file.size > 2 * 1024 * 1024) {
-      alert("Document is too large (max 2MB).");
+    if (!/\.(txt|md|csv|json|log)$/i.test(file.name)) {
+      setStatus('Choose a plain text, Markdown, CSV, JSON or log document.');
       return;
     }
-
+    if (file.size > 2 * 1024 * 1024) {
+      setStatus('Choose a text document smaller than 2 MB.');
+      return;
+    }
     const reader = new FileReader();
+    reader.onerror = () => setStatus('This document could not be read. Please try another file.');
     reader.onload = () => {
-      const text = String(reader.result ?? "").slice(0, 20000);
-      setAttachments((prev) => [
-        ...prev,
-        { id: `doc_${Date.now()}`, name: file.name, kind: "doc" as const, text },
+      setAttachments((previous) => [
+        ...previous,
+        {
+          id: `doc_${Date.now()}`,
+          name: file.name,
+          kind: 'doc',
+          text: String(reader.result ?? '').slice(0, 20000),
+        },
       ]);
+      setStatus('Document attached. Up to 8,000 characters will be used as context.');
     };
     reader.readAsText(file);
   };
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-
-    setAttachments((prev) => [
-      ...prev,
-      { id: `img_${Date.now()}`, name: file.name, kind: "image" as const },
-    ]);
-  };
-
-  const handleRemoveAttachment = (id: string) => {
-    setAttachments((prev) => prev.filter((a) => a.id !== id));
-  };
-
-  const handleNewSearch = () => {
-    setSearchComplete(false);
-    setQuery("");
-    setAnswer("");
-    setError(null);
-    setSources([]);
-    setImages([]);
-    setFollowUps([]);
-    setAttachments([]);
-    if (isPlaying && audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-      setIsPlaying(false);
+  // Existing speech actions stay wired, but controls remain unavailable until
+  // catalogue availability and browser recording support have been verified.
+  const handleVoiceInput = async () => {
+    if (voiceDisabledReason) {
+      setStatus(voiceDisabledReason);
+      return;
     }
-    messagesRef.current = [];
-    setMessages([]);
-    onNewChat?.();
+    if (!transcribeAction) return;
+    if (isRecording) {
+      recorderRef.current?.stop();
+      setIsRecording(false);
+      return;
+    }
+    if (
+      !navigator.mediaDevices?.getUserMedia ||
+      typeof MediaRecorder === 'undefined' ||
+      !MediaRecorder.isTypeSupported('audio/webm')
+    ) {
+      setStatus('Voice recording is not supported by this browser. Please type your message.');
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      const chunks: Blob[] = [];
+      recorderRef.current = recorder;
+      recorder.ondataavailable = (event) => {
+        if (event.data.size) chunks.push(event.data);
+      };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop());
+        setIsTranscribing(true);
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          try {
+            const audioBase64 = String(reader.result ?? '').split(',')[1];
+            const result = await transcribeAction({ audioBase64 });
+            if (result.error)
+              setStatus('The recording could not be transcribed. Please try typing.');
+            else setQuery((previous) => `${previous} ${result.text}`.trim());
+          } catch {
+            setStatus('The recording could not be transcribed. Please try typing.');
+          } finally {
+            setIsTranscribing(false);
+          }
+        };
+        reader.readAsDataURL(new Blob(chunks, { type: 'audio/webm' }));
+      };
+      recorder.start();
+      setIsRecording(true);
+    } catch {
+      setStatus('Microphone access was not available. Please type your message.');
+    }
   };
 
-  // While a fresh result is on screen, hide its Q&A from the thread to avoid duplication
-  const threadMessages =
-    searchComplete && !!answer && messages.length >= 2
-      ? messages.slice(0, -2)
-      : messages;
+  const handlePlayAudio = async () => {
+    if (voiceDisabledReason || !ttsAction) {
+      setStatus(voiceDisabledReason);
+      return;
+    }
+    if (isPlaying) {
+      audioRef.current?.pause();
+      setIsPlaying(false);
+      return;
+    }
+    try {
+      const result = await ttsAction({ text: latestAnswer, language: selectedLanguage.code });
+      if (!result.audioBase64) {
+        setStatus('Audio is unavailable for this response.');
+        return;
+      }
+      const audio = new Audio(`data:${result.contentType};base64,${result.audioBase64}`);
+      audioRef.current = audio;
+      audio.onended = () => setIsPlaying(false);
+      await audio.play();
+      setIsPlaying(true);
+    } catch {
+      setStatus('Audio could not be played. The written response is still available.');
+    }
+  };
 
-// Welcome mode: empty thread and no active search — centered hero
-  const welcomeMode = !searchComplete && !isSearching && messages.length === 0;
+  const composerProps = {
+    value: query,
+    onValueChange: setQuery,
+    onSubmit: handleSearch,
+    onVoiceInput: handleVoiceInput,
+    isSearching,
+    isRecording,
+    isTranscribing,
+    selectedLanguage,
+    onLanguageSelect: handleLanguageSelect,
+    attachments,
+    onAttachDocument: () => docInputRef.current?.click(),
+    onRemoveAttachment: (id: string) =>
+      setAttachments((previous) => previous.filter((attachment) => attachment.id !== id)),
+    voiceDisabledReason,
+  };
+  const welcomeMode = messages.length === 0 && !isSearching && !error;
+  const mobileDestinations = [
+    { label: 'Chat', href: '/dashboard', icon: MessageCircle },
+    { label: 'Discover', href: '/dashboard/discover', icon: Compass },
+    { label: 'Languages', href: '/languages', icon: Languages },
+    { label: 'Changa', href: '/dashboard/changa', icon: HeartHandshake },
+  ];
 
   return (
-    <div className="flex h-[100dvh] bg-background relative overflow-hidden">
-      {/* Hidden attachment pickers */}
+    <div className="relative flex h-[100dvh] min-h-0 overflow-hidden bg-background">
       <input
         ref={docInputRef}
         type="file"
         accept=".txt,.md,.csv,.json,.log,text/plain,text/markdown,text/csv,application/json"
         className="hidden"
+        aria-label="Attach a text document"
         onChange={handleDocumentSelect}
       />
-      <input
-        ref={imageInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleImageSelect}
-      />
-      {/* Sidebar — persistent on desktop, drawer on mobile */}
       <AppSidebar
         open={isNavOpen}
         onOpenChange={setIsNavOpen}
         user={user}
         onNavigate={navigate}
-        onNewSearch={handleNewSearch}
+        onNewSearch={handleNewChat}
         notificationCounts={notificationCounts}
         conversations={conversations}
+        activeConversationId={activeConversation?.id}
         onChatSelect={(id) => navigate(Screen.HOME_CHAT, { chatId: id })}
       />
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Header — floating, no border */}
-        <header className="sticky top-0 z-30 shrink-0">
-          <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
-            <div className="flex items-center gap-2 min-w-0">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <header className="z-20 flex min-h-16 shrink-0 items-center justify-between gap-1 border-b border-border px-2 sm:px-5">
+          <div className="flex min-w-0 items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-11 lg:hidden"
+              onClick={() => setIsNavOpen(true)}
+              aria-label="Open conversation history"
+              aria-expanded={isNavOpen}
+            >
+              <Menu className="size-5" />
+            </Button>
+            <LanguageSelector
+              selectedLanguage={selectedLanguage}
+              onSelect={handleLanguageSelect}
+              disabled={isSearching}
+            />
+            <span className="hidden border-l border-border pl-4 text-xs text-muted-foreground sm:block">
+              A little closer to home.
+            </span>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <ThemeToggle />
+            {user ? (
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setIsNavOpen((prev) => !prev)}
-                className="rounded-full transition-colors bg-background/50 backdrop-blur-sm lg:hidden"
-                aria-label="Toggle navigation"
-                aria-expanded={isNavOpen}
+                className="size-11"
+                onClick={handleNewChat}
+                aria-label="Start a new chat"
               >
-                <Menu className="w-6 h-6" />
+                <SquarePen className="size-4" />
               </Button>
-
-              {activeConversation && (
-                <>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleNewSearch}
-                    className="rounded-full gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground"
-                    aria-label="New chat"
-                  >
-                    <SquarePen className="w-4 h-4" />
-                    <span className="hidden sm:inline">New chat</span>
-                  </Button>
-                  <h1 className="text-sm font-bold text-foreground truncate max-w-[160px] sm:max-w-[240px]">
-                    {activeConversation.title}
-                  </h1>
-                </>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              {user && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => navigate(Screen.DISCOVER)}
-                  className="rounded-full"
-                  title="Discover"
-                >
-                  <Compass className="w-5 h-5" />
-                </Button>
-              )}
-              {!user && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => navigate(Screen.SIGN_IN)}
-                  className="rounded-full text-xs font-bold px-3 h-8"
-                >
-                  Sign In
-                </Button>
-              )}
-            </div>
+            ) : (
+              <Button
+                variant="outline"
+                className="h-11 px-3 text-xs"
+                onClick={() => navigate(Screen.SIGN_IN)}
+              >
+                Sign in
+              </Button>
+            )}
           </div>
         </header>
-
-        {/* Welcome Mode — centered hero with input */}
-        {welcomeMode ? (
-          <main className="flex-1 overflow-y-auto">
-            <div className="min-h-full flex flex-col items-center justify-center w-full px-4 py-8 animate-in fade-in duration-500">
-              {/* Logo */}
-              <div className="flex flex-col items-center mb-8 shrink-0">
-                <div className="hover:scale-105 transition-transform duration-300 mb-2">
-                  <SamiatiLogo size={80} className="scale-110" />
-                </div>
+        <main
+          id="main-content"
+          tabIndex={-1}
+          ref={scrollRef}
+          onScroll={() => {
+            const element = scrollRef.current;
+            if (!element) return;
+            const distance = element.scrollHeight - element.scrollTop - element.clientHeight;
+            nearBottomRef.current = distance < 160;
+            setShowScrollBtn(distance > 240);
+          }}
+          className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain"
+        >
+          {welcomeMode ? (
+            <div className="mx-auto flex min-h-full max-w-3xl flex-col justify-center px-4 py-10 sm:px-8 sm:py-16">
+              <div className="mb-8">
+                <p className="mb-5 flex items-center gap-2 text-xs font-semibold tracking-wide text-primary">
+                  <span aria-hidden="true" className="size-1.5 rounded-full bg-ai" />
+                  YOUR WORDS. YOUR WORLD.
+                </p>
+                <h1 className="font-editorial text-[clamp(2.75rem,6vw,4.75rem)] leading-[1.04] tracking-tight">
+                  What would you
+                  <br className="hidden sm:block" /> like to{' '}
+                  <em className="font-normal text-primary">explore?</em>
+                </h1>
+                <p className="mt-5 max-w-lg text-sm leading-6 text-muted-foreground">
+                  An idea, a question, a fresh perspective. Start with the language you call home.
+                </p>
               </div>
-
-              {/* Search Input — language in bar via SearchHero */}
-              <SearchHero
-                value={query}
-                onValueChange={setQuery}
-                onSubmit={handleSearch}
-                onVoiceInput={handleVoiceInput}
-                isSearching={isSearching}
-                isRecording={isRecording}
-                isTranscribing={isTranscribing}
-                selectedLanguage={selectedLanguage}
-                onLanguageSelect={setSelectedLanguage}
-                attachments={attachments}
-                onAttachDocument={() => docInputRef.current?.click()}
-                onAttachImage={() => imageInputRef.current?.click()}
-                onRemoveAttachment={handleRemoveAttachment}
-              />
-
-              {/* Trending Searches (personalized to language selected in dropdown) */}
+              <SearchHero {...composerProps} />
+              <div
+                role="status"
+                aria-live="polite"
+                className="mt-3 text-center text-xs leading-relaxed text-muted-foreground"
+              >
+                {status ||
+                  (!searchAction
+                    ? 'Preview mode · Sending messages is not available yet.'
+                    : !user
+                      ? 'Explore freely. Sign in when you are ready to send a message.'
+                      : 'Answers are AI-generated. Check important information.')}
+              </div>
               <SuggestionSentences
                 selectedLanguage={selectedLanguage}
-                onSelect={handleSuggestionSelect}
+                onSelect={(prompt) => setQuery(prompt)}
               />
-
-              {!user && (
-                <p className="mt-8 text-sm text-muted-foreground text-center">
-                  Sign in to search, use voice, and save your conversations —{" "}
-                  <button
-                    onClick={() => navigate(Screen.SIGN_IN)}
-                    className="font-bold text-primary hover:underline"
-                  >
-                    it&apos;s free
-                  </button>
-                </p>
-              )}
             </div>
-          </main>
-        ) : (
-          <>
-            {/* Chat Area — scrolls, input stays pinned at the bottom */}
-            <main
-              ref={scrollRef}
-              onScroll={handleScroll}
-              className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
+          ) : (
+            <div
+              className="mx-auto w-full max-w-[var(--app-content-width)] space-y-5 px-4 py-8 sm:px-6"
+              aria-busy={isSearching}
             >
-              <div className="max-w-2xl mx-auto px-4 py-5 space-y-6">
-                {/* Fresh Result — tabs + answer at the top of the page */}
-                {searchComplete && (answer || error) && (
-                  <div className="animate-in fade-in duration-500 delay-200">
+              <p className="mb-5 text-xs text-muted-foreground">
+                AI answers can be mistaken. Each question is answered independently.
+              </p>
+              {messages.map((message) => (
+                <ThreadMessage
+                  key={message.id}
+                  msg={message}
+                  conversationId={activeConversation?.id}
+                  language={message.targetLanguage ?? selectedLanguage.code}
+                  feedbackEnabled={Boolean(searchAction)}
+                >
+                  {message.id === latestMessageId ? (
                     <SearchResults
-                      answer={answer}
-                      error={error}
+                      answer={message.text}
                       sources={sources}
-                      images={images}
                       followUps={followUps}
-                      onFollowUpSelect={handleFollowUpSelect}
-                      onRetry={error ? () => handleSearch(query) : undefined}
+                      images={images}
+                      onFollowUpSelect={setQuery}
                       isPlaying={isPlaying}
                       onPlayAudio={handlePlayAudio}
+                      audioDisabledReason={voiceDisabledReason}
                       contextType="search"
+                      messageId={message.id}
                       conversationId={activeConversation?.id}
-                      language={selectedLanguage.code}
+                      language={message.targetLanguage ?? selectedLanguage.code}
                     />
-                  </div>
-                )}
-
-                {/* Live turn — the just-submitted question while searching */}
-                {isSearching && (
-                  <div className="space-y-3">
-                    <ThreadMessage
-                      msg={{
-                        id: `live_${Date.now()}`,
-                        sender: "user",
-                        text: query,
-                        timestamp: new Date(),
-                      }}
-                    />
-                    <SearchPhaseIndicator isSearching={isSearching} />
-                  </div>
-                )}
-
-                {/* Conversation Thread (previous Q&As) */}
-                {threadMessages.length > 0 && (
-                  <div className="space-y-3 animate-in fade-in duration-500">
-{threadMessages.map((msg) => (
-                      <ThreadMessage
-                        key={msg.id}
-                        msg={msg}
-                        contextType="search"
-                        conversationId={activeConversation?.id}
-                        language={selectedLanguage.code}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            </main>
-
-            {/* Scroll to Bottom FAB */}
-            {showScrollBtn && (
-              <button
-                onClick={scrollToBottom}
-                className="absolute bottom-36 right-4 z-30 w-10 h-10 rounded-full bg-background border border-border shadow-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:shadow-xl hover:scale-110 active:scale-95 transition-all duration-200 animate-in fade-in zoom-in-75"
-                aria-label="Scroll to bottom"
-              >
-                <ArrowDown className="w-5 h-5" />
-              </button>
-            )}
-
-            {/* Bottom Input Bar — pinned like standard AI chat apps */}
-            <div className="shrink-0 relative z-20 px-4 pt-4 pb-5 bg-gradient-to-t from-background via-background/80 to-transparent">
-              <div className="max-w-2xl mx-auto">
-                <SearchHero
-                  compact
-                  value={query}
-                  onValueChange={setQuery}
-                  onSubmit={handleSearch}
-                  onVoiceInput={handleVoiceInput}
-                  isSearching={isSearching}
-                  isRecording={isRecording}
-                  isTranscribing={isTranscribing}
-                  selectedLanguage={selectedLanguage}
-                  onLanguageSelect={setSelectedLanguage}
-                  attachments={attachments}
-                  onAttachDocument={() => docInputRef.current?.click()}
-                  onAttachImage={() => imageInputRef.current?.click()}
-                  onRemoveAttachment={handleRemoveAttachment}
+                  ) : undefined}
+                </ThreadMessage>
+              ))}
+              {(isSearching || error) && (
+                <ThreadMessage
+                  msg={{ id: 'pending', sender: 'user', text: lastQuery, timestamp: new Date() }}
                 />
-              </div>
+              )}
+              {isSearching && <SearchPhaseIndicator isSearching />}
+              {error && (
+                <SearchResults
+                  answer=""
+                  error={error}
+                  sources={[]}
+                  followUps={[]}
+                  onFollowUpSelect={setQuery}
+                  onRetry={() => handleSearch(lastQuery)}
+                />
+              )}
             </div>
-          </>
+          )}
+        </main>
+        {!welcomeMode && (
+          <div className="relative shrink-0 border-t border-border bg-background px-3 pt-3 pb-2 sm:px-6">
+            {showScrollBtn && (
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  scrollRef.current?.scrollTo({
+                    top: scrollRef.current.scrollHeight,
+                    behavior: settings.reduceMotion ? 'instant' : 'smooth',
+                  });
+                  nearBottomRef.current = true;
+                }}
+                className="absolute -top-14 right-5 size-11 rounded-full bg-card shadow-sm"
+                aria-label="Scroll to latest message"
+              >
+                <ArrowDown className="size-4" />
+              </Button>
+            )}
+            <div className="mx-auto max-w-[var(--app-content-width)]">
+              <SearchHero {...composerProps} compact />
+              <p
+                role="status"
+                aria-live="polite"
+                className="mt-1 text-center text-xs leading-relaxed text-muted-foreground"
+              >
+                {status}
+              </p>
+            </div>
+          </div>
         )}
+        <nav
+          aria-label="Mobile navigation"
+          className="grid shrink-0 grid-cols-4 border-t border-border bg-background px-2 pt-1 pb-[max(0.375rem,env(safe-area-inset-bottom))] lg:hidden"
+        >
+          {mobileDestinations.map(({ label, href, icon: Icon }) => (
+            <Link
+              key={label}
+              href={href}
+              aria-current={label === 'Chat' ? 'page' : undefined}
+              className={cn(
+                'flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-lg text-[0.6875rem] font-semibold',
+                label === 'Chat'
+                  ? 'bg-secondary text-foreground'
+                  : 'text-muted-foreground hover:bg-secondary'
+              )}
+            >
+              <Icon className="size-4" aria-hidden="true" />
+              <span>{label}</span>
+            </Link>
+          ))}
+        </nav>
       </div>
     </div>
   );
-};
-
-export default HomeSearchScreen;
+}

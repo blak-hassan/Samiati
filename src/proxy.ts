@@ -8,6 +8,11 @@ const publicRoutes = [
   "/sign-in",
   "/sign-up", 
   "/forgot-password",
+  "/languages",
+  "/onboarding",
+  "/pricing",
+  "/privacy-policy",
+  "/terms-of-service",
 ];
 
 // Routes where guests are allowed with limited permissions

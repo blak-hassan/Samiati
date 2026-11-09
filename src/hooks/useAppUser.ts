@@ -32,6 +32,9 @@ export function useAppUser() {
       user: mock.user,
       isLoaded: mock.isLoaded,
       isSignedIn: mock.isSignedIn,
+      // Real account details, used by the Account settings screen.
+      email: mock.user?.primaryEmailAddress?.emailAddress ?? null,
+      twoFactorEnabled: false,
       languages: mock.languages,
       setLanguages: mock.setLanguages,
       myContributions: mock.myContributions,
@@ -49,7 +52,17 @@ export function useAppUser() {
     };
   }
 
-  const clerk = data as { user: { id: string; fullName: string | null; username: string | null; imageUrl: string } | null; isLoaded: boolean };
+  const clerk = data as {
+    user: {
+      id: string;
+      fullName: string | null;
+      username: string | null;
+      imageUrl: string;
+      primaryEmailAddress?: { emailAddress: string } | null;
+      twoFactorEnabled?: boolean;
+    } | null;
+    isLoaded: boolean;
+  };
 
   const noop = () => {};
   const noopState = () => {};
@@ -57,6 +70,9 @@ export function useAppUser() {
     user: clerk.user ?? null,
     isLoaded: clerk.isLoaded,
     isSignedIn: !!clerk.user,
+    // Real account details, used by the Account settings screen.
+    email: clerk.user?.primaryEmailAddress?.emailAddress ?? null,
+    twoFactorEnabled: clerk.user?.twoFactorEnabled ?? false,
     languages: [] as LanguageSkill[],
     setLanguages: noopState as (languages: LanguageSkill[]) => void,
     myContributions: [] as ContributionItem[],

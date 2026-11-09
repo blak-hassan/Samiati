@@ -255,6 +255,11 @@ export const store = mutation({
             clerkId: identity.subject,
             role: 'member', // Default role
             isGuest: false,
+            // Preserve existing accounts above; only new profiles start private.
+            profileVisible: false,
+            showChanga: false,
+            voiceDataAllowed: false,
+            culturalDataAllowed: false,
             joinedAt: Date.now(),
             followerCount: 0,
             followingCount: 0,
@@ -332,6 +337,10 @@ export const storeGuestUser = mutation({
             clerkId: guestId,
             role: 'guest',
             isGuest: true,
+            profileVisible: false,
+            showChanga: false,
+            voiceDataAllowed: false,
+            culturalDataAllowed: false,
             joinedAt: Date.now(),
             followerCount: 0,
             followingCount: 0,
@@ -367,6 +376,16 @@ export const updatePrivacy = mutation({
 });
 
 // Update notification preferences
+// Per-user notification switches. Mirrors the `notificationPreferences` field
+// on the users table.
+type NotificationPreferences = {
+    pauseAll?: boolean;
+    changa?: boolean;
+    moderation?: boolean;
+    sessions?: boolean;
+    emailDigest?: boolean;
+};
+
 export const updateNotificationPreferences = mutation({
     args: {
         pauseAll: v.optional(v.boolean()),
@@ -380,7 +399,7 @@ export const updateNotificationPreferences = mutation({
         if (!user) throw new Error("Unauthorized");
         if (isGuestUser(user)) throw new Error("Guests cannot update notification settings");
 
-        const currentPrefs = user.notificationPreferences ?? {};
+        const currentPrefs: NotificationPreferences = user.notificationPreferences ?? {};
         const newPrefs = {
             pauseAll: args.pauseAll ?? currentPrefs.pauseAll ?? false,
             changa: args.changa ?? currentPrefs.changa ?? true,

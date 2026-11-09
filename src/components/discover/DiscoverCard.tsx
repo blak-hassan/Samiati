@@ -1,10 +1,24 @@
-"use client";
+'use client';
 
-import React from "react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Compass, Clock, Bookmark, Share2, ExternalLink, TrendingUp, Newspaper } from "lucide-react";
-import { cn } from "@/lib/utils";
+import React, { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  ArrowUpRight,
+  Bookmark,
+  Check,
+  Compass,
+  ExternalLink,
+  Loader2,
+  Share2,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface DiscoverCardProps {
   cluster: {
@@ -21,202 +35,241 @@ interface DiscoverCardProps {
     trendScore: number;
     imageUrl?: string;
   };
-  onExplore: (query: string, clusterId: string) => void;
-  onSave?: (clusterId: string) => void;
-  onDismiss?: (clusterId: string) => void;
+  featured?: boolean;
+  saved?: boolean;
+  onExplore: (query: string, clusterId: string) => void | Promise<void>;
+  onSave?: (clusterId: string) => void | Promise<void>;
+  onDismiss?: (clusterId: string) => void | Promise<void>;
 }
 
-function getTimeAgo(timestamp: number): string {
-  const now = Date.now();
-  const diff = now - timestamp;
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
-
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  if (days === 1) return "Yesterday";
-  return `${days}d ago`;
+/** Publisher links deliberately lead to homepages; article URLs are not supplied. */
+function publisherUrl(domain: string): string | null {
+  const candidate = domain.trim();
+  if (!/^(?:[a-z0-9-]+\.)+[a-z]{2,63}$/i.test(candidate)) return null;
+  return `https://${candidate}/`;
 }
 
-function getCategoryColor(category: string): string {
-  const colors: Record<string, string> = {
-    kenya: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-    africa: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-    tech: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-    culture: "bg-purple-500/10 text-purple-600 dark:text-purple-400",
-    trending: "bg-red-500/10 text-red-600 dark:text-red-400",
-    world: "bg-slate-500/10 text-slate-600 dark:text-slate-400",
-  };
-  return colors[category] || colors.world;
-}
-
-function getCategoryLabel(category: string): string {
-  const labels: Record<string, string> = {
-    kenya: "Kenya",
-    africa: "Africa",
-    tech: "Technology",
-    culture: "Culture",
-    trending: "Trending",
-    world: "World",
-  };
-  return labels[category] || category;
-}
-
-function getCountryLabel(country: string): string {
-  const labels: Record<string, string> = {
-    KE: "Kenya",
-    UG: "Uganda",
-    TZ: "Tanzania",
-    ET: "Ethiopia",
-    NG: "Nigeria",
-    ZA: "South Africa",
-    RW: "Rwanda",
-  };
-  return labels[country] || country;
-}
-
-export const DiscoverCard: React.FC<DiscoverCardProps> = ({
+export function DiscoverCard({
   cluster,
+  featured = false,
+  saved = false,
   onExplore,
   onSave,
-  onDismiss,
-}) => {
-  const handleExplore = () => {
-    onExplore(cluster.suggestedQuery, cluster._id);
-  };
+}: DiscoverCardProps) {
+  const [reading, setReading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const date =
+    Number.isFinite(cluster.newestPublishedAt) && cluster.newestPublishedAt > 0
+      ? new Date(cluster.newestPublishedAt)
+      : null;
+  const dateLabel = date?.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  const category = cluster.category === 'tech' ? 'Technology' : cluster.category;
 
-  const handleSave = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onSave?.(cluster._id);
-  };
-
-  const handleShare = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (navigator.share) {
-      navigator.share({
-        title: cluster.topicTitle,
-        text: cluster.summary,
-        url: window.location.href,
-      });
+  const handleSave = async () => {
+    if (!onSave || saved || saving) return;
+    setSaving(true);
+    setError(null);
+    setFeedback(null);
+    try {
+      await onSave(cluster._id);
+    } catch (failure) {
+      setError(
+        failure instanceof Error ? failure.message : 'We could not save this story. Try again.'
+      );
+    } finally {
+      setSaving(false);
     }
   };
 
-  const isTrending = cluster.trendScore > 60;
-  const topSources = cluster.sourceDomains.slice(0, 3);
+  const handleShare = async () => {
+    setError(null);
+    setFeedback(null);
+    const url = new URL('/dashboard/discover', window.location.origin).href;
+    try {
+      if (navigator.share)
+        await navigator.share({ title: cluster.topicTitle, text: cluster.summary, url });
+      else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(`${cluster.topicTitle}\n${cluster.summary}\n${url}`);
+        setFeedback('Story summary and Discover link copied.');
+      } else
+        setError(
+          'Sharing is unavailable in this browser. You can copy the summary from the reading view.'
+        );
+    } catch (failure) {
+      if (!(failure instanceof DOMException && failure.name === 'AbortError'))
+        setError('We could not share this story. Try again.');
+    }
+  };
 
-  return (
-    <div
-      className={cn(
-        "group relative rounded-xl border bg-card/50 p-4 transition-all duration-200",
-        "hover:bg-card hover:shadow-md hover:border-primary/20",
-        "active:scale-[0.99]",
-        isTrending && "border-primary/20"
-      )}
-    >
-      {/* Header: Category badge + Time */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <Badge
-            variant="secondary"
-            className={cn("text-[10px] font-bold px-1.5 py-0", getCategoryColor(cluster.category))}
+  const sources = (
+    <div className="flex flex-wrap gap-2">
+      {cluster.sourceDomains.map((domain) => {
+        const href = publisherUrl(domain);
+        return href ? (
+          <a
+            key={domain}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground"
+            aria-label={`Visit ${domain} publisher homepage`}
           >
-            {getCategoryLabel(cluster.category)}
-          </Badge>
-          {cluster.country !== "KE" && (
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-              {getCountryLabel(cluster.country)}
-            </Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-          <Clock className="w-3 h-3" />
-          {getTimeAgo(cluster.newestPublishedAt)}
-        </div>
-      </div>
-
-      {/* Title */}
-      <h3 className="text-sm font-bold text-foreground leading-snug mb-2 line-clamp-2">
-        {cluster.topicTitle}
-      </h3>
-
-      {/* Summary */}
-      {cluster.summary && (
-        <p className="text-xs text-muted-foreground leading-relaxed mb-3 line-clamp-3">
-          {cluster.summary}
-        </p>
-      )}
-
-      {/* Footer: Sources + Actions */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {/* Source count */}
-          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-            <Newspaper className="w-3 h-3" />
-            <span>{cluster.sourceCount} source{cluster.sourceCount !== 1 ? "s" : ""}</span>
-          </div>
-
-          {/* Top source domains */}
-          {topSources.length > 0 && (
-            <div className="hidden sm:flex items-center gap-1">
-              {topSources.map((domain) => (
-                <span
-                  key={domain}
-                  className="text-[9px] text-muted-foreground/60 bg-muted/50 px-1 py-0.5 rounded"
-                >
-                  {domain.replace("www.", "")}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Actions */}
-        <div className="flex items-center gap-1">
-          {isTrending && (
-            <Badge variant="destructive" className="text-[9px] px-1 py-0 mr-1 gap-0.5">
-              <TrendingUp className="w-2.5 h-2.5" />
-              Trending
-            </Badge>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={handleSave}
-          >
-            <Bookmark className="w-3.5 h-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={handleShare}
-          >
-            <Share2 className="w-3.5 h-3.5" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Why trending */}
-      {cluster.whyTrending && (
-        <div className="mt-2 pt-2 border-t border-border/50">
-          <p className="text-[10px] text-muted-foreground/70 italic">
-            {cluster.whyTrending}
-          </p>
-        </div>
-      )}
-
-      {/* Explore button - full width, always visible */}
-      <Button
-        onClick={handleExplore}
-        className="w-full mt-3 h-9 text-xs font-bold gap-2"
-        variant="default"
-      >
-        <Compass className="w-3.5 h-3.5" />
-        Explore with Samiati
-      </Button>
+            {domain.replace(/^www\./, '')}
+            <ExternalLink className="size-3" aria-hidden="true" />
+          </a>
+        ) : (
+          <span key={domain} className="break-all text-xs text-muted-foreground">
+            {domain}
+          </span>
+        );
+      })}
     </div>
   );
-};
+
+  return (
+    <>
+      <article
+        className={cn(
+          'group flex min-w-0 flex-col rounded-2xl border border-border bg-card p-5 transition-colors duration-200 hover:border-primary/60 sm:p-6',
+          featured && 'md:col-span-2 lg:col-span-2'
+        )}
+      >
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+          <span className="font-medium capitalize text-primary">
+            {featured ? 'In focus · ' : ''}
+            {category}
+            {cluster.country ? ` · ${cluster.country}` : ''}
+          </span>
+          {date && <time dateTime={date.toISOString()}>{dateLabel}</time>}
+        </div>
+        <button type="button" className="text-left" onClick={() => setReading(true)}>
+          <h2
+            className={cn(
+              'break-words font-semibold leading-tight tracking-tight text-foreground group-hover:text-primary',
+              featured ? 'font-editorial text-3xl sm:text-4xl' : 'text-xl'
+            )}
+          >
+            {cluster.topicTitle}
+          </h2>
+        </button>
+        <p className="mt-4 text-xs font-medium text-ai">AI-generated summary</p>
+        <p className="mt-2 line-clamp-4 break-words text-sm leading-relaxed text-muted-foreground">
+          {cluster.summary || 'Open this topic to explore its available source information.'}
+        </p>
+        <div className="mt-5 flex-1">
+          <p className="mb-2 text-xs text-muted-foreground">
+            {cluster.sourceCount} source{cluster.sourceCount === 1 ? '' : 's'} · publisher homepages
+          </p>
+          {sources}
+        </div>
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
+          <Button
+            variant="ghost"
+            onClick={() => setReading(true)}
+            className="-ml-2 min-h-11 gap-1.5 text-sm"
+          >
+            Read summary
+            <ArrowUpRight className="size-4" />
+          </Button>
+          <div className="flex gap-1">
+            {onSave && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-11"
+                disabled={saving || saved}
+                aria-label={
+                  saved ? `Saved: ${cluster.topicTitle}` : `Save story: ${cluster.topicTitle}`
+                }
+                onClick={handleSave}
+              >
+                {saving ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : saved ? (
+                  <Check className="size-4 text-primary" />
+                ) : (
+                  <Bookmark className="size-4" />
+                )}
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-11"
+              aria-label={`Share story: ${cluster.topicTitle}`}
+              onClick={handleShare}
+            >
+              <Share2 className="size-4" />
+            </Button>
+          </div>
+        </div>
+        {feedback && (
+          <p role="status" className="mt-2 text-xs text-muted-foreground">
+            {feedback}
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="mt-2 text-sm text-destructive">
+            {error}
+          </p>
+        )}
+        <Button
+          variant="outline"
+          className="mt-3 min-h-11 w-full gap-2"
+          onClick={() => onExplore(cluster.suggestedQuery, cluster._id)}
+        >
+          <Compass className="size-4" />
+          Ask Samiati about this
+        </Button>
+      </article>
+      <Dialog open={reading} onOpenChange={setReading}>
+        <DialogContent className="max-h-[85dvh] overflow-y-auto rounded-2xl sm:max-w-2xl">
+          <DialogHeader className="pr-5 text-left">
+            <DialogDescription className="text-xs text-ai">
+              Discover · AI-generated summary{dateLabel ? ` · ${dateLabel}` : ''}
+            </DialogDescription>
+            <DialogTitle className="font-editorial text-3xl font-normal leading-tight sm:text-4xl">
+              {cluster.topicTitle}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="whitespace-pre-wrap break-words text-base leading-relaxed">
+            {cluster.summary || 'No summary is available for this topic yet.'}
+          </div>
+          {cluster.whyTrending && (
+            <p className="rounded-xl bg-secondary p-4 text-sm leading-relaxed text-muted-foreground">
+              {cluster.whyTrending}
+            </p>
+          )}
+          <section className="space-y-3 border-t border-border pt-4">
+            <h3 className="text-sm font-semibold">Publisher sources</h3>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              This is an AI summary, not original reporting. Links below open publisher homepages;
+              individual article links are not supplied in this feed. Check the original reporting
+              before relying on a claim.
+            </p>
+            {sources}
+          </section>
+          <Button
+            className="min-h-11 gap-2"
+            onClick={() => {
+              setReading(false);
+              void onExplore(cluster.suggestedQuery, cluster._id);
+            }}
+          >
+            <Compass className="size-4" />
+            Explore in your language
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Choose your language in chat to ask about this topic.
+          </p>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}

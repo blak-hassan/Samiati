@@ -1,198 +1,129 @@
-import React, { useState } from "react";
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-    Globe,
-    ChevronDown,
-    Search,
-    ArrowUp,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+'use client';
+
+import React, { useId, useState } from 'react';
+import Link from 'next/link';
+import { Check, ChevronDown, Languages, Search } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { PRODUCT_LANGUAGES } from '@/lib/productLanguages';
+import { cn } from '@/lib/utils';
 
 export interface Language {
-    code: string;
-    nllbCode: string;
-    name: string;
-    score: number; // 0-100 used to determine level
+  code: string;
+  nllbCode: string;
+  name: string;
 }
 
-// =============================================================================
-// LANGUAGES CONFIGURATION
-// =============================================================================
-// Prioritizing Kenyan languages as per user request.
-// NLLB (via Hugging Face) is the translation engine.
-export const LANGUAGES: Language[] = [
-    // --- KENYAN LANGUAGES (PRIORITY) ---
-    {
-        code: 'sw',
-        nllbCode: 'swh_Latn',
-        name: 'Swahili',
-        score: 98
-    },
-    {
-        code: 'ki',
-        nllbCode: 'kik_Latn',
-        name: 'Kikuyu',
-        score: 88
-    },
-    {
-        code: 'luo',
-        nllbCode: 'luo_Latn',
-        name: 'Luo',
-        score: 85
-    },
-    {
-        code: 'kam',
-        nllbCode: 'kam_Latn',
-        name: 'Kamba',
-        score: 80
-    },
-    {
-        code: 'kln',
-        nllbCode: 'kln_Latn',
-        name: 'Kalenjin',
-        score: 78
-    },
-    {
-        code: 'luy',
-        nllbCode: 'luy_Latn',
-        name: 'Luhya',
-        score: 82
-    },
-    {
-        code: 'mer',
-        nllbCode: 'mer_Latn',
-        name: 'Meru',
-        score: 75
-    },
-    {
-        code: 'mas',
-        nllbCode: 'mas_Latn',
-        name: 'Maasai',
-        score: 70
-    },
-    // --- INTERNATIONAL ---
-    {
-        code: 'en',
-        nllbCode: 'eng_Latn',
-        name: 'English',
-        score: 100
-    },
-];
+// Configured routes are not guarantees of service availability or quality.
+export const LANGUAGES: Language[] = PRODUCT_LANGUAGES.filter(
+  (language) => language.text === 'configured'
+).map(({ code, nllbCode, name }) => ({ code, nllbCode: nllbCode ?? code, name }));
 
 interface LanguageSelectorProps {
-    selectedLanguage: Language;
-    onSelect: (lang: Language) => void;
-    open?: boolean;             // Controlled state
-    onOpenChange?: (open: boolean) => void; // Controlled state handler
+  selectedLanguage: Language;
+  onSelect: (language: Language) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  disabled?: boolean;
 }
 
-export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
-    selectedLanguage,
-    onSelect,
-    open: controlledOpen,
-    onOpenChange: controlledOnOpenChange,
-}) => {
-    // Allow internal state if not controlled
-    const [internalOpen, setInternalOpen] = useState(false);
-    const isOpen = controlledOpen ?? internalOpen;
-    const onOpenChange = controlledOnOpenChange ?? setInternalOpen;
+export function LanguageSelector({
+  selectedLanguage,
+  onSelect,
+  open,
+  onOpenChange,
+  disabled,
+}: LanguageSelectorProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const searchId = useId();
+  const updateOpen = onOpenChange ?? setInternalOpen;
+  const filtered = LANGUAGES.filter((language) =>
+    `${language.name} ${language.code}`.toLowerCase().includes(search.trim().toLowerCase())
+  );
 
-    const [search, setSearch] = useState("");
-
-    const filteredLanguages = LANGUAGES.filter((lang) =>
-        lang.name.toLowerCase().includes(search.toLowerCase())
-    ).sort((a, b) => b.score - a.score);
-
-    const getProficiencyLevel = (score: number) => {
-        if (score >= 90) return "Expert";
-        if (score >= 75) return "Advanced";
-        if (score >= 50) return "Intermediate";
-        return "Basic";
-    };
-
-    const handleSelect = (lang: Language) => {
-        onSelect(lang);
-        onOpenChange(false);
-        setSearch("");
-    };
-
-    return (
-        <Popover open={isOpen} onOpenChange={onOpenChange}>
-            <PopoverTrigger asChild>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    className="mb-1 h-9 px-3 rounded-full gap-1.5 font-bold text-[10px] uppercase tracking-wider text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-all"
-                >
-                    <Globe className="w-4 h-4" />
-                    <span className="hidden sm:inline">{selectedLanguage.name}</span>
-                    <span className="sm:hidden">{selectedLanguage.code.toUpperCase()}</span>
-                    <ChevronDown className="w-3.5 h-3.5 opacity-50" />
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent
-                side="top"
-                align="start"
-                className="w-[240px] p-0 mb-3 rounded-2xl shadow-xl border-border bg-background"
+  return (
+    <Popover open={open ?? internalOpen} onOpenChange={updateOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          disabled={disabled}
+          className="h-11 max-w-full gap-2 rounded-xl px-3 text-sm"
+          aria-label={`Conversation language: ${selectedLanguage.name}. Choose a language`}
+        >
+          <Languages className="size-4 text-primary" aria-hidden="true" />
+          <span className="truncate">{selectedLanguage.name}</span>
+          <ChevronDown className="size-3.5 text-muted-foreground" aria-hidden="true" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="top"
+        align="start"
+        className="w-[min(21rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border-border bg-popover p-0 shadow-xl"
+      >
+        <div className="border-b border-border p-4">
+          <p className="mb-1 font-semibold">Make yourself understood.</p>
+          <p className="mb-3 text-xs leading-relaxed text-muted-foreground">
+            Text chat is experimental. Availability and answer quality can vary. Voice is not
+            available yet.
+          </p>
+          <label htmlFor={searchId} className="sr-only">
+            Search conversation languages
+          </label>
+          <div className="relative">
+            <Search
+              className="absolute left-3 top-3.5 size-4 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <Input
+              id={searchId}
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Find your language"
+              className="h-11 pl-9"
+              autoComplete="off"
+            />
+          </div>
+        </div>
+        <div className="max-h-[min(19rem,45dvh)] overflow-y-auto p-2" aria-label="Text languages">
+          {filtered.map((language) => (
+            <button
+              key={language.code}
+              type="button"
+              aria-pressed={selectedLanguage.code === language.code}
+              onClick={() => {
+                onSelect(language);
+                updateOpen(false);
+                setSearch('');
+              }}
+              className={cn(
+                'flex min-h-14 w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left transition-colors hover:bg-secondary',
+                selectedLanguage.code === language.code && 'bg-secondary'
+              )}
             >
-                <div className="p-3 border-b border-border bg-muted/30">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Search languages..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="pl-9 h-9 rounded-xl text-sm border-none bg-background focus-visible:ring-1 focus-visible:ring-primary/50"
-                        />
-                    </div>
-                </div>
-                <div className="max-h-64 overflow-y-auto p-1 py-1.5">
-                    {filteredLanguages.length > 0 ? (
-                        filteredLanguages.map((lang) => (
-                            <button
-                                key={lang.code}
-                                onClick={() => handleSelect(lang)}
-                                className={cn(
-                                    "w-full px-3 py-2.5 text-left hover:bg-muted transition-all flex items-center justify-between rounded-lg group",
-                                    selectedLanguage.code === lang.code &&
-                                    "bg-primary/5 shadow-inner"
-                                )}
-                            >
-                                <div className="flex flex-col">
-                                    <span
-                                        className={cn(
-                                            "text-sm font-bold",
-                                            selectedLanguage.code === lang.code
-                                                ? "text-primary"
-                                                : "text-foreground"
-                                        )}
-                                    >
-                                        {lang.name}
-                                    </span>
-                                    <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tighter">
-                                        {getProficiencyLevel(lang.score)}
-                                    </span>
-                                </div>
-                                {selectedLanguage.code === lang.code && (
-                                    <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center text-white scale-75">
-                                        <ArrowUp className="w-4 h-4" />
-                                    </div>
-                                )}
-                            </button>
-                        ))
-                    ) : (
-                        <div className="p-4 text-center text-muted-foreground text-xs italic font-medium">
-                            No matching cultures found
-                        </div>
-                    )}
-                </div>
-            </PopoverContent>
-        </Popover>
-    );
-};
+              <span>
+                <span className="block text-sm font-semibold">{language.name}</span>
+                <span className="text-xs text-muted-foreground">Text chat · experimental</span>
+              </span>
+              {selectedLanguage.code === language.code && (
+                <Check className="size-4 shrink-0 text-primary" aria-hidden="true" />
+              )}
+            </button>
+          ))}
+          {!filtered.length && (
+            <p role="status" className="px-3 py-6 text-sm text-muted-foreground">
+              No matching text language. Explore planned languages below.
+            </p>
+          )}
+        </div>
+        <Link
+          href="/languages"
+          className="flex min-h-11 items-center border-t border-border px-4 text-sm font-medium text-primary hover:underline"
+        >
+          Explore all languages and availability →
+        </Link>
+      </PopoverContent>
+    </Popover>
+  );
+}

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { SignUp } from "@clerk/nextjs";
 import { isDemoMode } from "@/lib/appMode";
+import LegalLinks from "@/components/legal/LegalLinks";
 
 export default function SignUpPage() {
   if (isDemoMode) {
@@ -62,6 +63,17 @@ export default function SignUpPage() {
           signInUrl="/sign-in"
           redirectUrl="/dashboard"
         />
+        <p className="mt-6 text-center text-xs leading-6 text-stone-600 dark:text-stone-400">
+          Samiati is for adults aged 18 and over. By creating an account, you confirm
+          you are at least 18 and agree to Samiati&apos;s{' '}
+          <Link href="/terms-of-service" className="underline underline-offset-4">
+            Terms of Service
+          </Link>
+          . Learn how we handle your information in our Privacy Policy.
+        </p>
+        <div className="mt-3">
+          <LegalLinks />
+        </div>
       </div>
     </div>
   );

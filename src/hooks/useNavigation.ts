@@ -40,6 +40,9 @@ export const useNavigation = () => {
             case Screen.EDIT_PROFILE: go("/dashboard/edit-profile" + queryString); break;
             case Screen.GUEST_PROFILE: go("/dashboard/guest-profile" + queryString); break;
             case Screen.CONTRIBUTIONS: go("/dashboard/contributions" + queryString); break;
+            case Screen.CHANGA: go("/dashboard/changa" + queryString); break;
+            case Screen.CHANGA_CAMPAIGNS: go("/dashboard/changa-campaigns" + queryString); break;
+            case Screen.CHANGA_VALIDATE: go("/dashboard/validate" + queryString); break;
             case Screen.CHANGA_ACTIVITY: go("/dashboard/changa-activity" + queryString); break;
             case Screen.ADD_CONTRIBUTION: go("/dashboard/add-contribution" + queryString); break;
             case Screen.MESSAGES: go("/dashboard/feed" + queryString); break;
@@ -48,6 +51,7 @@ export const useNavigation = () => {
             case Screen.NOTIFICATIONS: go("/dashboard/notifications" + queryString); break;
             case Screen.SETTINGS: go("/dashboard/settings" + queryString); break;
             case Screen.SETTINGS_ACCOUNT: go("/dashboard/settings/account" + queryString); break;
+            case Screen.SETTINGS_APPEARANCE: go("/dashboard/settings/appearance" + queryString); break;
             case Screen.SETTINGS_NOTIFICATIONS: go("/dashboard/settings/notifications" + queryString); break;
             case Screen.SETTINGS_PRIVACY: go("/dashboard/settings/privacy" + queryString); break;
             case Screen.MANAGE_LANGUAGES: go("/dashboard/settings/languages" + queryString); break;
@@ -84,7 +88,6 @@ export const useNavigation = () => {
             case Screen.NEW_COMMUNITY: go("/dashboard/new-community" + queryString); break;
             case Screen.COMMUNITIES: go("/dashboard/communities" + queryString); break;
             case Screen.GROUP_VIEW: go("/dashboard/group-view" + queryString); break;
-            case Screen.DARASA: go("/dashboard/darasa" + queryString); break;
             case Screen.DISCOVER: go("/dashboard/discover" + queryString); break;
 
             case Screen.MODERATION_LOG: go("/dashboard/moderation-log" + queryString); break;

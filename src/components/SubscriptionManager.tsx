@@ -3,10 +3,11 @@
 import * as React from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
 import { UsageBar } from "./UsageBar";
 
 interface SubscriptionManagerProps {
-    userId: string;
+    userId: Id<"users">;
 }
 
 const planDetails = {
@@ -33,13 +34,11 @@ const planDetails = {
 };
 
 export function SubscriptionManager({ userId }: SubscriptionManagerProps) {
-    const subscription = useQuery(api.payments.billing.getActiveSubscription, {
-        userId: userId as any,
-    });
+    const subscription = useQuery(api.payments.billing.getActiveSubscription, { userId });
 
     const usage = useQuery(api.payments.usage.getUsageStats, {
-        userId: userId as any,
-        tier: (subscription?.plan ?? "free") as any,
+        userId,
+        tier: subscription?.plan ?? "free",
     });
 
     const cancelSubscription = useMutation(api.payments.billing.cancelSubscription);

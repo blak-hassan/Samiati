@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { SignIn } from "@clerk/nextjs";
 import { isDemoMode } from "@/lib/appMode";
+import LegalLinks from "@/components/legal/LegalLinks";
 
 export default function SignInPage() {
   if (isDemoMode) {
@@ -62,6 +63,9 @@ export default function SignInPage() {
           signUpUrl="/sign-up"
           redirectUrl="/dashboard"
         />
+        <div className="mt-6">
+          <LegalLinks />
+        </div>
       </div>
     </div>
   );

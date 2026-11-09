@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { useQuery } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
 import { SubscriptionManager } from "../../../components/SubscriptionManager";
 import { PricingCard } from "../../../components/PricingCard";
 import Link from "next/link";
@@ -38,7 +40,9 @@ const upgradePlans = [
 ];
 
 export default function BillingPage() {
-    const userId = "current" as any;
+    // The subscription and usage queries are keyed by the Convex user id, so
+    // it is resolved from the signed-in profile rather than hard-coded.
+    const profile = useQuery(api.users.queries.getProfile, {});
 
     return (
         <div className="min-h-screen bg-background">
@@ -52,7 +56,15 @@ export default function BillingPage() {
 
                 <section className="mb-12">
                     <h2 className="mb-4 text-xl font-semibold">Current Plan</h2>
-                    <SubscriptionManager userId={userId} />
+                    {profile ? (
+                        <SubscriptionManager userId={profile._id} />
+                    ) : (
+                        <p className="text-muted-foreground">
+                            {profile === undefined
+                                ? "Loading your subscription…"
+                                : "Sign in to view your subscription and usage."}
+                        </p>
+                    )}
                 </section>
 
                 <section>
@@ -68,7 +80,7 @@ export default function BillingPage() {
                                 features={plan.features}
                                 cta={plan.cta}
                                 onSelect={() => {
-                                    window.location.href = `/checkout?plan=${plan.title.toLowerCase()}`;
+                                    window.location.assign(`/checkout?plan=${plan.title.toLowerCase()}`);
                                 }}
                             />
                         ))}

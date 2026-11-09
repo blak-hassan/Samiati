@@ -1,13 +1,19 @@
 "use client";
 
+import { useClerk as useClerkAuth } from "@clerk/nextjs";
+import { useClerk as useMockClerk } from "@/app/MockProviders";
+import { isDemoMode } from "@/lib/appMode";
 import SettingsAccountScreen from "@/components/screens/SettingsAccountScreen";
 import { useNavigation } from "@/hooks/useNavigation";
-import { useUser } from "../../../MockProviders";
-import { User } from "@/types";
+import { useAppUser } from "@/hooks/useAppUser";
+import { Screen, User } from "@/types";
+
+const useClerk = isDemoMode ? useMockClerk : useClerkAuth;
 
 export default function SettingsAccountPage() {
-    const { navigate, goBack } = useNavigation();
-    const { user: clerkUser } = useUser();
+    const { navigate } = useNavigation();
+    const { user: clerkUser, email, twoFactorEnabled } = useAppUser();
+    const clerk = useClerk();
 
     const appUser: User = clerkUser ? {
         name: clerkUser.fullName || "User",
@@ -21,11 +27,22 @@ export default function SettingsAccountPage() {
         isGuest: true
     };
 
+    // The identity provider owns password, 2FA, sessions and account
+    // deletion, so those actions hand off to its own account panel.
+    const openAccountPanel = () => {
+        const openUserProfile = (clerk as { openUserProfile?: () => void }).openUserProfile;
+        if (typeof openUserProfile === 'function') {
+            openUserProfile.call(clerk);
+        }
+    };
+
     return (
         <SettingsAccountScreen
             user={appUser}
-            navigate={navigate}
-            goBack={goBack}
+            email={email}
+            twoFactorEnabled={twoFactorEnabled}
+            onManageAccount={openAccountPanel}
+            onChangePassword={() => navigate(Screen.CHANGE_PASSWORD)}
         />
     );
 }

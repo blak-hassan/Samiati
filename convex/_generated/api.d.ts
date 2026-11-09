@@ -14,6 +14,7 @@ import type * as bookmarks_queries from "../bookmarks/queries.js";
 import type * as challenges_cron from "../challenges/cron.js";
 import type * as changa_campaigns from "../changa/campaigns.js";
 import type * as changa_consent from "../changa/consent.js";
+import type * as changa_constants from "../changa/constants.js";
 import type * as changa_curation from "../changa/curation.js";
 import type * as changa_evaluation from "../changa/evaluation.js";
 import type * as changa_invites from "../changa/invites.js";
@@ -21,6 +22,7 @@ import type * as changa_processing from "../changa/processing.js";
 import type * as changa_reputation from "../changa/reputation.js";
 import type * as changa_seedSheng from "../changa/seedSheng.js";
 import type * as changa_stats from "../changa/stats.js";
+import type * as changa_statsUtils from "../changa/statsUtils.js";
 import type * as changa_submissions from "../changa/submissions.js";
 import type * as changa_tasks from "../changa/tasks.js";
 import type * as changa_validation from "../changa/validation.js";
@@ -43,6 +45,7 @@ import type * as discover_sources from "../discover/sources.js";
 import type * as dms_mutations from "../dms/mutations.js";
 import type * as dms_queries from "../dms/queries.js";
 import type * as feedback from "../feedback.js";
+import type * as feedbackConstants from "../feedbackConstants.js";
 import type * as files from "../files.js";
 import type * as lib_aiQuota from "../lib/aiQuota.js";
 import type * as lib_aiSecurity from "../lib/aiSecurity.js";
@@ -71,6 +74,9 @@ import type * as tts from "../tts.js";
 import type * as users_mutations from "../users/mutations.js";
 import type * as users_queries from "../users/queries.js";
 import type * as users_utils from "../users/utils.js";
+import type * as waitlist_mutations from "../waitlist/mutations.js";
+import type * as waitlist_queries from "../waitlist/queries.js";
+import type * as waitlist_utils from "../waitlist/utils.js";
 import type * as wiki from "../wiki.js";
 
 import type {
@@ -86,6 +92,7 @@ declare const fullApi: ApiFromModules<{
   "challenges/cron": typeof challenges_cron;
   "changa/campaigns": typeof changa_campaigns;
   "changa/consent": typeof changa_consent;
+  "changa/constants": typeof changa_constants;
   "changa/curation": typeof changa_curation;
   "changa/evaluation": typeof changa_evaluation;
   "changa/invites": typeof changa_invites;
@@ -93,6 +100,7 @@ declare const fullApi: ApiFromModules<{
   "changa/reputation": typeof changa_reputation;
   "changa/seedSheng": typeof changa_seedSheng;
   "changa/stats": typeof changa_stats;
+  "changa/statsUtils": typeof changa_statsUtils;
   "changa/submissions": typeof changa_submissions;
   "changa/tasks": typeof changa_tasks;
   "changa/validation": typeof changa_validation;
@@ -115,6 +123,7 @@ declare const fullApi: ApiFromModules<{
   "dms/mutations": typeof dms_mutations;
   "dms/queries": typeof dms_queries;
   feedback: typeof feedback;
+  feedbackConstants: typeof feedbackConstants;
   files: typeof files;
   "lib/aiQuota": typeof lib_aiQuota;
   "lib/aiSecurity": typeof lib_aiSecurity;
@@ -143,6 +152,9 @@ declare const fullApi: ApiFromModules<{
   "users/mutations": typeof users_mutations;
   "users/queries": typeof users_queries;
   "users/utils": typeof users_utils;
+  "waitlist/mutations": typeof waitlist_mutations;
+  "waitlist/queries": typeof waitlist_queries;
+  "waitlist/utils": typeof waitlist_utils;
   wiki: typeof wiki;
 }>;
 

@@ -1,8 +1,10 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import LegalLinks from "@/components/legal/LegalLinks";
 
 interface CheckoutFormProps {
     plan: "free" | "learner" | "fluent";
@@ -60,6 +62,7 @@ export function CheckoutForm({ plan, onSuccess, onCancel }: CheckoutFormProps) {
                 <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
                     Start using Samiati for free with basic features.
                 </div>
+                <LegalLinks />
 
                 <button
                     onClick={handleCheckout}
@@ -83,6 +86,15 @@ export function CheckoutForm({ plan, onSuccess, onCancel }: CheckoutFormProps) {
             <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
                 You will be redirected to Paystack to complete your payment securely.
             </div>
+            <LegalLinks />
+
+            <p className="text-center text-xs leading-6 text-muted-foreground">
+                Your first paid subscription payment has a seven-day full-refund guarantee.{' '}
+                <Link href="/terms-of-service#cancellations-and-refunds" className="underline underline-offset-4">
+                    See refund and cancellation terms
+                </Link>
+                . Statutory rights are unaffected.
+            </p>
 
             <button
                 onClick={handleCheckout}

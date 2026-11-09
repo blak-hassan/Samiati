@@ -1,28 +1,25 @@
-"use client";
+'use client';
 
-import React from "react";
-import Image from "next/image";
-import SourceCard, { Source, getSourceDomain } from "./SourceCard";
-import FollowUpChips from "./FollowUpChips";
-import { SearchImage } from "@/services/sunflowerService";
-import { cn } from "@/lib/utils";
+import React, { useState } from 'react';
+import Image from 'next/image';
 import {
-  Copy,
-  Check,
-  Volume2,
-  Loader2,
-  Sparkles,
-  Image as ImageIcon,
-  Link2,
-  ImageOff,
-  Link2Off,
   AlertTriangle,
+  BookOpen,
+  Check,
+  Copy,
+  Image as ImageIcon,
+  ImageOff,
   RotateCcw,
   Share2,
-  type LucideIcon,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import FeedbackBar, { type FeedbackContext } from "@/components/feedback/FeedbackBar";
+  Volume2,
+  Square,
+} from 'lucide-react';
+import SourceCard, { type Source, getSourceDomain } from './SourceCard';
+import FollowUpChips from './FollowUpChips';
+import type { SearchImage } from '@/services/sunflowerService';
+import { Button } from '@/components/ui/button';
+import FeedbackBar, { type FeedbackContext } from '@/components/feedback/FeedbackBar';
+import { cn } from '@/lib/utils';
 
 interface SearchResultsProps {
   answer: string;
@@ -34,22 +31,14 @@ interface SearchResultsProps {
   onRetry?: () => void;
   isPlaying?: boolean;
   onPlayAudio?: () => void;
+  audioDisabledReason?: string;
   contextType?: FeedbackContext;
   messageId?: string;
   conversationId?: string;
   language?: string;
 }
 
-type ResultTab = "answer" | "images" | "links";
-
-interface TabDef {
-  id: ResultTab;
-  label: string;
-  icon: LucideIcon;
-  count: number | null;
-}
-
-const SearchResults: React.FC<SearchResultsProps> = ({
+export default function SearchResults({
   answer,
   error,
   sources,
@@ -59,296 +48,208 @@ const SearchResults: React.FC<SearchResultsProps> = ({
   onRetry,
   isPlaying = false,
   onPlayAudio,
-  contextType = "search",
+  audioDisabledReason,
+  contextType = 'search',
   messageId,
   conversationId,
   language,
-}) => {
-  const [copied, setCopied] = React.useState(false);
-  const [activeTab, setActiveTab] = React.useState<ResultTab>("answer");
-  const [highlighted, setHighlighted] = React.useState<number | null>(null);
-  const [shared, setShared] = React.useState(false);
-  const highlightTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+}: SearchResultsProps) {
+  const [view, setView] = useState<'answer' | 'reading' | 'images'>('answer');
+  const [actionStatus, setActionStatus] = useState('');
+  const [copied, setCopied] = useState<'answer' | 'share' | null>(null);
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(answer);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  // Share: copy a formatted snippet for WhatsApp/Twitter
-  const handleShare = () => {
-    const snippet = `🔎 ${answer.slice(0, 200)}${answer.length > 200 ? '...' : ''}\n\n— Samiati`;
-    navigator.clipboard.writeText(snippet);
-    setShared(true);
-    setTimeout(() => setShared(false), 2000);
-  };
-
-  // Jump to the source card and flash-highlight it (Perplexity behavior)
-  const handleCitationClick = (num: number) => {
-    const el = document.getElementById(`source-${num}`);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      setHighlighted(num);
-      if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
-      highlightTimerRef.current = setTimeout(() => setHighlighted(null), 2200);
+  const copy = async (kind: 'answer' | 'share') => {
+    try {
+      await navigator.clipboard.writeText(
+        kind === 'answer'
+          ? answer
+          : `${answer.slice(0, 200)}${answer.length > 200 ? '…' : ''}\n\n— Samiati`
+      );
+      setCopied(kind);
+      setActionStatus(kind === 'answer' ? 'Answer copied.' : 'Shareable snippet copied.');
+    } catch {
+      setActionStatus('Copy is unavailable. Select and copy the answer text instead.');
     }
   };
 
-  // Render answer with inline citation links
-  const renderAnswer = (text: string) => {
-    // Replace [1], [2], etc. with styled citation badges
-    const parts = text.split(/(\[\d+\])/g);
-    return parts.map((part, i) => {
-      const match = part.match(/^\[(\d+)\]$/);
-      if (match) {
-        const num = parseInt(match[1]);
-        const exists = num >= 1 && num <= sources.length;
-        return (
-          <button
-            key={i}
-            onClick={() => exists && handleCitationClick(num)}
-            disabled={!exists}
-            className={cn(
-              "inline-flex items-center justify-center w-4 h-4 rounded-full bg-primary/10 text-primary text-[9px] font-black mx-0.5 align-baseline cursor-pointer hover:bg-primary/25 hover:scale-110 active:scale-95 transition-all",
-              !exists && "opacity-40 cursor-default"
-            )}
-            title={exists ? `Source ${num}: ${sources[num - 1].title}` : `No source ${num}`}
-          >
-            {num}
-          </button>
-        );
-      }
-      return <span key={i}>{part}</span>;
-    });
-  };
-
-  const tabs: TabDef[] = [
-    { id: "answer", label: "Answer", icon: Sparkles, count: null },
-    { id: "images", label: "Images", icon: ImageIcon, count: images.length },
-    { id: "links", label: "Links", icon: Link2, count: sources.length },
-  ];
+  if (error)
+    return (
+      <div role="alert" className="rounded-2xl border border-destructive bg-destructive/5 p-5">
+        <p className="flex items-center gap-2 text-sm font-semibold">
+          <AlertTriangle className="size-4 text-destructive" />
+          We could not finish that answer.
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{error}</p>
+        {onRetry && (
+          <Button onClick={onRetry} className="mt-4 min-h-11 gap-2 rounded-xl">
+            <RotateCcw className="size-4" />
+            Try again
+          </Button>
+        )}
+      </div>
+    );
 
   return (
-    <div className="w-full max-w-2xl space-y-4 animate-in fade-in duration-500">
-      {/* Tab bar */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+    <div className="w-full min-w-0 space-y-4">
+      {(sources.length > 0 || images.length > 0) && (
+        <div className="flex flex-wrap gap-1" aria-label="Response views">
+          <Button
+            type="button"
+            variant="ghost"
+            aria-pressed={view === 'answer'}
+            className={cn('min-h-11 rounded-lg text-xs', view === 'answer' && 'bg-secondary')}
+            onClick={() => setView('answer')}
+          >
+            Answer
+          </Button>
+          {sources.length > 0 && (
+            <Button
+              type="button"
+              variant="ghost"
+              aria-pressed={view === 'reading'}
               className={cn(
-                "flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all duration-200 shrink-0",
-                isActive
-                  ? "bg-card border border-border/60 text-foreground shadow-sm"
-                  : "border border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                'min-h-11 gap-2 rounded-lg text-xs',
+                view === 'reading' && 'bg-secondary'
               )}
+              onClick={() => setView('reading')}
             >
-              <Icon className={cn("w-3.5 h-3.5", isActive && "text-primary")} />
-              {tab.label}
-              {tab.count !== null && (
-                <span
-                  className={cn(
-                    "text-[10px] font-black tabular-nums",
-                    isActive ? "text-primary" : "text-muted-foreground/70"
-                  )}
-                >
-                  {tab.count}
-                </span>
+              <BookOpen className="size-3.5" />
+              Related reading <span className="text-muted-foreground">{sources.length}</span>
+            </Button>
+          )}
+          {images.length > 0 && (
+            <Button
+              type="button"
+              variant="ghost"
+              aria-pressed={view === 'images'}
+              className={cn(
+                'min-h-11 gap-2 rounded-lg text-xs',
+                view === 'images' && 'bg-secondary'
               )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Answer Tab */}
-      {activeTab === "answer" && (
-        <div className="space-y-5">
-          {/* Error State — visually distinct from a real answer */}
-          {error ? (
-            <div className="flex flex-col items-center text-center py-8 px-4 rounded-2xl bg-destructive/5 border border-destructive/20">
-              <AlertTriangle className="w-8 h-8 text-destructive mb-3" />
-              <p className="text-sm font-bold text-foreground mb-1">Something went wrong</p>
-              <p className="text-xs text-muted-foreground mb-4">{error}</p>
-              {onRetry && (
-                <Button
-                  size="sm"
-                  onClick={onRetry}
-                  className="gap-1.5 rounded-full"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  Try again
-                </Button>
-              )}
-            </div>
-          ) : (
-            <>
-              {/* Sources Row */}
-              {sources.length > 0 && (
-                <div>
-                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2.5">
-                    Sources
-                  </p>
-                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                    {sources.map((source, i) => (
-                      <div
-                        key={i}
-                        id={`source-${i + 1}`}
-                        className={cn(
-                          "rounded-2xl transition-all duration-300",
-                          highlighted === i + 1 && "ring-2 ring-primary/60 bg-primary/5"
-                        )}
-                      >
-                        <SourceCard source={source} index={i} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Answer — plain text, no bubble */}
-              <div>
-                <p className="text-sm md:text-base leading-relaxed tracking-tight font-medium text-foreground whitespace-pre-wrap">
-                  {renderAnswer(answer)}
-                </p>
-
-                {/* Answer actions */}
-                <div className="flex items-center gap-1.5 mt-3">
-                  {onPlayAudio && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={onPlayAudio}
-                      className={cn(
-                        "h-7 w-7 rounded-full transition-all",
-                        isPlaying
-                          ? "text-primary bg-primary/10 animate-pulse"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                      )}
-                      title={isPlaying ? "Stop audio" : "Listen to answer"}
-                    >
-                      {isPlaying ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <Volume2 className="w-3.5 h-3.5" />
-                      )}
-                    </Button>
-                  )}
-
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleCopy}
-                    className="h-7 w-7 rounded-full hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-all"
-                    title="Copy answer"
-                  >
-                    {copied ? (
-                      <Check className="w-3.5 h-3.5 text-green-500" />
-                    ) : (
-                      <Copy className="w-3.5 h-3.5" />
-                    )}
-                  </Button>
-
-                  {/* G12: Share */}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleShare}
-                    className="h-7 w-7 rounded-full hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-all"
-                    title="Copy shareable snippet"
-                  >
-                    {shared ? (
-                      <Check className="w-3.5 h-3.5 text-green-500" />
-                    ) : (
-                      <Share2 className="w-3.5 h-3.5" />
-                    )}
-                  </Button>
-
-                  {/* G11: Feedback */}
-                  <div className="ml-auto">
-                    <FeedbackBar
-                      contextType={contextType}
-                      messageId={messageId}
-                      conversationId={conversationId}
-                      language={language}
-                      originalText={answer}
-                      compact
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Follow-up Suggestions */}
-              <FollowUpChips suggestions={followUps} onSelect={onFollowUpSelect} />
-            </>
+              onClick={() => setView('images')}
+            >
+              <ImageIcon className="size-3.5" />
+              Images
+            </Button>
           )}
         </div>
       )}
-
-      {/* Images Tab */}
-      {activeTab === "images" &&
-        (images.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {images.map((img, i) => (
-              <a
-                key={i}
-                href={img.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group flex flex-col rounded-xl overflow-hidden border border-border/30 bg-card/40 hover:bg-card/70 hover:border-border/60 hover:shadow-md transition-all duration-200"
+      {view === 'answer' && (
+        <>
+          <p className="whitespace-pre-wrap leading-7 [overflow-wrap:anywhere]">{answer}</p>
+          <div className="flex flex-wrap items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-11 rounded-xl text-muted-foreground"
+              aria-label={copied === 'answer' ? 'Answer copied' : 'Copy answer'}
+              title="Copy answer"
+              onClick={() => copy('answer')}
+            >
+              {copied === 'answer' ? <Check className="size-4" /> : <Copy className="size-4" />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-11 rounded-xl text-muted-foreground"
+              aria-label={
+                copied === 'share' ? 'Shareable snippet copied' : 'Copy a shareable snippet'
+              }
+              title="Copy a shareable snippet"
+              onClick={() => copy('share')}
+            >
+              {copied === 'share' ? <Check className="size-4" /> : <Share2 className="size-4" />}
+            </Button>
+            {onPlayAudio && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-11 rounded-xl text-muted-foreground"
+                disabled={Boolean(audioDisabledReason)}
+                aria-label={audioDisabledReason ?? (isPlaying ? 'Stop audio' : 'Listen to answer')}
+                title={audioDisabledReason ?? (isPlaying ? 'Stop audio' : 'Listen to answer')}
+                onClick={onPlayAudio}
               >
-                <div className="aspect-square overflow-hidden bg-muted/20">
-                  <Image
-                    src={img.thumbnail}
-                    alt={img.title}
-                    width={200}
-                    height={200}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                </div>
-                <div className="p-2.5 flex-1 min-w-0">
-                  <p className="text-[11px] font-bold text-foreground leading-snug line-clamp-2">
-                    {img.title}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground mt-1 truncate">
-                    {getSourceDomain(img.url)}
-                  </p>
-                </div>
-              </a>
-            ))}
+                {isPlaying ? <Square className="size-4" /> : <Volume2 className="size-4" />}
+              </Button>
+            )}
+            <div className="ml-auto min-w-0 [&_button]:min-h-11 [&_button]:min-w-11">
+              <FeedbackBar
+                contextType={contextType}
+                messageId={messageId}
+                conversationId={conversationId}
+                language={language}
+                originalText={answer}
+                compact
+              />
+            </div>
           </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-14 text-center">
-            <ImageOff className="w-8 h-8 text-muted-foreground/40 mb-3" />
-            <p className="text-sm font-bold text-muted-foreground">No images found</p>
-            <p className="text-xs text-muted-foreground/60 mt-1">
-              Try a more specific query
+          {actionStatus && (
+            <p role="status" className="text-xs leading-relaxed text-muted-foreground">
+              {actionStatus}
             </p>
-          </div>
-        ))}
-
-      {/* Links Tab */}
-      {activeTab === "links" &&
-        (sources.length > 0 ? (
-          <div className="space-y-2.5">
-            {sources.map((source, i) => (
-              <SourceCard key={i} source={source} index={i} variant="list" />
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-14 text-center">
-            <Link2Off className="w-8 h-8 text-muted-foreground/40 mb-3" />
-            <p className="text-sm font-bold text-muted-foreground">No links found</p>
-            <p className="text-xs text-muted-foreground/60 mt-1">
-              Try a more specific query
-            </p>
-          </div>
-        ))}
+          )}
+          <FollowUpChips suggestions={followUps} onSelect={onFollowUpSelect} />
+        </>
+      )}
+      {view === 'reading' && (
+        <section aria-label="Related reading" className="space-y-3">
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Wikipedia results for your question. These pages were not used to generate the answer.
+          </p>
+          {sources.map((source, index) => (
+            <SourceCard
+              key={`${source.url}_${index}`}
+              source={source}
+              index={index}
+              variant="list"
+            />
+          ))}
+        </section>
+      )}
+      {view === 'images' && (
+        <section aria-label="Related images" className="space-y-3">
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Related images from Wikimedia Commons. Open an image to view its source and license.
+          </p>
+          {images.length > 0 ? (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {images.map((image, index) => (
+                <a
+                  key={`${image.url}_${index}`}
+                  href={image.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="min-w-0 overflow-hidden rounded-xl border border-border bg-card transition-colors hover:bg-secondary"
+                >
+                  <div className="aspect-square overflow-hidden bg-muted">
+                    <Image
+                      src={image.thumbnail}
+                      alt={image.title}
+                      width={200}
+                      height={200}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                  <div className="p-3">
+                    <p className="line-clamp-2 text-xs font-semibold leading-relaxed [overflow-wrap:anywhere]">
+                      {image.title}
+                    </p>
+                    <p className="mt-1 truncate text-xs text-muted-foreground">
+                      {getSourceDomain(image.url)}
+                    </p>
+                  </div>
+                </a>
+              ))}
+            </div>
+          ) : (
+            <div className="flex min-h-32 items-center justify-center gap-2 text-sm text-muted-foreground">
+              <ImageOff className="size-4" />
+              No related images found.
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
-};
-
-export default SearchResults;
+}

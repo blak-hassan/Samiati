@@ -1,8 +1,9 @@
 "use client";
 
 import { createContext, useContext, ReactNode } from "react";
-import { useAuth as useClerkAuth } from "@clerk/nextjs";
+import { useAuth as useClerkAuth, useUser as useClerkUser } from "@clerk/nextjs";
 import { useUser as useMockUser } from "@/app/MockProviders";
+import { isDemoMode } from "@/lib/appMode";
 import { User } from "@/types";
 
 interface AuthContextType {
@@ -28,16 +29,25 @@ export const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { userId, isLoaded } = useClerkAuth();
   const { user: mockUser } = useMockUser();
+  const { user: clerkUserObj } = useClerkUser();
 
   const isSignedIn = !!userId || !!mockUser;
 
-  const clerkUser = mockUser
-    ? {
-        fullName: mockUser.fullName,
-        username: mockUser.username,
-        imageUrl: mockUser.imageUrl,
-      }
-    : null;
+  let clerkUser: AuthContextType["clerkUser"] = null;
+
+  if (!isDemoMode && clerkUserObj) {
+    clerkUser = {
+      fullName: clerkUserObj.fullName,
+      username: clerkUserObj.username,
+      imageUrl: clerkUserObj.imageUrl,
+    };
+  } else if (mockUser) {
+    clerkUser = {
+      fullName: mockUser.fullName,
+      username: mockUser.username,
+      imageUrl: mockUser.imageUrl,
+    };
+  }
 
   const user: User | null = clerkUser
     ? {

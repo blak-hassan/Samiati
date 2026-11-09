@@ -1,13 +1,24 @@
 "use client";
 
 import React, { Suspense, use, useState } from 'react';
-import { notFound } from 'next/navigation';
+import Link from 'next/link';
+import { notFound, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { ChatPreview, Conversation, RouteSearchParams, Screen, User } from '@/types';
+import { useMutation } from 'convex/react';
+import { api } from '../../../../convex/_generated/api';
+import { useClerk as useClerkAuth } from '@clerk/nextjs';
+import { useClerk as useMockClerk } from '@/app/MockProviders';
+import { isDemoMode } from '@/lib/appMode';
+import type { ProfilePatch } from '@/components/screens/EditProfileScreen';
+import { ChatPreview, Conversation, LanguageSkill, RouteSearchParams, Screen, User } from '@/types';
 import { useNavigation } from "@/hooks/useNavigation";
 import { useAppUser } from "@/hooks/useAppUser";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useAccountSettings } from "@/hooks/useAccountSettings";
+import { useSettings } from "@/hooks/useSettings";
 import SignInPrompt from "@/components/auth/SignInPrompt";
+
+const useClerk = isDemoMode ? useMockClerk : useClerkAuth;
 
 function ScreenLoader() {
     return (
@@ -60,12 +71,37 @@ const PrivacyPolicyScreen = dynamic(() => import('@/components/screens/PrivacyPo
 const ChangaHome = dynamic(() => import('@/components/changa/ChangaHome'), { ssr: false });
 const MyChangaActivity = dynamic(() => import('@/components/changa/MyChangaActivity'), { ssr: false });
 const ChangaCampaigns = dynamic(() => import('@/components/changa/ChangaCampaigns'), { ssr: false });
-const DarasaScreen = dynamic(() => import('@/components/screens/DarasaScreen'), { ssr: false });
 
-export default function DashboardCatchAllPage({ params, searchParams }: { params: Promise<{ slug: string }>, searchParams: Promise<RouteSearchParams> }) {
+
+type DashboardScreenProps = { params: Promise<{ slug: string }>, searchParams: Promise<RouteSearchParams> };
+
+export default function DashboardCatchAllPage(props: DashboardScreenProps) {
+    if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
+        return (
+            <main id="main-content" tabIndex={-1} className="mx-auto flex min-h-dvh max-w-xl flex-col justify-center gap-5 px-6 py-16 text-foreground">
+                <p className="text-sm font-medium text-primary">Samiati community</p>
+                <h1 className="font-editorial text-4xl">A connection is needed here.</h1>
+                <p className="leading-relaxed text-muted-foreground">This workspace needs the Samiati service to load account and community activity. No demonstration submissions or statistics are presented as real.</p>
+                <nav aria-label="Available pages" className="flex flex-wrap gap-3">
+                    <Link className="inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-primary-foreground" href="/dashboard">Back to chat</Link>
+                    <Link className="inline-flex min-h-11 items-center rounded-xl border border-border px-4" href="/languages">Explore languages</Link>
+                    <Link className="inline-flex min-h-11 items-center rounded-xl border border-border px-4" href="/dashboard/settings">Settings</Link>
+                </nav>
+            </main>
+        );
+    }
+    return <ConnectedDashboardScreen {...props} />;
+}
+
+function ConnectedDashboardScreen({ params, searchParams }: DashboardScreenProps) {
     const { navigate, goBack } = useNavigation();
-    const { user: clerkUser, languages, setLanguages, notifications, unreadCount, markAllAsRead, markAsRead, myContributions, setMyContributions } = useAppUser();
+    const { user: clerkUser, languages, setLanguages, notifications, unreadCount, markAllAsRead, markAsRead, myContributions, setMyContributions, email, twoFactorEnabled } = useAppUser();
     const { isGuest } = useCurrentUser();
+    const { notificationPreferences, privacy, setNotificationPreference, setPrivacyPreference } = useAccountSettings();
+    const { settings: deviceSettings } = useSettings();
+    const router = useRouter();
+    const clerk = useClerk();
+    const updateProfile = useMutation(api.users.mutations.updateProfile);
 
     // Unwrap params synchronously using React.use() where needed, but params/searchParams are Promises in Next.js 15
     const resolvedParams = use(params);
@@ -98,6 +134,29 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
         return notFound();
     }
 
+    const profileLanguages: LanguageSkill[] = appUser.languages ?? languages;
+
+    const handleSaveProfile = async (patch: ProfilePatch) => {
+        await updateProfile(patch);
+        if (patch.languages) {
+            setLanguages(patch.languages);
+        }
+    };
+
+    const handleSaveLanguages = async (next: LanguageSkill[]) => {
+        await updateProfile({ languages: next });
+        setLanguages(next);
+    };
+
+    // The identity provider owns password, 2FA, sessions and account
+    // deletion, so those actions hand off to its own account panel.
+    const openAccountPanel = () => {
+        const openUserProfile = (clerk as { openUserProfile?: () => void }).openUserProfile;
+        if (typeof openUserProfile === 'function') {
+            openUserProfile.call(clerk);
+        }
+    };
+
     // Helper handlers
     const handleViewProfile = (_user: User) => { };
     const handleLikePost = (_postId: string) => { };
@@ -125,15 +184,15 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
         // Profile is handled by specific route, but fallback here if needed
         case Screen.PROFILE: return <ProfileScreen user={appUser} navigate={navigate} goBack={goBack} isOwnProfile={true} languages={languages} unreadCount={unreadCount} />;
         case Screen.GUEST_PROFILE: return <ProfileScreen user={appUser} navigate={navigate} goBack={goBack} isOwnProfile={false} languages={languages} />; // Should pass actual other user
-        case Screen.EDIT_PROFILE: return <EditProfileScreen navigate={navigate} goBack={goBack} unreadCount={unreadCount} />;
+        case Screen.EDIT_PROFILE: return <EditProfileScreen navigate={navigate} goBack={goBack} user={appUser} languages={profileLanguages} onSave={handleSaveProfile} />;
 
         // Settings sub-pages
-        case Screen.SETTINGS_ACCOUNT: return <SettingsAccountScreen navigate={navigate} goBack={goBack} user={appUser} />;
-        case Screen.SETTINGS_NOTIFICATIONS: return <SettingsNotificationsScreen navigate={navigate} goBack={goBack} />;
-        case Screen.SETTINGS_PRIVACY: return <SettingsPrivacyScreen navigate={navigate} goBack={goBack} />;
-        case Screen.SETTINGS_BLOCKED: return <SettingsBlockedScreen goBack={goBack} />;
-        case Screen.SETTINGS_MUTED: return <SettingsMutedScreen goBack={goBack} />;
-        case Screen.SETTINGS_DATA: return <SettingsDataScreen goBack={goBack} />;
+        case Screen.SETTINGS_ACCOUNT: return <SettingsAccountScreen user={appUser} email={email} twoFactorEnabled={twoFactorEnabled} onManageAccount={openAccountPanel} onChangePassword={() => navigate(Screen.CHANGE_PASSWORD)} />;
+        case Screen.SETTINGS_NOTIFICATIONS: return <SettingsNotificationsScreen notificationPreferences={notificationPreferences} onChange={setNotificationPreference} />;
+        case Screen.SETTINGS_PRIVACY: return <SettingsPrivacyScreen privacy={privacy} onChange={setPrivacyPreference} onNavigate={(path) => router.push(path)} mutedCount={deviceSettings.mutedWords.length} blockedCount={deviceSettings.blockedUsers.length} />;
+        case Screen.SETTINGS_BLOCKED: return <SettingsBlockedScreen />;
+        case Screen.SETTINGS_MUTED: return <SettingsMutedScreen />;
+        case Screen.SETTINGS_DATA: return <SettingsDataScreen />;
         case Screen.SETTINGS_HELP: return <SettingsHelpScreen goBack={goBack} />;
 
         case Screen.CONTRIBUTIONS:
@@ -150,15 +209,7 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
 
         case Screen.CHANGA:
             if (isGuest) return <SignInPrompt feature="Changa" description="Sign in to help your language with quick, consented tasks." navigate={navigate} />;
-            return <ContributionsScreen
-                navigate={navigate}
-                goBack={goBack}
-                myContributions={myContributions}
-                setMyContributions={setMyContributions}
-                languages={languages}
-                onViewProfile={handleViewProfile}
-                unreadCount={unreadCount}
-            />;
+            return <ChangaHome onViewActivity={() => navigate(Screen.CHANGA_ACTIVITY)} />;
 
         case Screen.CHANGA_ACTIVITY:
             if (isGuest) return <SignInPrompt feature="Changa" description="Sign in to see your Changa contributions and activity." navigate={navigate} />;
@@ -187,7 +238,7 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
         case Screen.SUGGEST_LINK: return <SuggestLinkScreen navigate={navigate} goBack={goBack} />;
         case Screen.CHANGE_PASSWORD: return <ChangePasswordScreen navigate={navigate} goBack={goBack} />;
         case Screen.ALL_ACHIEVEMENTS: return <AllAchievementsScreen goBack={goBack} />;
-        case Screen.MANAGE_LANGUAGES: return <ManageLanguagesScreen navigate={navigate} goBack={goBack} languages={languages} onUpdateLanguages={setLanguages} />;
+        case Screen.MANAGE_LANGUAGES: return <ManageLanguagesScreen navigate={navigate} goBack={goBack} languages={profileLanguages} onSave={handleSaveLanguages} />;
 
         case Screen.POST_THREAD: return <PostThreadScreen navigate={navigate} goBack={goBack} post={resolvedSearchParams?.post ? JSON.parse(resolvedSearchParams.post as string) : undefined} onLike={handleLikePost} onRepost={handleRepost} autoFocusReply={resolvedSearchParams?.autoFocusReply === 'true'} />;
         case Screen.DIRECT_MESSAGE:
@@ -217,8 +268,6 @@ export default function DashboardCatchAllPage({ params, searchParams }: { params
             return <ComposePostScreen navigate={navigate} goBack={goBack} onPost={() => { }} user={appUser} />;
         case Screen.TERMS_OF_SERVICE: return <TermsOfServiceScreen goBack={goBack} />;
         case Screen.PRIVACY_POLICY: return <PrivacyPolicyScreen goBack={goBack} />;
-
-        case Screen.DARASA: return <DarasaScreen navigate={navigate} goBack={goBack} />;
 
         default:
             return <div>Screen {slug} not found</div>;

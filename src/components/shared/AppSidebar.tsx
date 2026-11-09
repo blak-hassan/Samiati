@@ -1,296 +1,330 @@
-"use client";
+'use client';
 
-import React from "react";
-import { Screen } from "@/types";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import React, { useId, useState } from 'react';
+import Link from 'next/link';
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import {
-  Plus,
-  History,
-  Flame,
-  MessagesSquare,
-  BookOpen,
-  ShieldCheck,
+  Compass,
+  HeartHandshake,
+  Languages,
+  MessageCircle,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Pin,
+  Search,
   Settings,
-  ChevronDown,
-  ChevronRight,
-  Clock,
-  MessageSquare,
-} from "lucide-react";
-import { Conversation } from "@/types";
-
-const SidebarItem: React.FC<{
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-  count?: number;
-}> = ({ icon, label, onClick, count }) => (
-  <button
-    onClick={onClick}
-    className="w-full h-11 flex items-center gap-3.5 px-3 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-muted-foreground hover:text-foreground transition-all group"
-  >
-    <div className="text-muted-foreground group-hover:text-primary transition-colors">
-      {icon}
-    </div>
-    <span className="font-bold text-sm tracking-tight flex-1 text-left">
-      {label}
-    </span>
-    {count !== undefined && count > 0 && (
-      <Badge
-        variant="default"
-        className="bg-primary hover:bg-primary shadow-none h-5 min-w-[20px] px-1 justify-center font-bold text-[10px]"
-      >
-        {count}
-      </Badge>
-    )}
-  </button>
-);
+  ShieldCheck,
+  SquarePen,
+  Users,
+} from 'lucide-react';
+import { type Conversation, Screen } from '@/types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Brand } from '@/components/product/Brand';
+import { cn } from '@/lib/utils';
 
 interface SidebarContentProps {
-  user?: {
-    name?: string;
-    handle?: string;
-    avatar?: string;
-    role?: string;
-    isGuest?: boolean;
-  };
+  user?: { name?: string; handle?: string; avatar?: string; role?: string; isGuest?: boolean };
   onNavigate: (screen: Screen) => void;
   onNewSearch: () => void;
-  notificationCounts?: {
-    contributions?: number;
-    moderation?: number;
-  };
+  notificationCounts?: { contributions?: number; moderation?: number };
   conversations?: Conversation[];
   onChatSelect?: (id: string) => void;
+  activeConversationId?: string;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-const SidebarContent: React.FC<SidebarContentProps> = ({
+function SidebarContent({
   user,
   onNavigate,
   onNewSearch,
   notificationCounts,
   conversations = [],
   onChatSelect,
-}) => {
-  const [sessionsExpanded, setSessionsExpanded] = React.useState(false);
-  const userName = user?.name || "Guest";
-  const userHandle = user?.handle || "@guest";
-  const userAvatar = user?.avatar || "";
-  const isGuest = user?.isGuest ?? true;
-
-  const recentConversations = conversations.slice(0, 5);
+  activeConversationId,
+  collapsed = false,
+  onToggleCollapse,
+}: SidebarContentProps) {
+  const [search, setSearch] = useState('');
+  const searchId = useId();
+  const isGuest = !user || user.isGuest;
+  const filtered = [...conversations]
+    .filter((conversation) =>
+      conversation.title.toLowerCase().includes(search.trim().toLowerCase())
+    )
+    .sort((a, b) => b.lastActive - a.lastActive);
+  const groups = [
+    { label: 'Pinned', items: filtered.filter((conversation) => conversation.isPinned) },
+    { label: 'Recent', items: filtered.filter((conversation) => !conversation.isPinned) },
+  ];
+  const itemClass =
+    'flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-muted-foreground transition-colors duration-200 hover:bg-sidebar-accent hover:text-foreground';
 
   return (
-    <div className="flex flex-col h-full bg-muted/30">
-      <div className="p-6">
-        <div className="text-left mb-8">
-          <div
-            className="flex items-center gap-4 cursor-pointer"
-            onClick={() => onNavigate(Screen.SETTINGS)}
+    <div className="flex h-full min-h-0 flex-col bg-sidebar text-sidebar-foreground">
+      <div
+        className={cn('flex min-h-20 items-center gap-1 px-5', collapsed && 'justify-center px-2')}
+      >
+        {!collapsed && <Brand className="mr-auto" />}
+        {onToggleCollapse && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-11 shrink-0"
+            onClick={onToggleCollapse}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            <Avatar className="w-12 h-12 border-2 border-primary/20 hover:border-primary transition-colors">
-              <AvatarImage src={userAvatar} />
-              <AvatarFallback>{userName[0]}</AvatarFallback>
-            </Avatar>
-            <div className="space-y-0.5">
-              <p className="text-lg font-bold tracking-tight">{userName}</p>
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-                {userHandle}
-              </p>
-            </div>
-          </div>
-        </div>
-
+            {collapsed ? (
+              <PanelLeftOpen className="size-4" />
+            ) : (
+              <PanelLeftClose className="size-4" />
+            )}
+          </Button>
+        )}
+      </div>
+      <div className={cn('px-4', collapsed && 'px-2')}>
         <Button
           onClick={onNewSearch}
-          className="w-full h-12 rounded-xl gap-2 font-bold shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95"
+          className={cn(
+            'h-11 w-full justify-start gap-3 rounded-xl',
+            collapsed && 'justify-center px-0'
+          )}
+          aria-label="New chat"
+          title="New chat"
         >
-          <Plus className="w-5 h-5" />
-          Kaanze
+          <SquarePen className="size-4" />
+          {!collapsed && 'New chat'}
         </Button>
       </div>
-
-      <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
-        {isGuest ? (
-          <>
-            <SidebarItem
-              icon={<History className="w-5 h-5" />}
-              label="Sign in to save"
-              onClick={() => onNavigate(Screen.SIGN_IN)}
-            />
-            <SidebarItem
-              icon={<Flame className="w-5 h-5" />}
-              label="Sign in to contribute"
-              onClick={() => onNavigate(Screen.SIGN_IN)}
-            />
-            <SidebarItem
-              icon={<MessagesSquare className="w-5 h-5" />}
-              label="Sign in to message"
-              onClick={() => onNavigate(Screen.SIGN_IN)}
-            />
-          </>
-        ) : (
-          <>
-            <div>
-              <button
-                onClick={() => setSessionsExpanded(!sessionsExpanded)}
-                className="w-full h-11 flex items-center gap-3.5 px-3 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-muted-foreground hover:text-foreground transition-all group"
-              >
-                <div className="text-muted-foreground group-hover:text-primary transition-colors">
-                  <History className="w-5 h-5" />
-                </div>
-                <span className="font-bold text-sm tracking-tight flex-1 text-left">
-                  Sessions
-                </span>
-                {conversations.length > 0 && (
-                  <span className="text-[10px] font-bold text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
-                    {conversations.length}
-                  </span>
+      <nav aria-label="Explore Samiati" className={cn('mt-5 space-y-1 px-4', collapsed && 'px-2')}>
+        {[
+          { label: 'Discover', icon: Compass, screen: Screen.DISCOVER },
+          {
+            label: 'Changa',
+            icon: HeartHandshake,
+            screen: Screen.CHANGA,
+            count: notificationCounts?.contributions,
+          },
+          { label: 'Community', icon: Users, screen: Screen.MESSAGES },
+        ].map(({ label, icon: Icon, screen, count }) => (
+          <button
+            key={label}
+            type="button"
+            className={cn(itemClass, collapsed && 'justify-center px-0')}
+            onClick={() => onNavigate(screen)}
+            aria-label={label}
+            title={label}
+          >
+            <Icon className="size-4 shrink-0" aria-hidden="true" />
+            {!collapsed && (
+              <>
+                <span className="flex-1">{label}</span>
+                {Boolean(count) && (
+                  <span className="rounded-md bg-secondary px-2 py-0.5 text-xs">{count}</span>
                 )}
-                <div className="text-muted-foreground transition-transform duration-200">
-                  {sessionsExpanded ? (
-                    <ChevronDown className="w-4 h-4" />
-                  ) : (
-                    <ChevronRight className="w-4 h-4" />
-                  )}
-                </div>
-              </button>
-              
-              {sessionsExpanded && (
-                <div className="ml-4 mt-1 space-y-1 border-l-2 border-border pl-3">
-                  {recentConversations.length > 0 ? (
-                    recentConversations.map((conv) => (
-                      <button
-                        key={conv.id}
-                        onClick={() => {
-                          onChatSelect?.(conv.id);
-                          onNavigate(Screen.HOME_CHAT);
-                        }}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left hover:bg-muted/50 transition-colors group"
-                      >
-                        <MessageSquare className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary shrink-0" />
-                        <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground truncate">
-                          {conv.title}
-                        </span>
-                      </button>
-                    ))
-                  ) : (
-                    <p className="text-xs text-muted-foreground px-2 py-1">No sessions yet</p>
-                  )}
-                  <button
-                    onClick={() => onNavigate(Screen.SAVED_CONVERSATIONS)}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left hover:bg-muted/50 transition-colors"
-                  >
-                    <span className="text-xs font-bold text-primary">View all sessions</span>
-                  </button>
-                </div>
-              )}
-            </div>
-            <SidebarItem
-              icon={<Flame className="w-5 h-5" />}
-              label="Changa"
-              count={notificationCounts?.contributions}
-              onClick={() => onNavigate(Screen.CHANGA)}
-            />
-            <SidebarItem
-              icon={<MessagesSquare className="w-5 h-5" />}
-              label="Mushenee"
-              onClick={() => onNavigate(Screen.MESSAGES)}
-            />
-          </>
-        )}
-
-        <SidebarItem
-          icon={<BookOpen className="w-5 h-5" />}
-          label="Darasa"
-          onClick={() => onNavigate(Screen.DARASA)}
-        />
-
-        {!isGuest && (user?.role === "moderator" || user?.role === "admin") && (
-          <SidebarItem
-            icon={<ShieldCheck className="w-5 h-5" />}
-            label="Moderation"
-            count={notificationCounts?.moderation}
+              </>
+            )}
+          </button>
+        ))}
+        <Link
+          href="/languages"
+          className={cn(itemClass, collapsed && 'justify-center px-0')}
+          aria-label="Languages"
+          title="Languages"
+        >
+          <Languages className="size-4 shrink-0" aria-hidden="true" />
+          {!collapsed && 'Languages'}
+        </Link>
+        {!isGuest && (user?.role === 'moderator' || user?.role === 'admin') && (
+          <button
+            type="button"
+            className={cn(itemClass, collapsed && 'justify-center px-0')}
             onClick={() => onNavigate(Screen.MODERATION_DASHBOARD)}
-          />
+            aria-label="Moderation"
+            title="Moderation"
+          >
+            <ShieldCheck className="size-4 shrink-0" />
+            {!collapsed && 'Moderation'}
+          </button>
         )}
       </nav>
-
-      <div className="p-4 mt-auto">
-        <SidebarItem
-          icon={<Settings className="w-5 h-5" />}
-          label="Settings"
+      {!collapsed && (
+        <section
+          className="mt-6 flex min-h-0 flex-1 flex-col px-4"
+          aria-label="Conversation history"
+        >
+          <label
+            htmlFor={searchId}
+            className="mb-2 px-1 text-xs font-semibold text-muted-foreground"
+          >
+            Your conversations
+          </label>
+          <div className="relative mb-3">
+            <Search
+              className="absolute left-3 top-3.5 size-4 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <Input
+              id={searchId}
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search conversations"
+              className="h-11 bg-background/40 pl-9 text-xs"
+            />
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {groups.map(
+              ({ label, items }) =>
+                items.length > 0 && (
+                  <div key={label} className="mb-4">
+                    <h2 className="mb-1 px-2 text-xs text-muted-foreground">{label}</h2>
+                    {items.slice(0, 15).map((conversation) => (
+                      <button
+                        key={conversation.id}
+                        type="button"
+                        onClick={() =>
+                          onChatSelect
+                            ? onChatSelect(conversation.id)
+                            : onNavigate(Screen.SAVED_CONVERSATIONS)
+                        }
+                        aria-current={conversation.id === activeConversationId ? 'page' : undefined}
+                        className={cn(
+                          itemClass,
+                          'gap-2 px-2 text-xs',
+                          conversation.id === activeConversationId &&
+                            'bg-sidebar-accent text-foreground'
+                        )}
+                      >
+                        {conversation.isPinned ? (
+                          <Pin className="size-3.5 shrink-0" aria-hidden="true" />
+                        ) : (
+                          <MessageCircle className="size-3.5 shrink-0" aria-hidden="true" />
+                        )}
+                        <span className="truncate">{conversation.title}</span>
+                      </button>
+                    ))}
+                  </div>
+                )
+            )}
+            {!filtered.length && (
+              <p role="status" className="px-2 py-4 text-xs leading-relaxed text-muted-foreground">
+                {search ? 'No matching conversations.' : 'Your conversations will appear here.'}
+              </p>
+            )}
+            {!isGuest && (
+              <button
+                type="button"
+                onClick={() => onNavigate(Screen.SAVED_CONVERSATIONS)}
+                className="min-h-11 px-2 text-xs font-semibold text-primary hover:underline"
+              >
+                View all conversations →
+              </button>
+            )}
+          </div>
+          <p className="mt-2 px-2 text-xs leading-relaxed text-muted-foreground">
+            History is saved in this browser.
+          </p>
+        </section>
+      )}
+      <div
+        className={cn(
+          'mt-auto space-y-1 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]',
+          collapsed && 'px-2'
+        )}
+      >
+        <button
+          type="button"
+          className={cn(itemClass, collapsed && 'justify-center px-0')}
           onClick={() => onNavigate(Screen.SETTINGS)}
-        />
+          aria-label="Settings"
+          title="Settings"
+        >
+          <Settings className="size-4 shrink-0" aria-hidden="true" />
+          {!collapsed && 'Settings'}
+        </button>
+        <button
+          type="button"
+          onClick={() => onNavigate(isGuest ? Screen.SIGN_IN : Screen.PROFILE)}
+          className={cn(
+            'flex min-h-14 w-full items-center gap-3 rounded-xl border border-sidebar-border p-2 text-left hover:bg-sidebar-accent',
+            collapsed && 'justify-center border-0 px-0'
+          )}
+          aria-label={isGuest ? 'Sign in to Samiati' : 'Open your profile'}
+          title={isGuest ? 'Sign in' : user?.name}
+        >
+          <Avatar className="size-8 shrink-0">
+            <AvatarImage src={user?.avatar} alt="" />
+            <AvatarFallback className="bg-secondary text-xs font-semibold">
+              {user?.name?.slice(0, 1) ?? 'S'}
+            </AvatarFallback>
+          </Avatar>
+          {!collapsed && (
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-semibold">
+                {isGuest ? 'Make yourself at home' : user?.name}
+              </span>
+              <span className="block truncate text-xs text-muted-foreground">
+                {isGuest ? 'Sign in to continue' : 'Your profile & preferences'}
+              </span>
+            </span>
+          )}
+        </button>
       </div>
     </div>
   );
-};
-
-interface AppSidebarProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  user?: SidebarContentProps["user"];
-  onNavigate: (screen: Screen) => void;
-  onNewSearch: () => void;
-  notificationCounts?: SidebarContentProps["notificationCounts"];
-  conversations?: Conversation[];
-  onChatSelect?: (id: string) => void;
 }
 
-export const AppSidebar: React.FC<AppSidebarProps> = ({
-  open,
-  onOpenChange,
-  user,
-  onNavigate,
-  onNewSearch,
-  notificationCounts,
-  conversations = [],
-  onChatSelect,
-}) => {
+interface AppSidebarProps extends Omit<SidebarContentProps, 'collapsed' | 'onToggleCollapse'> {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function AppSidebar({ open, onOpenChange, ...props }: AppSidebarProps) {
+  const [collapsed, setCollapsed] = useState(false);
   return (
     <>
-      {/* Mobile: Sheet drawer */}
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="left"
-          className="w-[280px] sm:w-[300px] p-0 border-r border-border bg-background lg:hidden"
+          className="w-[min(20rem,calc(100vw-1rem))] gap-0 border-sidebar-border bg-sidebar p-0 lg:hidden"
         >
+          <SheetTitle className="sr-only">Samiati navigation and conversation history</SheetTitle>
+          <SheetDescription className="sr-only">
+            Find a conversation, start a new chat, or explore Samiati.
+          </SheetDescription>
           <SidebarContent
-            user={user}
+            {...props}
             onNavigate={(screen) => {
               onOpenChange(false);
-              onNavigate(screen);
+              props.onNavigate(screen);
             }}
             onNewSearch={() => {
               onOpenChange(false);
-              onNewSearch();
+              props.onNewSearch();
             }}
-            notificationCounts={notificationCounts}
-            conversations={conversations}
-            onChatSelect={onChatSelect}
+            onChatSelect={(id) => {
+              onOpenChange(false);
+              props.onChatSelect?.(id);
+            }}
           />
         </SheetContent>
       </Sheet>
-
-      {/* Desktop: Persistent sidebar */}
-      <aside className="hidden lg:flex lg:flex-col lg:w-[260px] lg:min-w-[260px] lg:h-full border-r border-border bg-background">
+      <aside
+        aria-label="Samiati sidebar"
+        className={cn(
+          'hidden h-full shrink-0 border-r border-sidebar-border transition-[width] duration-200 lg:block',
+          collapsed ? 'w-18' : 'w-64 xl:w-72'
+        )}
+      >
         <SidebarContent
-          user={user}
-          onNavigate={onNavigate}
-          onNewSearch={onNewSearch}
-          notificationCounts={notificationCounts}
-          conversations={conversations}
-          onChatSelect={onChatSelect}
+          {...props}
+          collapsed={collapsed}
+          onToggleCollapse={() => setCollapsed((value) => !value)}
         />
       </aside>
     </>
   );
-};
+}

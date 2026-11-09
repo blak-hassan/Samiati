@@ -1,32 +1,59 @@
 "use client";
 
-import EditProfileScreen from "@/components/screens/EditProfileScreen";
+import { useState } from "react";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
+import EditProfileScreen, { ProfilePatch } from "@/components/screens/EditProfileScreen";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useAppUser } from "@/hooks/useAppUser";
-import { Screen } from "@/types";
-import { User } from "@/types";
+import { LanguageSkill, User } from "@/types";
 
 export default function EditProfilePage() {
     const { navigate, goBack } = useNavigation();
-    const { user: clerkUser } = useAppUser();
+    const { user: clerkUser, languages, setLanguages } = useAppUser();
+    const dashboard = useQuery(api.profile.queries.getDashboard, {});
+    const updateProfile = useMutation(api.users.mutations.updateProfile);
+    const [unreadCount] = useState(0);
 
-    const appUser: User = clerkUser ? {
-        name: clerkUser.fullName || "User",
-        handle: "@" + (clerkUser.username || "user"),
-        avatar: clerkUser.imageUrl,
-        isGuest: false,
-        bio: "Digital Storyteller",
+    // The Convex row is the source of truth; Clerk only supplies the fields
+    // Samiati does not own (the sign-in identity itself).
+    const profile = dashboard?.profile;
+
+    const appUser: User = profile ? {
+        name: (profile.name as string) || clerkUser?.fullName || "User",
+        handle: "@" + ((profile.handle as string) || clerkUser?.username || "user"),
+        avatar: (profile.avatar as string) || clerkUser?.imageUrl || "",
+        isGuest: !!profile.isGuest,
+        bio: (profile.bio as string) || "",
+        culturalBackground: profile.culturalBackground as string | undefined,
+        location: profile.location as string | undefined,
     } : {
-        name: "Guest",
-        handle: "@guest",
-        avatar: "https://lh3.googleusercontent.com/aida-public/AB6AXuDKkfM9WqTPsqCfuM1KQIQ1QzsbiAaq2rab_EQ2MwL_8b9sbJ3-mIl3CjDCR888PPrsBNhkpl7tkden40rCqo3pJe3Sepe18k46KUvejTidyoAK941vcqejBnqRrcfC5hPZop_XFQ7S9jkteso1RvDSjv8s1JfGwGhOYE1uQ1M1J93quDxOniTqTNGD-1WZq2GOu_Z1EpzGjMzNeyvhYbuIwiqYK1TDLfGX5mpdg--_df6DoewiFO-RhrraeKpwY7MetQ94avb6spo",
-        isGuest: true
+        name: clerkUser?.fullName || "User",
+        handle: "@" + (clerkUser?.username || "user"),
+        avatar: clerkUser?.imageUrl || "",
+        isGuest: false,
+        bio: "",
+    };
+
+    const profileLanguages: LanguageSkill[] =
+        (profile?.languages as LanguageSkill[] | undefined) ?? languages;
+
+    const handleSave = async (patch: ProfilePatch) => {
+        await updateProfile(patch);
+        // Keep the in-memory language list in step with what was just saved.
+        if (patch.languages) {
+            setLanguages(patch.languages);
+        }
     };
 
     return (
         <EditProfileScreen
             navigate={navigate}
             goBack={goBack}
+            user={appUser}
+            languages={profileLanguages}
+            onSave={handleSave}
+            unreadCount={unreadCount}
         />
     );
 }

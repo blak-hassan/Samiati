@@ -28,6 +28,7 @@ import { ValidationCard } from '@/components/moderation/ValidationCard';
 import { CritiqueModal } from '@/components/moderation/CritiqueModal';
 import { ReportModal } from '@/components/moderation/ReportModal';
 import { useAppUser } from '@/hooks/useAppUser';
+import { MOCK_LANGUAGE_HEALTH } from '@/data/mockChangaData';
 
 interface Props {
   navigate: (screen: Screen) => void;

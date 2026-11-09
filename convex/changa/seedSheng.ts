@@ -1,5 +1,5 @@
 import { internalMutation, internalQuery } from "../_generated/server";
-import { v } from "convex/values";
+import type { Id } from "../_generated/dataModel";
 
 // Seed Sheng task templates and English source sentences.
 // Run via: npx convex run changa.seedSheng:seedShengData
@@ -115,7 +115,7 @@ export const seedShengData = internalMutation({
     args: {},
     handler: async (ctx) => {
         // Create a system user if none exists (for dev/CLI seeding)
-        let createdBy: any;
+        let createdBy: Id<"users">;
         const existingUser = await ctx.db.query("users").first();
         if (existingUser) {
             createdBy = existingUser._id;

@@ -1,15 +1,15 @@
 "use client";
 
 import SettingsNotificationsScreen from "@/components/screens/SettingsNotificationsScreen";
-import { useNavigation } from "@/hooks/useNavigation";
+import { useAccountSettings } from "@/hooks/useAccountSettings";
 
 export default function SettingsNotificationsPage() {
-    const { navigate, goBack } = useNavigation();
+    const { notificationPreferences, setNotificationPreference } = useAccountSettings();
 
     return (
         <SettingsNotificationsScreen
-            navigate={navigate}
-            goBack={goBack}
+            notificationPreferences={notificationPreferences}
+            onChange={setNotificationPreference}
         />
     );
 }

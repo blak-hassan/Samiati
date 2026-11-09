@@ -5,36 +5,16 @@ import { useNavigation } from "@/hooks/useNavigation";
 import { useUser as useClerkUser, useClerk as useClerkAuth } from "@clerk/nextjs";
 import { useUser as useMockUser, useClerk as useMockClerk } from "@/app/MockProviders";
 import { isDemoMode } from "@/lib/appMode";
-import { useState, useSyncExternalStore, useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { Screen, User } from "@/types";
 
 const useUser = isDemoMode ? useMockUser : useClerkUser;
 const useClerk = isDemoMode ? useMockClerk : useClerkAuth;
 
-const emptySubscribe = () => () => {};
-
 export default function SettingsPage() {
-    const { navigate, goBack } = useNavigation();
+    const { navigate } = useNavigation();
     const { user: clerkUser, isLoaded } = useUser();
     const { signOut } = useClerk();
-    const [isDarkMode, setIsDarkMode] = useState(true);
-    const isHydrated = useSyncExternalStore(
-        emptySubscribe,
-        () => true,
-        () => false
-    );
-
-    const toggleTheme = () => setIsDarkMode(!isDarkMode);
-
-    useEffect(() => {
-        if (isHydrated) {
-            if (isDarkMode) {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
-        }
-    }, [isDarkMode, isHydrated]);
 
     const appUser: User = useMemo(() => clerkUser ? {
         name: clerkUser.fullName || "User",
@@ -50,20 +30,17 @@ export default function SettingsPage() {
         role: 'member',
     }, [clerkUser]);
 
-    if (!isHydrated || !isLoaded) {
+    if (!isLoaded) {
         return null;
     }
 
     return (
         <SettingsScreen
             navigate={navigate}
-            goBack={goBack}
             onSignOut={async () => {
                 await signOut();
                 navigate(Screen.WELCOME);
             }}
-            isDarkMode={isDarkMode}
-            toggleTheme={toggleTheme}
             user={appUser}
         />
     );

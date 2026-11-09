@@ -1,104 +1,137 @@
-﻿"use client";
+"use client";
 
-import React, { useState } from 'react';
-import { Screen } from '@/types';
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, ChevronRight, Eye, EyeOff, Ban, VolumeX, Database } from "lucide-react";
+import React from 'react';
+import { Ban, Database, Eye, EyeOff, Mic, ScrollText, VolumeX } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import SettingsRow from '@/components/settings/SettingsRow';
+import SettingsSection from '@/components/settings/SettingsSection';
+import SettingsShell from '@/components/settings/SettingsShell';
+import { PrivacyPreferences } from '@/lib/accountSettings';
 
 interface Props {
-  navigate: (screen: Screen) => void;
-  goBack: () => void;
+  privacy: PrivacyPreferences;
+  onChange: <K extends keyof PrivacyPreferences>(key: K, value: PrivacyPreferences[K]) => void;
+  onNavigate: (path: '/dashboard/settings/blocked' | '/dashboard/settings/muted' | '/dashboard/settings/data') => void;
+  mutedCount: number;
+  blockedCount: number;
 }
 
-const SettingsPrivacyScreen: React.FC<Props> = ({ navigate, goBack }) => {
-  const [privateAccount, setPrivateAccount] = useState(false);
-  const [onlineStatus, setOnlineStatus] = useState(true);
-  const [readReceipts, setReadReceipts] = useState(true);
-
+/**
+ * Privacy and safety settings.
+ *
+ * The four consent flags here are the same flags the profile screen writes,
+ * so the two screens now share one source of truth on the account rather
+ * than drifting apart. Muted words, blocked accounts and data settings are
+ * device-scoped and live in the settings store.
+ */
+const SettingsPrivacyScreen: React.FC<Props> = ({
+  privacy,
+  onChange,
+  onNavigate,
+  mutedCount,
+  blockedCount,
+}) => {
   return (
-    <div className="flex flex-col min-h-screen bg-background transition-colors duration-300">
-      <header className="flex items-center px-4 h-14 sticky top-0 bg-background/95 backdrop-blur-md z-30 border-b border-border/50">
-        <Button variant="ghost" size="icon" onClick={goBack} className="rounded-full" aria-label="Go back">
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <h1 className="text-lg font-bold text-foreground ml-2 tracking-tight">Privacy</h1>
-      </header>
+    <SettingsShell title="Privacy & Safety" activeSection="privacy">
+      <div className="space-y-8">
+        <SettingsSection title="Visibility" description="Who can see your profile">
+          <SettingsRow
+            id="privacy.profileVisible"
+            title="Public profile"
+            description="Let other people find and view your profile"
+            icon={<Eye className="w-5 h-5" />}
+            control={
+              <Switch
+                checked={privacy.profileVisible}
+                onCheckedChange={(checked) => onChange('profileVisible', checked)}
+                aria-label="Public profile"
+                className="data-[state=checked]:bg-primary"
+              />
+            }
+          />
+          <SettingsRow
+            id="privacy.showChanga"
+            title="Show Changa activity"
+            description="Show your contributions on your public profile"
+            icon={<EyeOff className="w-5 h-5" />}
+            control={
+              <Switch
+                checked={privacy.showChanga}
+                onCheckedChange={(checked) => onChange('showChanga', checked)}
+                aria-label="Show Changa activity"
+                className="data-[state=checked]:bg-primary"
+              />
+            }
+          />
+        </SettingsSection>
 
-      <main className="flex-1 overflow-y-auto p-4 space-y-6">
-        {/* Account Privacy */}
-        <div>
-          <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 ml-2">Account Privacy</h3>
-          <div className="bg-muted/20 rounded-2xl border border-border/50 overflow-hidden">
-            <div className="flex items-center justify-between p-4">
-              <div className="flex items-center gap-3">
-                <Eye className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <p className="font-medium text-foreground">Private Account</p>
-                  <p className="text-xs text-muted-foreground">Only approved followers can see your posts</p>
-                </div>
-              </div>
-              <Switch checked={privateAccount} onCheckedChange={setPrivateAccount} className="data-[state=checked]:bg-primary" />
-            </div>
-          </div>
-        </div>
+        <SettingsSection
+          title="Data consent"
+          description="Control how your contributions may be used"
+        >
+          <SettingsRow
+            id="privacy.voiceDataAllowed"
+            title="Voice data"
+            description="Allow your voice recordings to be used for model training"
+            icon={<Mic className="w-5 h-5" />}
+            control={
+              <Switch
+                checked={privacy.voiceDataAllowed}
+                onCheckedChange={(checked) => onChange('voiceDataAllowed', checked)}
+                aria-label="Voice data consent"
+                className="data-[state=checked]:bg-primary"
+              />
+            }
+          />
+          <SettingsRow
+            id="privacy.culturalDataAllowed"
+            title="Cultural data"
+            description="Allow your cultural contributions to improve the models"
+            icon={<ScrollText className="w-5 h-5" />}
+            control={
+              <Switch
+                checked={privacy.culturalDataAllowed}
+                onCheckedChange={(checked) => onChange('culturalDataAllowed', checked)}
+                aria-label="Cultural data consent"
+                className="data-[state=checked]:bg-primary"
+              />
+            }
+          />
+        </SettingsSection>
 
-        {/* Activity Status */}
-        <div>
-          <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 ml-2">Activity Status</h3>
-          <div className="bg-muted/20 rounded-2xl border border-border/50 overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-border/30">
-              <div className="flex items-center gap-3">
-                <Eye className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <p className="font-medium text-foreground">Show Online Status</p>
-                  <p className="text-xs text-muted-foreground">Let others see when you&apos;re active</p>
-                </div>
-              </div>
-              <Switch checked={onlineStatus} onCheckedChange={setOnlineStatus} className="data-[state=checked]:bg-primary" />
-            </div>
-            <div className="flex items-center justify-between p-4">
-              <div className="flex items-center gap-3">
-                <EyeOff className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <p className="font-medium text-foreground">Read Receipts</p>
-                  <p className="text-xs text-muted-foreground">Show when you&apos;ve read messages</p>
-                </div>
-              </div>
-              <Switch checked={readReceipts} onCheckedChange={setReadReceipts} className="data-[state=checked]:bg-primary" />
-            </div>
-          </div>
-        </div>
-
-        {/* Safety */}
-        <div>
-          <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 ml-2">Safety</h3>
-          <div className="bg-muted/20 rounded-2xl border border-border/50 overflow-hidden">
-            <button onClick={() => navigate(Screen.SETTINGS_BLOCKED)} className="w-full flex items-center justify-between p-4 hover:bg-muted/30 transition-colors border-b border-border/30 last:border-0 group">
-              <div className="flex items-center gap-3">
-                <Ban className="w-5 h-5 text-muted-foreground" />
-                <span className="font-medium text-foreground">Blocked Accounts</span>
-              </div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
-            </button>
-            <button onClick={() => navigate(Screen.SETTINGS_MUTED)} className="w-full flex items-center justify-between p-4 hover:bg-muted/30 transition-colors border-b border-border/30 last:border-0 group">
-              <div className="flex items-center gap-3">
-                <VolumeX className="w-5 h-5 text-muted-foreground" />
-                <span className="font-medium text-foreground">Muted Words</span>
-              </div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
-            </button>
-            <button onClick={() => navigate(Screen.SETTINGS_DATA)} className="w-full flex items-center justify-between p-4 hover:bg-muted/30 transition-colors last:border-0 group">
-              <div className="flex items-center gap-3">
-                <Database className="w-5 h-5 text-muted-foreground" />
-                <span className="font-medium text-foreground">Data Settings</span>
-              </div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
-            </button>
-          </div>
-        </div>
-      </main>
-    </div>
+        <SettingsSection title="Safety">
+          <SettingsRow
+            id="moderation.blockedUsers"
+            title="Blocked accounts"
+            description={
+              blockedCount > 0
+                ? `${blockedCount} account${blockedCount === 1 ? '' : 's'} blocked`
+                : 'People who can no longer see or contact you'
+            }
+            icon={<Ban className="w-5 h-5" />}
+            onClick={() => onNavigate('/dashboard/settings/blocked')}
+          />
+          <SettingsRow
+            id="moderation.mutedWords"
+            title="Muted words"
+            description={
+              mutedCount > 0
+                ? `${mutedCount} word${mutedCount === 1 ? '' : 's'} muted`
+                : 'Hide posts that contain words you mute'
+            }
+            icon={<VolumeX className="w-5 h-5" />}
+            onClick={() => onNavigate('/dashboard/settings/muted')}
+          />
+          <SettingsRow
+            id="section.data"
+            title="Data settings"
+            description="Data saver, media quality and exports"
+            icon={<Database className="w-5 h-5" />}
+            onClick={() => onNavigate('/dashboard/settings/data')}
+          />
+        </SettingsSection>
+      </div>
+    </SettingsShell>
   );
 };
 

@@ -1,13 +1,42 @@
 import { mutation, query, type MutationCtx } from "../_generated/server";
 import { v } from "convex/values";
+import type { GenericDatabaseReader } from "convex/server";
 import { getCurrentUser, isModerator } from "../users/utils";
 import { changaConsentScopeValidator } from "./validators";
-import type { Doc, Id } from "../_generated/dataModel";
+import { FALLBACK_CONSENT_POLICY_VERSION } from "./constants";
+import type { DataModel, Doc, Id } from "../_generated/dataModel";
 
-// Fallback policy version used when no published consent policy exists yet in
-// the changaConsentPolicies table. The published policy becomes authoritative
-// once a data steward publishes it.
-export const FALLBACK_CONSENT_POLICY_VERSION = "changa-pilot-v1";
+// Re-exported so existing imports keep working; the value itself now lives in
+// ./constants.ts so the browser client can share it without pulling in the
+// server-only module.
+export { FALLBACK_CONSENT_POLICY_VERSION };
+
+// Resolve the consent policy version that is currently authoritative.
+//
+// A published policy wins; until a data steward publishes one, the pilot
+// fallback applies. This is the single source of truth used to validate the
+// version a client claims to have agreed to — pinning the fallback here (as
+// this module previously did) made every newly published policy unusable.
+export async function getActiveConsentPolicyVersion(
+    db: GenericDatabaseReader<DataModel>,
+): Promise<string> {
+    const activePolicies = await db
+        .query("changaConsentPolicies")
+        .withIndex("by_isActive", (q) => q.eq("isActive", true))
+        .collect();
+
+    if (activePolicies.length === 0) {
+        return FALLBACK_CONSENT_POLICY_VERSION;
+    }
+
+    // Several policies may be marked active; the one that took effect last is
+    // the authoritative one.
+    const latest = activePolicies.reduce((current, candidate) =>
+        candidate.effectiveAt > current.effectiveAt ? candidate : current,
+    );
+
+    return latest.policyVersion;
+}
 
 // Plain helper used by the submission pipeline: persists a versioned consent
 // record for a submission without double-writing.
@@ -57,6 +86,15 @@ export const publishConsentPolicy = mutation({
             throw new Error("A consent policy with this version already exists");
         }
 
+        // Publishing a new policy retires the previous active one so exactly
+        // one policy version is authoritative at any time.
+        const previousActive = await ctx.db.query("changaConsentPolicies")
+            .withIndex("by_isActive", (q) => q.eq("isActive", true))
+            .collect();
+        await Promise.all(
+            previousActive.map((policy) => ctx.db.patch(policy._id, { isActive: false })),
+        );
+
         const policyId = await ctx.db.insert("changaConsentPolicies", {
             policyVersion: version,
             effectiveAt: args.effectiveAt ?? Date.now(),
@@ -76,11 +114,18 @@ export const publishConsentPolicy = mutation({
 export const getActiveConsentPolicy = query({
     args: {},
     handler: async (ctx) => {
-        const policy = await ctx.db.query("changaConsentPolicies")
+        const activePolicies = await ctx.db.query("changaConsentPolicies")
             .withIndex("by_isActive", (q) => q.eq("isActive", true))
-            .order("desc")
-            .first();
-        return policy ?? null;
+            .collect();
+
+        if (activePolicies.length === 0) return null;
+
+        // Several policies may be marked active; the one that took effect last
+        // is the authoritative one. The client renders this exact policy and
+        // echoes its version back on submission.
+        return activePolicies.reduce((current, candidate) =>
+            candidate.effectiveAt > current.effectiveAt ? candidate : current,
+        );
     },
 });
 

@@ -5,15 +5,19 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, Loader2 } from "lucide-react";
+import { useClerk } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import SamiatiLogo from "@/components/SamiatiLogo";
 import { forgotPasswordSchema, ForgotPasswordFormData } from "@/lib/schemas";
+import { isDemoMode } from "@/lib/appMode";
 
 export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const clerk = useClerk();
 
   const {
     register,
@@ -28,11 +32,18 @@ export default function ForgotPasswordPage() {
 
   const onSubmit = async (data: ForgotPasswordFormData) => {
     setIsLoading(true);
+    setError(null);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      if (isDemoMode) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      } else {
+        await clerk.openSignIn({
+          redirectUrl: "/sign-in",
+        });
+      }
       setIsSubmitted(true);
-    } catch {
-      // Clerk handles errors via their hosted flow
+    } catch (err) {
+      setError("Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -111,6 +122,10 @@ export default function ForgotPasswordPage() {
                 <p className="text-destructive text-xs font-medium">{errors.email.message}</p>
               )}
             </div>
+
+            {error && (
+              <p className="text-destructive text-xs font-medium">{error}</p>
+            )}
 
             <Button
               type="submit"

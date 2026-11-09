@@ -73,6 +73,21 @@ export default defineSchema({
         // Presence tracking
         lastSeen: v.optional(v.number()), // Timestamp of last activity
         isOnline: v.optional(v.boolean()), // Current online status
+        // Account flags
+        // Set from the Clerk identity's emailVerified claim only — never from
+        // a client-supplied value.
+        emailVerified: v.optional(v.boolean()),
+        // Null/absent = onboarding not completed yet.
+        onboardingCompleted: v.optional(v.boolean()),
+        // Per-user notification switches. Every switch is optional so a
+        // partially saved record is still valid.
+        notificationPreferences: v.optional(v.object({
+            pauseAll: v.optional(v.boolean()),
+            changa: v.optional(v.boolean()),
+            moderation: v.optional(v.boolean()),
+            sessions: v.optional(v.boolean()),
+            emailDigest: v.optional(v.boolean()),
+        })),
     })
         .index("by_clerkId", ["clerkId"])
         .index("by_handle", ["handle"])
@@ -131,10 +146,13 @@ export default defineSchema({
             endsAt: v.string(), // or number
         })),
         cw: v.optional(v.string()), // Content Warning
+        // Set when a post is edited so the feed can show an "edited" marker.
+        editedAt: v.optional(v.number()),
     })
         .index("by_timestamp", ["timestamp"])
         .index("by_community_timestamp", ["communityId", "timestamp"])
-        .index("by_fireplace_timestamp", ["isFireplace", "timestamp"]),
+        .index("by_fireplace_timestamp", ["isFireplace", "timestamp"])
+        .index("by_author", ["authorId"]),
 
     likes: defineTable({
         userId: v.id("users"),
@@ -889,12 +907,18 @@ curatedExampleId: v.optional(v.id("changaCuratedExamples")),
         ),
         language: v.optional(v.string()), // Target language at time of feedback
         originalText: v.optional(v.string()), // The AI response that was rated
+        // Short public reference the user can quote to support or a moderator.
+        // Derived from the document id, so it is stable for the life of the row.
+        code: v.optional(v.string()),
+        // Set once the correction has been sent to Changa for community review.
+        changaSubmissionId: v.optional(v.id("changaSubmissions")),
         timestamp: v.number(),
     })
         .index("by_user", ["userId"])
         .index("by_message", ["messageId"])
         .index("by_type", ["type"])
-        .index("by_context", ["contextType"]),
+        .index("by_context", ["contextType"])
+        .index("by_code", ["code"]),
 
     // Monthly usage counters per user
     usageTracking: defineTable({
@@ -907,4 +931,21 @@ curatedExampleId: v.optional(v.id("changaCuratedExamples")),
         voiceMinutes: v.number(),
     })
         .index("by_user_period", ["userId", "periodStart"]),
+
+    // Public waitlist — one-click join from the landing page.
+    waitlist: defineTable({
+        joinedVia: v.union(v.literal("clerk"), v.literal("guest")),
+        clerkId: v.optional(v.string()),
+        visitorId: v.optional(v.string()),
+        position: v.optional(v.number()),
+        joinedAt: v.number(),
+    })
+        .index("by_clerkId", ["clerkId"])
+        .index("by_visitorId", ["visitorId"]),
+
+    // Singleton row (key: "global") — O(1) live counter for the waitlist UI.
+    waitlistStats: defineTable({
+        key: v.string(),
+        count: v.number(),
+    }).index("by_key", ["key"]),
 });

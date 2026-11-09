@@ -1,9 +1,8 @@
 "use client";
 
 import { useAuth, useUser } from "@clerk/nextjs";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import { api } from "../../convex/_generated/api";
 
 const MAX_SYNC_RETRIES = 5;
@@ -12,8 +11,6 @@ export function UserSync() {
     const { userId, isLoaded } = useAuth();
     const { user: clerkUser } = useUser();
     const storeUser = useMutation(api.users.mutations.store);
-    const user = useQuery(api.users.queries.getProfile, {});
-    const router = useRouter();
     const hasSynced = useRef(false);
     const syncRetries = useRef(0);
 
@@ -26,8 +23,9 @@ export function UserSync() {
         const handle = clerkUser.username || `user_${userId.slice(-8)}`;
         const avatar = clerkUser.imageUrl || "https://api.dicebear.com/7.x/avataaars/svg?seed=" + userId;
         const email = clerkUser.emailAddresses?.[0]?.emailAddress;
-        const emailVerified = clerkUser.emailAddresses?.[0]?.verification?.status === "verified";
 
+        // `emailVerified` is intentionally not sent: the server derives it from
+        // the trusted Clerk identity claim, never from the client payload.
         storeUser({
             name,
             handle,
@@ -47,15 +45,9 @@ export function UserSync() {
         });
     }, [isLoaded, userId, clerkUser, storeUser]);
 
-    useEffect(() => {
-        if (!user || !isLoaded) return;
-        if (user.onboardingCompleted !== false) return;
-
-        const currentPath = window.location.pathname;
-        if (!currentPath.includes('/onboarding')) {
-            router.push('/dashboard/onboarding');
-        }
-    }, [user, isLoaded, router]);
+    // Note: the onboarding flag is written by the `completeOnboarding`
+    // mutation. There is no onboarding screen yet, so no redirect is issued
+    // here — pointing at a missing route would strand the user on a 404.
 
     return null;
 }

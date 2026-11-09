@@ -15,6 +15,13 @@ import {
   mapModerationStatusToContributionStatus,
   normalizeContributionItem,
 } from "@/lib/changaModeration";
+import {
+  MOCK_MY_CONTRIBUTIONS,
+  MOCK_BASE_MODERATION_ITEMS,
+  MOCK_USER_LANGUAGES,
+  MOCK_NOTIFICATIONS,
+  MOCK_CHALLENGES,
+} from "@/data/mockChangaData";
 
 interface MockUser {
   id: string;
@@ -92,11 +99,18 @@ function initializeGlobalState() {
   if (globalInitialized) return;
   globalInitialized = true;
 
-  globalLanguages = [];
-  globalMyContributions = loadStoredState<ContributionItem[]>(STORAGE_KEYS.contributions, []);
-  globalModerationItems = loadStoredState<ValidationItem[]>(STORAGE_KEYS.moderationItems, []);
-  globalNotifications = loadStoredState(STORAGE_KEYS.notifications, []);
-  globalChallenges = loadStoredState(STORAGE_KEYS.challenges, []);
+  globalLanguages = MOCK_USER_LANGUAGES;
+  const storedContributions = loadStoredState<ContributionItem[]>(STORAGE_KEYS.contributions, []);
+  globalMyContributions = storedContributions.length > 0 ? storedContributions : MOCK_MY_CONTRIBUTIONS;
+
+  const storedModeration = loadStoredState<ValidationItem[]>(STORAGE_KEYS.moderationItems, []);
+  globalModerationItems = storedModeration.length > 0 ? storedModeration : MOCK_BASE_MODERATION_ITEMS;
+
+  const storedNotifications = loadStoredState<NotificationItem[]>(STORAGE_KEYS.notifications, []);
+  globalNotifications = storedNotifications.length > 0 ? storedNotifications : MOCK_NOTIFICATIONS;
+
+  const storedChallenges = loadStoredState<Challenge[]>(STORAGE_KEYS.challenges, []);
+  globalChallenges = storedChallenges.length > 0 ? storedChallenges : MOCK_CHALLENGES;
 }
 
 export const ClerkProvider = ({ children }: { children: ReactNode }) => {

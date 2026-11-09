@@ -85,13 +85,31 @@ const LANGUAGE_MAP: Record<string, string> = {
     'kpo': 'Ikposo',
 };
 
-async function callSunflower(text: string, targetLang: string): Promise<string> {
+async function callSunflower(text: string, sourceLang: string, targetLang: string, modelUrl?: string): Promise<string> {
     const apiKey = process.env.HUGGINGFACE_API_KEY;
 
-    // Resolve the language name
+    // Resolve the language names
+    const sourceName = LANGUAGE_MAP[sourceLang] || sourceLang;
     const langName = LANGUAGE_MAP[targetLang] || targetLang;
 
-    console.log(`[Sunflower] Translating to ${langName}...`);
+    // Per-direction adapter routing (env override, fallback to base).
+    // Set in Convex Dashboard once adapters land:
+    //   SUNFLOWER_MT_KIK_URL    -> BlakHasan/sunflower-mt-kik (en->ki)
+    //   SUNFLOWER_MT_KIK_EN_URL -> BlakHasan/sunflower-mt-kik-en (ki->en)
+    const isKikPair =
+        (sourceLang === 'en' || sourceLang === 'eng_Latn') &&
+            (targetLang === 'ki' || targetLang === 'kik_Latn' || targetLang === 'kik') ||
+        (sourceLang === 'ki' || sourceLang === 'kik_Latn' || sourceLang === 'kik') &&
+            (targetLang === 'en' || targetLang === 'eng_Latn');
+    const kiEn = (sourceLang === 'ki' || sourceLang === 'kik_Latn' || sourceLang === 'kik');
+    const routedUrl = modelUrl ||
+        (isKikPair
+            ? (kiEn ? process.env.SUNFLOWER_MT_KIK_EN_URL : process.env.SUNFLOWER_MT_KIK_URL)
+            : undefined) ||
+        "https://router.huggingface.co/BlakHasan/Sunflower-Gemma4-E2B";
+    const modelId = routedUrl.replace(/\/+$/, '').split('/').pop() || "BlakHasan/Sunflower-Gemma4-E2B";
+
+    console.log(`[Sunflower] Translating ${sourceName} to ${langName} via ${modelId}...`);
 
     if (!apiKey) {
         console.error("HUGGINGFACE_API_KEY is not set!");
@@ -100,7 +118,7 @@ async function callSunflower(text: string, targetLang: string): Promise<string> 
 
     try {
         // Use router.huggingface.co for better reliability on free tier
-        const url = "https://router.huggingface.co/BlakHasan/Sunflower-Gemma4-E2B";
+        const url = routedUrl;
 
         const response = await fetch(url, {
             method: "POST",
@@ -109,7 +127,7 @@ async function callSunflower(text: string, targetLang: string): Promise<string> 
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                model: "BlakHasan/Sunflower-Gemma4-E2B",
+                model: modelId,
                 messages: [
                     {
                         role: "system",
@@ -117,7 +135,7 @@ async function callSunflower(text: string, targetLang: string): Promise<string> 
                     },
                     {
                         role: "user",
-                        content: `Translate from English to ${langName}: ${text}`
+                        content: `Translate from ${sourceName} to ${langName}: ${text}`
                     }
                 ],
                 max_tokens: 512,
@@ -170,6 +188,8 @@ export const translateText = action({
     args: {
         text: v.string(),
         targetLanguage: v.string(),
+        sourceLanguage: v.optional(v.string()),
+        modelUrl: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
         await requireAuthenticatedAction(ctx);
@@ -181,6 +201,7 @@ export const translateText = action({
         if (args.targetLanguage.length > 50) {
             return "ERROR: Invalid language code.";
         }
-        return await callSunflower(args.text, args.targetLanguage);
+        const sourceLanguage = args.sourceLanguage ?? "en";
+        return await callSunflower(args.text, sourceLanguage, args.targetLanguage, args.modelUrl);
     },
 });
