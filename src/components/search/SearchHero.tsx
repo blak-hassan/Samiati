@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { ArrowUp, FileText, Loader2, Mic, Paperclip, Square, X } from 'lucide-react';
+import { ArrowUp, FileText, Loader2, Mic, PlusCircle, Square, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LanguageSelector, type Language } from '@/components/chat/LanguageSelector';
 import { useSettings } from '@/hooks/useSettings';
@@ -72,8 +72,8 @@ export default function SearchHero({
     >
       <div
         className={cn(
-          'rounded-2xl border border-border bg-card p-3 shadow-sm transition-shadow duration-200 focus-within:ring-2 focus-within:ring-ring/60',
-          !compact && 'sm:p-4'
+          'rounded-[24px] border border-border/40 bg-background px-3 py-2 transition-shadow duration-200 focus-within:ring-1 focus-within:ring-primary/30',
+          !compact && 'sm:px-3.5 sm:py-3'
         )}
       >
         <label htmlFor={inputId} className="sr-only">
@@ -96,12 +96,10 @@ export default function SearchHero({
             }
           }}
           aria-describedby={hintId}
-          placeholder={
-            selectedLanguage ? `Ask anything in ${selectedLanguage.name}…` : 'Ask anything…'
-          }
+          placeholder={selectedLanguage?.code === 'sw' ? 'Andika au ongea…' : 'Type or Speak…'}
           maxLength={5000}
-          rows={compact ? 1 : 2}
-          className="max-h-[200px] min-h-12 w-full resize-none overflow-y-auto bg-transparent px-1 py-2 text-base leading-relaxed text-foreground outline-none placeholder:text-muted-foreground [overflow-wrap:anywhere]"
+          rows={1}
+          className="max-h-[200px] min-h-8 w-full resize-none overflow-y-auto bg-transparent py-1 text-base leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/70 [overflow-wrap:anywhere]"
         />
         {attachments.length > 0 && (
           <ul className="mb-2 flex flex-wrap gap-2" aria-label="Attached documents">
@@ -144,13 +142,13 @@ export default function SearchHero({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="size-11 rounded-xl text-muted-foreground"
+                className="size-9 rounded-full text-muted-foreground"
                 aria-label="Attach a text document (up to 2 MB)"
                 title="Attach a text document"
                 onClick={onAttachDocument}
                 disabled={busy}
               >
-                <Paperclip className="size-4" />
+                <PlusCircle className="size-4" />
               </Button>
             )}
             {onVoiceInput && (
@@ -159,7 +157,7 @@ export default function SearchHero({
                 variant="ghost"
                 size="icon"
                 className={cn(
-                  'size-11 rounded-xl text-muted-foreground',
+                  'size-9 rounded-full bg-muted/50 text-muted-foreground',
                   isRecording && 'text-destructive'
                 )}
                 disabled={Boolean(voiceDisabledReason) || isSearching || isTranscribing}
@@ -181,7 +179,7 @@ export default function SearchHero({
             <Button
               type="submit"
               size="icon"
-              className="size-11 rounded-xl"
+              className="size-9 rounded-full bg-primary text-white disabled:bg-muted disabled:text-muted-foreground"
               disabled={!query.trim() || busy}
               aria-label={isSearching ? 'Waiting for Samiati' : 'Send message'}
             >
@@ -196,7 +194,10 @@ export default function SearchHero({
       </div>
       <p
         id={hintId}
-        className="mt-2 px-1 text-center text-xs leading-relaxed text-muted-foreground"
+        className={cn(
+          'text-center text-xs leading-relaxed text-muted-foreground',
+          isRecording || isTranscribing ? 'mt-2' : 'sr-only'
+        )}
       >
         {isRecording
           ? 'Recording your microphone. Tap stop when you are ready.'

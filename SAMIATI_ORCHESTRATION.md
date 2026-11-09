@@ -46,16 +46,18 @@ Flow: Queued -> Ready -> Working -> Review -> Done. A blocked item names its dep
 | ORCH-001 | Lead | Create roster, shared ownership and briefs | Done | This file and `plans/orchestration/*` |
 | BASE-001 | Lead | Record fresh tests, lint, format, typecheck and build baseline | Done | Fresh results below; pre-existing limitations recorded |
 | QA-001 | QA & Review | Read-only review of actual user journeys and browser test readiness | Done | Five source-confirmed UI defects; preview navigate/snapshot timeouts; `plans/orchestration/reports/QA-001.md` |
-| UI-FIX-001 | Lead / feature owners | Correct feedback promotion, review advancement, Recent history, guest handoff and invalid checkout plan | Review | 116 tests, typecheck and build pass; targeted lint zero errors; `plans/orchestration/reports/UI-FIX-001.md` |
+| UI-FIX-001 | Lead / feature owners | Correct feedback promotion, review advancement, Recent history, guest handoff and invalid checkout plan | Working | REVIEW-001 requests stable active review identity and all explicit sign-in drafts; parent correcting; earlier 116-test/build evidence predates these corrections |
 | SEC-001 | Account & Settings / backend review | Read-only authorization, ownership and consent audit | Done | Five confirmed source findings; `plans/orchestration/reports/SEC-001.md`; deployed behavior untested |
 | SNAP-001 | Lead | Prepare reviewed local application checkpoint for worktrees | Done | Commit `f5d971b6cdbafe8ac2d5ec168880056e75ef8c86`, branch `work/samiati-orchestration-20261109`; main preserved; no datasets, notebooks, caches or credential files staged |
-| SEC-FIX-001 | Account & Settings | Protect billing/usage access and prevent handle collisions | Review | Candidate `90a53d5d13ac190bab4e3b2b1d89f776a395a8d3`; 47 new handler tests; `plans/orchestration/reports/SEC-FIX-001.md` |
-| SEC-FIX-002 | Changa & Feedback | Enforce submission provenance/consent and revoke future release eligibility | Working | SEC-001 findings 2 and 3; isolated worktree; `plans/orchestration/changa-consent-fixes.md` |
+| SEC-FIX-001 | Account & Settings | Protect billing/usage access and prevent handle collisions | Review | Independently accepted and cherry-picked as `0867013069df9b8abf7b24cb0dd2ff99149eb7ab`; integrated tests pending |
+| SEC-FIX-002 | Changa & Feedback | Enforce submission provenance/consent and revoke future release eligibility | Working | REVIEW-002 requests actual worker eligibility and curation-prefix fixes; parent correcting candidate in its existing worktree before integration |
+| REVIEW-002 | QA & Review | Review completed Changa consent and revocation candidate | Done | Two objections; `plans/orchestration/reports/REVIEW-002.md`; acceptance held |
+| SEC-DESIGN-003 | Upload design | Specify a trusted recording upload ownership contract | Working | Read-only design; implementation waits for SEC-FIX-002 integration; run below |
 | SEC-FIX-003 | Changa upload owner | Bind stored recordings to authenticated uploader/submission | Queued | SEC-FIX-002; trusted upload design and schema/API coordination before implementation |
 | TOOL-001 | Lead / tooling | Keep full lint from scanning nested agent worktrees and bundled skill scripts | Queued | Full lint reached `.kilo/worktrees/*` and `.github/skills/*`; review ignore boundaries before changing config |
 | STYLE-001 | Assigned when scheduled | Address existing formatting drift in small batches | Queued | Format check reports 222 files; avoid mixing broad formatting into feature work |
 | FIX-001 | Assigned after audit | Small verified defect fixes | Queued | Findings reviewed; intended code baseline prepared; exact file ownership assigned |
-| REVIEW-001 | QA & Review | Independent review of completed fixes | Queued | Completed implementation diff and acceptance evidence |
+| REVIEW-001 | QA & Review | Independent review of UI-FIX-001 and SEC-FIX-001 | Done | Account accepted; two UI objections; `plans/orchestration/reports/REVIEW-001.md` |
 | INT-001 | Lead | Integrate sequentially and rerun affected checks | Queued | Independent review complete |
 
 ## Baseline
@@ -92,6 +94,21 @@ The local production server from unified exec session `9789` was stopped after Q
   - State at launch: running; isolated worktree from local checkpoint `f5d971b`.
 
 The SEC-001 audit is complete. Parent source review confirmed the initial security assignments; no fix is integrated or deployed yet. SEC-FIX-003 remains queued behind the shared Changa submission changes. Untracked training data, notebooks, caches, earlier gates and unrelated scripts remain in the original checkout.
+
+- REVIEW-001: <t3-thread://v2/e200690b-4a5a-4db7-94de-4bd2418dc7e3/thread:delegated-task:command%3Amcp%3Aa57b702e-d0c4-429a-9714-b91c49c1e125%3Adelegate-task%3Asamiati-orchestration-20261109-review-001-v1>
+  - Task ID: `node:delegated-task:command%3Amcp%3Aa57b702e-d0c4-429a-9714-b91c49c1e125%3Adelegate-task%3Asamiati-orchestration-20261109-review-001-v1`
+  - State at launch: running, read-only review of completed UI and account candidates. No browser/service correctness claim.
+
+UI-FIX-001 is committed locally at `c90adad812e49cb65f28cc910ea50c977118a576` with 116 tests, typecheck and production build passing. SEC-FIX-001 awaits independent acceptance and cherry-pick. Changa consent work remains in its separate worktree.
+
+- REVIEW-002: <t3-thread://v2/e200690b-4a5a-4db7-94de-4bd2418dc7e3/thread:delegated-task:command%3Amcp%3Aa57b702e-d0c4-429a-9714-b91c49c1e125%3Adelegate-task%3Asamiati-orchestration-20261109-review-002-v1>
+  - Task ID: `node:delegated-task:command%3Amcp%3Aa57b702e-d0c4-429a-9714-b91c49c1e125%3Adelegate-task%3Asamiati-orchestration-20261109-review-002-v1`
+  - State at launch: running, read-only; no application writes.
+- SEC-DESIGN-003: <t3-thread://v2/e200690b-4a5a-4db7-94de-4bd2418dc7e3/thread:delegated-task:command%3Amcp%3Aa57b702e-d0c4-429a-9714-b91c49c1e125%3Adelegate-task%3Asamiati-orchestration-20261109-sec-design-003-v1>
+  - Task ID: `node:delegated-task:command%3Amcp%3Aa57b702e-d0c4-429a-9714-b91c49c1e125%3Adelegate-task%3Asamiati-orchestration-20261109-sec-design-003-v1`
+  - State at launch: running, read-only; no application writes.
+
+SEC-FIX-002 completed with 53 new handler tests (155 total on its baseline), typecheck and targeted lint passing. Both security candidates remain unintegrated pending independent review. Upload ownership design proceeds read-only while reviews run; no historical data migration or external release is authorized by these tasks.
 
 ## Adding an assignment
 

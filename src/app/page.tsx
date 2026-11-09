@@ -1,5 +1,5 @@
-import { LandingExperience } from '@/components/public/LandingExperience';
+import { redirect } from 'next/navigation';
 
 export default function Home() {
-  return <LandingExperience />;
+  redirect('/dashboard');
 }

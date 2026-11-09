@@ -55,8 +55,11 @@ export function changaCampaignTaskLabel(taskType: string | undefined): string {
 export function nextUnreviewedSubmission<T extends { _id: string }>(
     queue: readonly T[] | undefined,
     reviewedIds: ReadonlySet<string>,
+    activeId: string | null = null,
 ): T | undefined {
-    return queue?.find((submission) => !reviewedIds.has(submission._id));
+    const eligible = (submission: T) => !reviewedIds.has(submission._id);
+    return queue?.find((submission) => submission._id === activeId && eligible(submission))
+        ?? queue?.find(eligible);
 }
 
 /** The languages the quick-contribute flow offers today. */

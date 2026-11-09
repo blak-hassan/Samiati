@@ -7,12 +7,11 @@ import { api } from '../../../convex/_generated/api';
 import { Screen } from '@/types';
 import { Button } from '@/components/ui/button';
 import { DiscoverCard } from '@/components/discover/DiscoverCard';
-import { PageIntro } from '@/components/product/PageIntro';
-import { ProductNav } from '@/components/product/ProductNav';
 import { ServiceUnavailable } from '@/components/shared/ServiceUnavailable';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
   Bookmark,
+  ArrowLeft,
   Compass,
   Globe,
   MapPin,
@@ -30,7 +29,7 @@ interface DiscoverScreenProps {
 }
 
 const CATEGORIES = [
-  { id: 'for_you', label: 'All stories', icon: Compass },
+  { id: 'for_you', label: 'For You', icon: Compass },
   { id: 'kenya', label: 'Kenya', icon: MapPin },
   { id: 'africa', label: 'Africa', icon: Globe },
   { id: 'tech', label: 'Technology', icon: Cpu },
@@ -51,7 +50,13 @@ export function DiscoverScreen(props: DiscoverScreenProps) {
     );
   }
   return (
-    <Suspense fallback={<p role="status" className="p-8 text-muted-foreground">Loading Discover…</p>}>
+    <Suspense
+      fallback={
+        <p role="status" className="p-8 text-muted-foreground">
+          Loading Discover…
+        </p>
+      }
+    >
       <LiveDiscoverScreen {...props} />
     </Suspense>
   );
@@ -60,7 +65,8 @@ export function DiscoverScreen(props: DiscoverScreenProps) {
 function LiveDiscoverScreen({ navigate }: DiscoverScreenProps) {
   const searchParams = useSearchParams();
   const [chosenCategory, setActiveCategory] = useState<string | null>(null);
-  const activeCategory = chosenCategory ?? (searchParams.get('view') === 'saved' ? 'saved' : 'for_you');
+  const activeCategory =
+    chosenCategory ?? (searchParams.get('view') === 'saved' ? 'saved' : 'for_you');
   const { isGuest } = useCurrentUser();
   const feed = useQuery(api.discover.feed.getFeed, {
     category: activeCategory === 'saved' ? 'for_you' : activeCategory,
@@ -87,19 +93,22 @@ function LiveDiscoverScreen({ navigate }: DiscoverScreenProps) {
   };
 
   return (
-    <div className="min-h-dvh bg-background pb-24 md:pb-8">
-      <ProductNav active="discover" />
-      <main
-        id="main-content"
-        tabIndex={-1}
-        className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12"
-      >
-        <PageIntro
-          eyebrow="A wider world"
-          title="Follow your curiosity."
-          description="Ideas, culture, and conversations from across Africa and beyond. Read a summary, then explore it in your language."
-        />
-        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-y border-border py-3">
+    <div className="flex min-h-dvh flex-col bg-background">
+      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border/50 bg-background/95 px-4 backdrop-blur-md">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="rounded-full"
+          onClick={() => navigate(Screen.HOME_CHAT)}
+          aria-label="Back to chat"
+        >
+          <ArrowLeft className="size-5" />
+        </Button>
+        <Compass className="size-5 text-primary" aria-hidden="true" />
+        <h1 className="text-base font-bold tracking-tight">Discover</h1>
+      </header>
+      <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-4xl flex-1 px-4 pb-8">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 py-3">
           <nav aria-label="Story categories" className="flex max-w-full gap-1 overflow-x-auto pb-1">
             {CATEGORIES.map(({ id, label, icon: Icon }) => (
               <button
@@ -108,10 +117,10 @@ function LiveDiscoverScreen({ navigate }: DiscoverScreenProps) {
                 aria-pressed={activeCategory === id}
                 onClick={() => setActiveCategory(id)}
                 className={cn(
-                  'inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl px-3 text-sm font-medium transition-colors',
+                  'inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-bold transition-colors',
                   activeCategory === id
-                    ? 'bg-secondary text-foreground'
-                    : 'text-muted-foreground hover:bg-card hover:text-foreground'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
                 )}
               >
                 <Icon className="size-4" aria-hidden="true" />
@@ -167,7 +176,7 @@ function LiveDiscoverScreen({ navigate }: DiscoverScreenProps) {
           </div>
         ) : (
           <section
-            className="mt-8 grid min-w-0 gap-5 md:grid-cols-2 lg:grid-cols-3"
+            className="mt-4 min-w-0 space-y-3"
             aria-label={activeCategory === 'saved' ? 'Saved stories' : 'Latest stories'}
           >
             {stories.map((topic, index) => (

@@ -4,8 +4,6 @@ import { useState, useMemo } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { localConversationService } from '@/services/localConversationService';
-import { PageIntro } from '@/components/product/PageIntro';
-import { ProductNav } from '@/components/product/ProductNav';
 import { ServiceUnavailable } from '@/components/shared/ServiceUnavailable';
 import { Button } from '@/components/ui/button';
 import {
@@ -93,22 +91,20 @@ function LiveMilestones({ goBack }: Props) {
   );
 
   return (
-    <div className="min-h-dvh bg-background pb-24 md:pb-8">
-      <ProductNav active="profile" />
-      <main
-        id="main-content"
-        tabIndex={-1}
-        className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12"
-      >
-        <Button variant="ghost" onClick={goBack} className="-ml-3 min-h-11 gap-2">
-          <ArrowLeft className="size-4" />
-          Back
+    <div className="min-h-dvh bg-background pb-8">
+      <header className="sticky top-0 z-30 flex h-14 items-center border-b border-border/50 bg-background/95 px-4 backdrop-blur-md">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={goBack}
+          className="rounded-full"
+          aria-label="Go back"
+        >
+          <ArrowLeft className="size-5" />
         </Button>
-        <PageIntro
-          eyebrow="Made meaningful"
-          title="Small acts. Lasting impact."
-          description="Recognition for the things you have helped make possible. Contribute thoughtfully, whenever it suits you."
-        />
+        <h1 className="ml-2 text-lg font-bold tracking-tight">Achievements</h1>
+      </header>
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-3xl px-4 py-4 sm:px-6">
         <div className="mb-6 flex flex-wrap gap-2" role="group" aria-label="Filter milestones">
           {(['All', 'Recognized', 'In progress'] as const).map((item) => (
             <Button
@@ -135,19 +131,19 @@ function LiveMilestones({ goBack }: Props) {
             No milestones in this view yet. Your next contribution can start whenever you are ready.
           </p>
         ) : (
-          <section className="grid gap-4 sm:grid-cols-2" aria-label="Your milestones">
+          <section className="grid gap-3 sm:grid-cols-2" aria-label="Your milestones">
             {shown.map(({ title, description, icon: Icon, count, goal }) => {
               const recognized = count >= goal;
               return (
                 <article
                   key={title}
                   className={cn(
-                    'rounded-2xl border border-border bg-card p-6',
-                    recognized && 'border-ai/40'
+                    'rounded-xl border border-border/50 bg-muted/20 p-4',
+                    recognized && 'border-primary/40'
                   )}
                 >
                   <div className="mb-5 flex items-center justify-between gap-2">
-                    <Icon className="size-6 text-ai" aria-hidden="true" />
+                    <Icon className="size-6 text-primary" aria-hidden="true" />
                     {recognized ? (
                       <span className="inline-flex items-center gap-1.5 text-xs text-success">
                         <CheckCircle2 className="size-4" />

@@ -1,7 +1,5 @@
 import Link from 'next/link';
-import { ArrowUpRight, PlugZap } from 'lucide-react';
-import { ProductNav } from '@/components/product/ProductNav';
-import { PageIntro } from '@/components/product/PageIntro';
+import { ArrowLeft, ArrowUpRight, PlugZap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface ServiceUnavailableProps {
@@ -11,15 +9,22 @@ interface ServiceUnavailableProps {
 }
 
 /** Keeps a local preview useful without inventing live account activity. */
-export function ServiceUnavailable({ feature, description, active }: ServiceUnavailableProps) {
+export function ServiceUnavailable({ feature, description }: ServiceUnavailableProps) {
   return (
-    <div className="min-h-dvh bg-background pb-24">
-      <ProductNav active={active} />
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
-        <PageIntro eyebrow="Samiati" title={feature} description={description} />
-        <section className="mt-10 rounded-2xl border border-border bg-card p-6 sm:p-10">
-          <PlugZap className="mb-5 size-8 text-ai" aria-hidden="true" />
-          <h2 className="text-xl font-semibold">This workspace is not connected yet.</h2>
+    <div className="min-h-dvh bg-background pb-8">
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border/50 bg-background/95 px-4 backdrop-blur-md">
+        <Button asChild variant="ghost" size="icon" className="rounded-full">
+          <Link href="/dashboard" aria-label="Back to chat">
+            <ArrowLeft className="size-5" />
+          </Link>
+        </Button>
+        <h1 className="font-display text-lg font-bold tracking-tight">{feature}</h1>
+      </header>
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
+        <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
+        <section className="mt-5 rounded-2xl border border-border/50 bg-muted/20 p-5">
+          <PlugZap className="mb-4 size-7 text-primary" aria-hidden="true" />
+          <h2 className="font-display text-lg font-bold">This workspace is not connected yet.</h2>
           <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">
             This view needs a connected service. No activity, recordings, or contributions are being
             simulated. You can still explore Samiati and change your appearance preferences.

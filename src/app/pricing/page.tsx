@@ -1,8 +1,6 @@
 ﻿import Link from 'next/link';
 import { ArrowLeft, ArrowUpRight, Check, Sparkles } from 'lucide-react';
-import { Brand } from '@/components/product/Brand';
-import { PageIntro } from '@/components/product/PageIntro';
-import { ThemeToggle } from '@/components/product/ThemeToggle';
+import SamiatiLogo from '@/components/SamiatiLogo';
 import { Button } from '@/components/ui/button';
 import { PROPOSED_PLANS } from '@/lib/pricing';
 import { cn } from '@/lib/utils';
@@ -10,47 +8,28 @@ import { cn } from '@/lib/utils';
 export default function PricingPage() {
   return (
     <div className="min-h-dvh bg-background text-foreground">
-      <header className="border-b border-border">
-        <div className="mx-auto flex min-h-18 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6">
-          <Brand />
-          <div className="flex items-center gap-2">
-            <Button asChild variant="ghost" className="hidden min-h-11 sm:inline-flex">
-              <Link href="/languages">Explore languages</Link>
-            </Button>
-            <ThemeToggle />
-            <Button asChild className="min-h-11">
-              <Link href="/dashboard">
-                Start chatting
-                <ArrowUpRight className="size-4" />
-              </Link>
-            </Button>
-          </div>
+      <header className="sticky top-0 z-30 border-b border-border/50 bg-background/95 backdrop-blur-md">
+        <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-4">
+          <Button asChild variant="ghost" size="icon" className="rounded-full">
+            <Link href="/dashboard" aria-label="Back to chat">
+              <ArrowLeft className="size-5" />
+            </Link>
+          </Button>
+          <h1 className="font-display text-lg font-bold tracking-tight">Samiati+</h1>
+          <Link href="/dashboard" className="ml-auto" aria-label="Samiati home">
+            <SamiatiLogo size={32} />
+          </Link>
         </div>
       </header>
-      <main
-        id="main-content"
-        tabIndex={-1}
-        className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12"
-      >
-        <Button asChild variant="ghost" className="-ml-3 min-h-11 gap-2 text-muted-foreground">
-          <Link href="/">
-            <ArrowLeft className="size-4" />
-            Back to Samiati
-          </Link>
-        </Button>
-        <PageIntro
-          eyebrow="Room to grow"
-          title={
-            <>
-              Everyday curiosity.
-              <br />
-              <span className="text-primary">Every possibility.</span>
-            </>
-          }
-          description="A starting point for every voice, with room for the things you want to make."
-        />
-        <div className="mb-8 flex items-start gap-3 rounded-2xl border border-ai/40 bg-ai/5 p-5 text-sm leading-relaxed">
-          <Sparkles className="mt-0.5 size-5 shrink-0 text-ai" />
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+        <div className="mb-6">
+          <h2 className="font-display text-2xl font-bold tracking-tight">Samiati plans</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Compare proposed plans and manage your subscription.
+          </p>
+        </div>
+        <div className="mb-6 flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm leading-relaxed">
+          <Sparkles className="mt-0.5 size-5 shrink-0 text-primary" />
           <p>
             <strong className="font-semibold">Proposed pricing.</strong> These plans are being
             developed. Prices, availability, and included features will be confirmed before
@@ -65,7 +44,7 @@ export default function PricingPage() {
             <article
               key={plan.id}
               className={cn(
-                'relative flex min-w-0 flex-col rounded-2xl border border-border bg-card p-6',
+                'relative flex min-w-0 flex-col rounded-2xl border border-border/50 bg-muted/20 p-5',
                 plan.highlighted && 'border-primary'
               )}
             >
@@ -74,7 +53,7 @@ export default function PricingPage() {
                   For everyday exploration
                 </span>
               )}
-              <h2 className="text-lg font-semibold">{plan.name}</h2>
+              <h2 className="font-display text-lg font-bold">{plan.name}</h2>
               <div className="my-5 flex flex-wrap items-baseline gap-1.5">
                 <p className="text-4xl font-semibold tracking-tight">{plan.price}</p>
                 {plan.interval && (
@@ -107,11 +86,11 @@ export default function PricingPage() {
           ))}
         </section>
         <section
-          className="mx-auto mt-20 max-w-3xl border-t border-border pt-10"
+          className="mx-auto mt-10 max-w-3xl border-t border-border/50 pt-6"
           aria-labelledby="pricing-questions"
         >
-          <h2 id="pricing-questions" className="font-editorial text-4xl">
-            A few things to know.
+          <h2 id="pricing-questions" className="font-display text-xl font-bold">
+            Plan questions
           </h2>
           <div className="mt-6 divide-y divide-border">
             {[
@@ -149,8 +128,8 @@ export default function PricingPage() {
         </section>
       </main>
       <footer className="mt-12 border-t border-border">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-8 text-xs text-muted-foreground sm:px-6">
-          <span>Samiati · Your language. Every possibility.</span>
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-5 text-xs text-muted-foreground sm:px-6">
+          <span>Samiati · Experience Your Culture</span>
           <div className="flex flex-wrap gap-5">
             <Link href="/privacy-policy" className="underline underline-offset-4">
               Privacy

@@ -1,6 +1,5 @@
 'use client';
 
-import { ChangaShell } from './ChangaShell';
 import { ServiceUnavailable } from '@/components/shared/ServiceUnavailable';
 
 import { useQuery } from 'convex/react';
@@ -27,32 +26,32 @@ const STATUS_META: Record<string, { label: string; icon: typeof Clock3; classNam
   draft: {
     label: 'Draft saved',
     icon: PencilLine,
-    className: 'bg-warning/10 text-warning  ',
+    className: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300  ',
   },
   submitted: {
     label: 'Quality checks',
     icon: Loader2,
-    className: 'bg-ai/10 text-ai  ',
+    className: 'bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300  ',
   },
   in_validation: {
     label: 'Community review',
     icon: Clock3,
-    className: 'bg-ai/10 text-ai  ',
+    className: 'bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300  ',
   },
   validated: {
     label: 'Accepted',
     icon: CheckCircle2,
-    className: 'bg-success/10 text-success  ',
+    className: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300  ',
   },
   curated: {
     label: 'Accepted',
     icon: CheckCircle2,
-    className: 'bg-success/10 text-success  ',
+    className: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300  ',
   },
   needs_fix: {
     label: 'Needs a fix',
     icon: MessageSquareWarning,
-    className: 'bg-warning/10 text-warning  ',
+    className: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300  ',
   },
   rejected: {
     label: 'Not accepted',
@@ -110,8 +109,8 @@ function LiveMyChangaActivity({ navigate, goBack }: MyChangaActivityProps) {
   const draftCount = (submissions ?? []).filter((sub) => sub.status === 'draft').length;
 
   return (
-    <ChangaShell>
-      <div className="mx-auto max-w-3xl space-y-5">
+    <main id="main-content" tabIndex={-1} className="min-h-screen bg-background px-4 py-6 sm:py-10">
+      <div className="mx-auto max-w-xl space-y-5">
         <div className="flex items-center justify-between">
           <button
             onClick={goBack}
@@ -139,29 +138,35 @@ function LiveMyChangaActivity({ navigate, goBack }: MyChangaActivityProps) {
           <Card className="grid grid-cols-2 divide-x divide-border p-4 text-center sm:grid-cols-4">
             <div className="space-y-1">
               <div className="flex items-center justify-center gap-1">
-                <Flame className="size-4 text-warning" />
-                <p className="text-lg font-bold text-warning ">{userStats.streakDays}</p>
+                <Flame className="size-4 text-amber-700 dark:text-amber-300" />
+                <p className="text-lg font-bold text-amber-700 dark:text-amber-300 ">
+                  {userStats.streakDays}
+                </p>
               </div>
               <p className="text-xs text-muted-foreground">Day streak</p>
             </div>
             <div className="space-y-1">
               <div className="flex items-center justify-center gap-1">
-                <Star className="size-4 text-ai" />
-                <p className="text-lg font-bold text-ai ">{userStats.trustScore}</p>
+                <Star className="size-4 text-violet-700 dark:text-violet-300" />
+                <p className="text-lg font-bold text-violet-700 dark:text-violet-300 ">
+                  {userStats.trustScore}
+                </p>
               </div>
               <p className="text-xs text-muted-foreground">Trust score</p>
             </div>
             <div className="space-y-1">
               <div className="flex items-center justify-center gap-1">
-                <Trophy className="size-4 text-success" />
-                <p className="text-lg font-bold text-success ">{userStats.contributionCount}</p>
+                <Trophy className="size-4 text-emerald-700 dark:text-emerald-300" />
+                <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300 ">
+                  {userStats.contributionCount}
+                </p>
               </div>
               <p className="text-xs text-muted-foreground">Contributions</p>
             </div>
             <div className="space-y-1">
               <div className="flex items-center justify-center gap-1">
-                <CheckCircle2 className="size-4 text-ai" />
-                <p className="text-lg font-bold text-ai ">
+                <CheckCircle2 className="size-4 text-violet-700 dark:text-violet-300" />
+                <p className="text-lg font-bold text-violet-700 dark:text-violet-300 ">
                   {Math.round(userStats.acceptRate * 100)}%
                 </p>
               </div>
@@ -178,7 +183,7 @@ function LiveMyChangaActivity({ navigate, goBack }: MyChangaActivityProps) {
               {userStats.badges.map((badge) => (
                 <span
                   key={badge}
-                  className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2.5 py-1 text-xs font-medium text-warning  "
+                  className="inline-flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-900/40 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300  "
                 >
                   <Trophy className="size-3" />
                   {badge}
@@ -209,15 +214,19 @@ function LiveMyChangaActivity({ navigate, goBack }: MyChangaActivityProps) {
         {(acceptedCount > 0 || inReviewCount > 0 || draftCount > 0) && (
           <Card className="grid grid-cols-3 divide-x divide-border p-4 text-center">
             <div>
-              <p className="text-lg font-bold text-success ">{acceptedCount}</p>
+              <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300 ">
+                {acceptedCount}
+              </p>
               <p className="text-xs text-muted-foreground">Accepted</p>
             </div>
             <div>
-              <p className="text-lg font-bold text-ai ">{inReviewCount}</p>
+              <p className="text-lg font-bold text-violet-700 dark:text-violet-300 ">
+                {inReviewCount}
+              </p>
               <p className="text-xs text-muted-foreground">In review</p>
             </div>
             <div>
-              <p className="text-lg font-bold text-warning ">{draftCount}</p>
+              <p className="text-lg font-bold text-amber-700 dark:text-amber-300 ">{draftCount}</p>
               <p className="text-xs text-muted-foreground">Drafts</p>
             </div>
           </Card>
@@ -285,6 +294,6 @@ function LiveMyChangaActivity({ navigate, goBack }: MyChangaActivityProps) {
           </ul>
         )}
       </div>
-    </ChangaShell>
+    </main>
   );
 }

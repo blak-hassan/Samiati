@@ -1,30 +1,12 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Analytics } from '@vercel/analytics/react';
-import localFont from 'next/font/local';
 import SettingsApplier from '@/components/settings/SettingsApplier';
-
-const manrope = localFont({
-  src: './fonts/Manrope-Variable.ttf',
-  variable: '--font-manrope',
-  display: 'swap',
-  weight: '200 800',
-  fallback: ['Arial', 'sans-serif'],
-});
-
-const instrumentSerif = localFont({
-  src: [
-    { path: './fonts/InstrumentSerif-Regular.ttf', weight: '400', style: 'normal' },
-    { path: './fonts/InstrumentSerif-Italic.ttf', weight: '400', style: 'italic' },
-  ],
-  variable: '--font-instrument-serif',
-  display: 'swap',
-  fallback: ['Georgia', 'serif'],
-});
 
 export const metadata: Metadata = {
   title: 'Samiati',
   description: 'Ask, explore, and create with AI in the language you call home.',
+  icons: { icon: '/samiati-logo.svg' },
 };
 
 // Resize the layout viewport when the on-screen keyboard opens so the
@@ -45,13 +27,17 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`dark ${manrope.variable} ${instrumentSerif.variable}`}
+      className="dark"
       suppressHydrationWarning
       style={{ viewTransitionName: 'root' }}
     >
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700&family=Lexend:wght@400;500;600;700&display=swap"
+        />
         {/* Material Symbols: non-render-blocking (swap-in after load) */}
         <link
           rel="preload"

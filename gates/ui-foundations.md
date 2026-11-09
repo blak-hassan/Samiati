@@ -1,0 +1,8 @@
+# Gates: design foundations
+
+- [x] G1: Both semantic themes, typography and motion/focus rules implemented; legacy preferences preserved.
+  EVIDENCE: src/app/globals.css defines paired brown/cream themes, AI/status/focus tokens, legacy aliases, accessible accent pairs, system and saved reduced-motion rules, safe wrapping and root rem text scaling. src/hooks/useSettings.ts retains existing storage and preference effects; SettingsApplier is mounted at root. Three self-hosted local font files are loaded with next/font/local and swap.
+- [x] G2: Shared components and truthful product language catalogue implement PLAN.md contract.
+  EVIDENCE: src/components/product/{Brand,PageIntro,ThemeToggle,ProductNav}.tsx provide named exports, real links, desktop navigation and mobile safe-area navigation. src/lib/productLanguages.ts separates nine configured text integrations from planned Gusii/Somali/Sheng; no quality scores or unverified autonyms; voice explicitly unverified/unavailable. preferredLanguage reuses samiati:settings:v1.
+- [x] G3: TypeScript or targeted lint verified; font licenses and remaining verification limits reported.
+  EVIDENCE: npx tsc --noEmit --pretty false passed after sibling chat edits settled. Targeted eslint on all foundation modules returned 0 errors; root layout has 2 pre-existing legacy Material Symbols external-font warnings. src/app/fonts/{Manrope-OFL,InstrumentSerif-OFL}.txt retain upstream SIL OFL 1.1 copyright/license. npm test passed 10 files / 102 tests on 2026-11-08. No browser rendering, hardware speech, linguistic quality or deployment availability was claimed.

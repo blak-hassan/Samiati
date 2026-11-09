@@ -1,24 +1,13 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import { useAction } from 'convex/react';
-import {
-  ArrowDown,
-  Check,
-  Compass,
-  Copy,
-  HeartHandshake,
-  Languages,
-  Menu,
-  MessageCircle,
-  SquarePen,
-} from 'lucide-react';
+import { ArrowDown, Check, Compass, Copy, Menu, SquarePen } from 'lucide-react';
 import { api } from '../../../convex/_generated/api';
 import { type Conversation, type Message, Screen } from '@/types';
-import { LanguageSelector, LANGUAGES, type Language } from '@/components/chat/LanguageSelector';
+import { LANGUAGES, type Language } from '@/components/chat/LanguageSelector';
+import SamiatiLogo from '@/components/SamiatiLogo';
 import SearchHero from '@/components/search/SearchHero';
-import SuggestionSentences from '@/components/search/SuggestionSentences';
 import SearchPhaseIndicator from '@/components/search/SearchPhaseIndicator';
 import SearchResults from '@/components/search/SearchResults';
 import {
@@ -31,11 +20,14 @@ import { type Source } from '@/components/search/SourceCard';
 import { Button } from '@/components/ui/button';
 import { AppSidebar } from '@/components/shared/AppSidebar';
 import FeedbackBar from '@/components/feedback/FeedbackBar';
-import { ThemeToggle } from '@/components/product/ThemeToggle';
 import { getProductLanguage } from '@/lib/productLanguages';
 import { useSettings } from '@/hooks/useSettings';
 import { formatMessageTime } from '@/lib/settings';
-import { getSavedLanguageCode, isServiceError } from '@/components/chat/history';
+import {
+  chatSignInReturnUrl,
+  getSavedLanguageCode,
+  isServiceError,
+} from '@/components/chat/history';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -56,6 +48,7 @@ interface Props {
   onSaveChat?: (conversationId: string | null, messages: Message[], language?: Language) => void;
   conversations?: Conversation[];
   initialQuery?: string;
+  initialDraft?: string;
 }
 interface ChatActions {
   searchAction?: (args: {
@@ -214,6 +207,7 @@ function ChatSurface({
   onSaveChat,
   conversations = [],
   initialQuery,
+  initialDraft,
   searchAction,
   transcribeAction,
   ttsAction,
@@ -224,8 +218,8 @@ function ChatSurface({
   const [selectedLanguage, setSelectedLanguage] = useState<Language>(
     () => LANGUAGES.find((language) => language.code === initialLanguageCode) ?? LANGUAGES[0]
   );
-  const [query, setQuery] = useState(() =>
-    !user || user.isGuest ? initialQuery ?? '' : ''
+  const [query, setQuery] = useState(
+    () => initialDraft ?? (!user || user.isGuest ? (initialQuery ?? '') : '')
   );
   const [lastQuery, setLastQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -316,7 +310,7 @@ function ChatSurface({
       if (!searchQuery || searchQuery.length > 5000 || isSearching) return;
       if (!user || user.isGuest) {
         navigate(Screen.SIGN_IN, {
-          redirect_url: `/dashboard?q=${encodeURIComponent(searchQuery)}`,
+          redirect_url: chatSignInReturnUrl(searchQuery, true),
         });
         return;
       }
@@ -588,12 +582,10 @@ function ChatSurface({
     voiceDisabledReason,
   };
   const welcomeMode = messages.length === 0 && !isSearching && !error;
-  const mobileDestinations = [
-    { label: 'Chat', href: '/dashboard', icon: MessageCircle },
-    { label: 'Discover', href: '/dashboard/discover', icon: Compass },
-    { label: 'Languages', href: '/languages', icon: Languages },
-    { label: 'Changa', href: '/dashboard/changa', icon: HeartHandshake },
-  ];
+  const handleSignIn = () =>
+    navigate(Screen.SIGN_IN, {
+      redirect_url: chatSignInReturnUrl(query),
+    });
 
   return (
     <div className="relative flex h-[100dvh] min-h-0 overflow-hidden bg-background">
@@ -609,7 +601,10 @@ function ChatSurface({
         open={isNavOpen}
         onOpenChange={setIsNavOpen}
         user={user}
-        onNavigate={navigate}
+        onNavigate={(screen) => {
+          if (screen === Screen.SIGN_IN) handleSignIn();
+          else navigate(screen);
+        }}
         onNewSearch={handleNewChat}
         notificationCounts={notificationCounts}
         conversations={conversations}
@@ -617,7 +612,7 @@ function ChatSurface({
         onChatSelect={(id) => navigate(Screen.HOME_CHAT, { chatId: id })}
       />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="z-20 flex min-h-16 shrink-0 items-center justify-between gap-1 border-b border-border px-2 sm:px-5">
+        <header className="z-20 flex h-14 shrink-0 items-center justify-between gap-1 px-4 sm:px-8">
           <div className="flex min-w-0 items-center gap-1">
             <Button
               variant="ghost"
@@ -629,18 +624,19 @@ function ChatSurface({
             >
               <Menu className="size-5" />
             </Button>
-            <LanguageSelector
-              selectedLanguage={selectedLanguage}
-              onSelect={handleLanguageSelect}
-              disabled={isSearching}
-            />
-            <span className="hidden border-l border-border pl-4 text-xs text-muted-foreground sm:block">
-              A little closer to home.
-            </span>
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            <ThemeToggle />
-            {user ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-9 rounded-full"
+              onClick={() => navigate(Screen.DISCOVER)}
+              aria-label="Discover"
+              title="Discover"
+            >
+              <Compass className="size-4" />
+            </Button>
+            {user && !welcomeMode ? (
               <Button
                 variant="ghost"
                 size="icon"
@@ -650,15 +646,11 @@ function ChatSurface({
               >
                 <SquarePen className="size-4" />
               </Button>
-            ) : (
-              <Button
-                variant="outline"
-                className="h-11 px-3 text-xs"
-                onClick={() => navigate(Screen.SIGN_IN)}
-              >
+            ) : !user ? (
+              <Button variant="outline" className="h-11 px-3 text-xs" onClick={handleSignIn}>
                 Sign in
               </Button>
-            )}
+            ) : null}
           </div>
         </header>
         <main
@@ -675,38 +667,19 @@ function ChatSurface({
           className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain"
         >
           {welcomeMode ? (
-            <div className="mx-auto flex min-h-full max-w-3xl flex-col justify-center px-4 py-10 sm:px-8 sm:py-16">
-              <div className="mb-8">
-                <p className="mb-5 flex items-center gap-2 text-xs font-semibold tracking-wide text-primary">
-                  <span aria-hidden="true" className="size-1.5 rounded-full bg-ai" />
-                  YOUR WORDS. YOUR WORLD.
-                </p>
-                <h1 className="font-editorial text-[clamp(2.75rem,6vw,4.75rem)] leading-[1.04] tracking-tight">
-                  What would you
-                  <br className="hidden sm:block" /> like to{' '}
-                  <em className="font-normal text-primary">explore?</em>
-                </h1>
-                <p className="mt-5 max-w-lg text-sm leading-6 text-muted-foreground">
-                  An idea, a question, a fresh perspective. Start with the language you call home.
-                </p>
+            <div className="mx-auto flex min-h-full w-full max-w-[calc(var(--app-content-width)+3rem)] flex-col items-center justify-center px-4 py-8 sm:px-6">
+              <div className="mb-4 flex shrink-0 justify-center">
+                <h1 className="sr-only">Samiati — Experience Your Culture</h1>
+                <SamiatiLogo size={72} />
               </div>
               <SearchHero {...composerProps} />
               <div
                 role="status"
                 aria-live="polite"
-                className="mt-3 text-center text-xs leading-relaxed text-muted-foreground"
+                className="mt-3 text-center text-xs leading-relaxed text-muted-foreground empty:hidden"
               >
-                {status ||
-                  (!searchAction
-                    ? 'Preview mode · Sending messages is not available yet.'
-                    : !user
-                      ? 'Explore freely. Sign in when you are ready to send a message.'
-                      : 'Answers are AI-generated. Check important information.')}
+                {status}
               </div>
-              <SuggestionSentences
-                selectedLanguage={selectedLanguage}
-                onSelect={(prompt) => setQuery(prompt)}
-              />
             </div>
           ) : (
             <div
@@ -792,27 +765,6 @@ function ChatSurface({
             </div>
           </div>
         )}
-        <nav
-          aria-label="Mobile navigation"
-          className="grid shrink-0 grid-cols-4 border-t border-border bg-background px-2 pt-1 pb-[max(0.375rem,env(safe-area-inset-bottom))] lg:hidden"
-        >
-          {mobileDestinations.map(({ label, href, icon: Icon }) => (
-            <Link
-              key={label}
-              href={href}
-              aria-current={label === 'Chat' ? 'page' : undefined}
-              className={cn(
-                'flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-lg text-[0.6875rem] font-semibold',
-                label === 'Chat'
-                  ? 'bg-secondary text-foreground'
-                  : 'text-muted-foreground hover:bg-secondary'
-              )}
-            >
-              <Icon className="size-4" aria-hidden="true" />
-              <span>{label}</span>
-            </Link>
-          ))}
-        </nav>
       </div>
     </div>
   );

@@ -1,8 +1,6 @@
 'use client';
 
 import React from 'react';
-import { ProductNav } from '@/components/product/ProductNav';
-import { PageIntro } from '@/components/product/PageIntro';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -68,15 +66,14 @@ const SettingsShell: React.FC<SettingsShellProps> = ({
     SETTINGS_SECTIONS.find((section) => section.path === pathname)?.id;
 
   return (
-    <div className="flex min-h-dvh flex-col bg-background pb-24 transition-colors duration-200 md:pb-8">
-      <ProductNav active="settings" />
-      <header className="mx-auto flex min-h-16 w-full max-w-6xl flex-wrap items-center gap-2 border-b border-border px-4 py-3 sm:px-6">
+    <div className="flex min-h-dvh flex-col bg-background transition-colors duration-200">
+      <header className="sticky top-0 z-30 flex h-14 w-full items-center gap-2 border-b border-border/40 bg-background/95 px-4 backdrop-blur-md sm:px-6">
         <Button variant="ghost" size="icon" asChild className="size-11 rounded-full">
           <Link href={backHref} aria-label="Back">
             <ArrowLeft className="w-5 h-5" />
           </Link>
         </Button>
-        <p className="text-sm font-medium text-muted-foreground">Settings</p>
+        <h1 className="font-display text-xl font-bold tracking-tight">{title}</h1>
         <div className="ml-auto flex items-center gap-2">{headerAction}</div>
       </header>
 
@@ -117,7 +114,6 @@ const SettingsShell: React.FC<SettingsShellProps> = ({
           id="main-content"
           tabIndex={-1}
         >
-          <PageIntro eyebrow="Make yourself at home" title={title} />
           {children}
         </main>
       </div>

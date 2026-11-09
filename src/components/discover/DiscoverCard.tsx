@@ -49,13 +49,7 @@ function publisherUrl(domain: string): string | null {
   return `https://${candidate}/`;
 }
 
-export function DiscoverCard({
-  cluster,
-  featured = false,
-  saved = false,
-  onExplore,
-  onSave,
-}: DiscoverCardProps) {
+export function DiscoverCard({ cluster, saved = false, onExplore, onSave }: DiscoverCardProps) {
   const [reading, setReading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -136,13 +130,11 @@ export function DiscoverCard({
     <>
       <article
         className={cn(
-          'group flex min-w-0 flex-col rounded-2xl border border-border bg-card p-5 transition-colors duration-200 hover:border-primary/60 sm:p-6',
-          featured && 'md:col-span-2 lg:col-span-2'
+          'group flex min-w-0 flex-col rounded-xl border border-border/50 bg-muted/10 p-4 transition-colors duration-200 hover:border-primary/40'
         )}
       >
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
           <span className="font-medium capitalize text-primary">
-            {featured ? 'In focus · ' : ''}
             {category}
             {cluster.country ? ` · ${cluster.country}` : ''}
           </span>
@@ -151,24 +143,25 @@ export function DiscoverCard({
         <button type="button" className="text-left" onClick={() => setReading(true)}>
           <h2
             className={cn(
-              'break-words font-semibold leading-tight tracking-tight text-foreground group-hover:text-primary',
-              featured ? 'font-editorial text-3xl sm:text-4xl' : 'text-xl'
+              'break-words text-base font-bold leading-snug tracking-tight text-foreground group-hover:text-primary'
             )}
           >
             {cluster.topicTitle}
           </h2>
         </button>
-        <p className="mt-4 text-xs font-medium text-ai">AI-generated summary</p>
+        <p className="mt-3 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          AI-generated summary
+        </p>
         <p className="mt-2 line-clamp-4 break-words text-sm leading-relaxed text-muted-foreground">
           {cluster.summary || 'Open this topic to explore its available source information.'}
         </p>
-        <div className="mt-5 flex-1">
+        <div className="mt-3 flex-1">
           <p className="mb-2 text-xs text-muted-foreground">
             {cluster.sourceCount} source{cluster.sourceCount === 1 ? '' : 's'} · publisher homepages
           </p>
           {sources}
         </div>
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border/30 pt-2">
           <Button
             variant="ghost"
             onClick={() => setReading(true)}
@@ -234,7 +227,7 @@ export function DiscoverCard({
             <DialogDescription className="text-xs text-ai">
               Discover · AI-generated summary{dateLabel ? ` · ${dateLabel}` : ''}
             </DialogDescription>
-            <DialogTitle className="font-editorial text-3xl font-normal leading-tight sm:text-4xl">
+            <DialogTitle className="text-2xl font-bold leading-tight">
               {cluster.topicTitle}
             </DialogTitle>
           </DialogHeader>

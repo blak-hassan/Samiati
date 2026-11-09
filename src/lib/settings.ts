@@ -79,7 +79,7 @@ export interface AccountSettings {
 export type DeviceSettingKey = keyof DeviceSettings;
 
 export const DEFAULT_DEVICE_SETTINGS: DeviceSettings = {
-  theme: 'system',
+  theme: 'dark',
   accent: 'heritage',
   textSize: 'md',
   chatWidth: 'default',

@@ -1,5 +1,13 @@
 import type { Conversation, Message } from '../../types';
 
+/** Signing in restores a draft; only an explicit Send carries send intent. */
+export function chatSignInReturnUrl(question: string, send = false): string {
+  const text = question.trim();
+  return text
+    ? `/dashboard?${new URLSearchParams({ [send ? 'q' : 'draft']: text })}`
+    : '/dashboard';
+}
+
 /** Read old name-only records as well as current language-code records. */
 export function getSavedLanguageCode(conversation?: Conversation | null): string | undefined {
   if (conversation?.languageCode) return conversation.languageCode;

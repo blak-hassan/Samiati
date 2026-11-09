@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowRight,
+  ArrowLeft,
   Check,
   Globe2,
   HeartHandshake,
@@ -12,8 +13,6 @@ import {
   MicOff,
   Search,
 } from 'lucide-react';
-import { ProductNav } from '@/components/product/ProductNav';
-import { PageIntro } from '@/components/product/PageIntro';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -25,7 +24,6 @@ import {
 } from '@/components/ui/dialog';
 import { PRODUCT_LANGUAGES, getProductLanguage } from '@/lib/productLanguages';
 import { useSettings } from '@/hooks/useSettings';
-import { PublicFooter } from './PublicFooter';
 
 export function LanguageExplorer() {
   const { settings, updateSetting } = useSettings();
@@ -59,28 +57,22 @@ export function LanguageExplorer() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-24 text-foreground md:pb-0">
-      <ProductNav active="languages" />
-      <main id="main-content" tabIndex={-1} className="product-container pb-14 outline-none">
-        <PageIntro
-          eyebrow="The language directory"
-          title={
-            <>
-              A world of words.
-              <br />
-              <em>A place for yours.</em>
-            </>
-          }
-          description="Find your starting point. Explore experimental text chat, see what is still being built, and help shape what comes next."
-        />
-        <div className="mb-8 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-primary/25 bg-primary/5 p-5">
+    <div className="min-h-screen bg-background text-foreground">
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border/50 bg-background/95 px-4 backdrop-blur-md">
+        <Button asChild variant="ghost" size="icon" className="rounded-full">
+          <Link href="/dashboard" aria-label="Back to chat"><ArrowLeft className="size-5" /></Link>
+        </Button>
+        <h1 className="font-display text-lg font-bold tracking-tight">Languages</h1>
+      </header>
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-4xl px-4 py-5 outline-none sm:px-6">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 p-4">
           <div>
             <p className="text-sm font-bold">Your default: {selected?.name ?? 'Kiswahili'}</p>
             <p className="mt-1 text-xs text-muted-foreground">
               Saved on this device. You can switch language in chat at any time.
             </p>
           </div>
-          <Button asChild className="min-h-11 rounded-full">
+          <Button asChild className="min-h-11 rounded-xl">
             <Link href="/dashboard">
               Start chatting <ArrowRight aria-hidden="true" className="size-4" />
             </Link>
@@ -88,7 +80,7 @@ export function LanguageExplorer() {
         </div>
         <section
           aria-label="Find languages"
-          className="grid gap-4 rounded-2xl border border-border bg-card p-4 sm:p-5 lg:grid-cols-[1.5fr_1fr_1fr]"
+          className="grid gap-3 rounded-xl border border-border/50 bg-muted/20 p-4 md:grid-cols-[1.5fr_1fr_1fr]"
         >
           <div>
             <label className="mb-2 block text-xs font-semibold" htmlFor="language-search">
@@ -155,13 +147,13 @@ export function LanguageExplorer() {
           <p role="status">{notice}</p>
         </div>
         {filtered.length ? (
-          <div className="mt-4 grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="mt-4 grid items-stretch gap-3 sm:grid-cols-2">
             {filtered.map((language) => {
               const isDefault = language.code === settings.preferredLanguage;
               return (
                 <article
                   key={language.code}
-                  className="flex min-w-0 flex-col rounded-2xl border border-border bg-card p-5 sm:p-6"
+                  className="flex min-w-0 flex-col rounded-xl border border-border/50 bg-muted/20 p-4"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <Globe2 aria-hidden="true" className="size-5 text-primary" />
@@ -169,7 +161,7 @@ export function LanguageExplorer() {
                       {language.text === 'configured' ? 'Experimental text chat' : 'Planned'}
                     </span>
                   </div>
-                  <h2 className="mt-5 text-2xl font-bold tracking-tight">{language.name}</h2>
+                  <h2 className="mt-3 font-display text-lg font-bold tracking-tight">{language.name}</h2>
                   <p className="mt-1 text-xs text-muted-foreground">{language.region}</p>
                   <p className="mt-4 flex-1 text-sm leading-relaxed text-muted-foreground">
                     {language.note ??
@@ -242,10 +234,10 @@ export function LanguageExplorer() {
             </Button>
           </div>
         )}
-        <section className="mt-10 grid gap-7 rounded-3xl bg-secondary/50 p-6 sm:p-8 md:grid-cols-2">
+        <section className="mt-6 grid gap-5 rounded-2xl border border-border/50 bg-muted/20 p-4 md:grid-cols-2">
           <div>
-            <HeartHandshake aria-hidden="true" className="size-6 text-ai" />
-            <h2 className="mt-4 font-editorial text-3xl">Every variety matters.</h2>
+            <HeartHandshake aria-hidden="true" className="size-5 text-primary" />
+            <h2 className="mt-3 font-display text-lg font-bold">Contribute your language</h2>
             <p className="mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">
               A language label never tells the whole story. Share your variety and local context
               when contributing. Translated examples and autonyms will appear after linguistic
@@ -264,13 +256,17 @@ export function LanguageExplorer() {
               Tell us what you would like to see. Requests open a draft in your email app; nothing
               is submitted automatically.
             </p>
-            <Button className="mt-5 min-h-11 rounded-full" onClick={() => openRequest()}>
+            <Button className="mt-4 min-h-11 rounded-xl" onClick={() => openRequest()}>
               Request a language <Mail aria-hidden="true" className="size-4" />
             </Button>
           </div>
         </section>
       </main>
-      <PublicFooter />
+      <footer className="mx-auto flex max-w-4xl flex-wrap gap-5 border-t border-border/50 px-4 py-5 text-xs text-muted-foreground">
+        <Link href="/dashboard">Back to Samiati</Link>
+        <Link href="/privacy-policy">Privacy</Link>
+        <Link href="/terms-of-service">Terms</Link>
+      </footer>
       <Dialog open={requestOpen} onOpenChange={setRequestOpen}>
         <DialogContent className="max-h-[85dvh] overflow-y-auto rounded-2xl">
           <DialogHeader>

@@ -1,7 +1,5 @@
 'use client';
 
-import { ChangaShell } from './ChangaShell';
-import { PageIntro } from '@/components/product/PageIntro';
 import { ServiceUnavailable } from '@/components/shared/ServiceUnavailable';
 
 import { useEffect, useRef, useState } from 'react';
@@ -19,6 +17,7 @@ import {
   isChangaQuickTaskType,
 } from '@/lib/changa';
 import {
+  ArrowLeft,
   ArrowRight,
   CheckCircle2,
   Clock3,
@@ -182,21 +181,25 @@ function LiveChangaHome({ onViewActivity }: ChangaHomeProps) {
   }, [recommendedTask]);
 
   return (
-    <ChangaShell>
-      <div className="mx-auto max-w-3xl space-y-5">
+    <main id="main-content" tabIndex={-1} className="min-h-screen bg-background px-4 py-6 sm:py-10">
+      <div className="mx-auto max-w-xl space-y-5">
         {/* Header */}
-        <div className="space-y-5">
-          <PageIntro
-            eyebrow="Changa · Built together"
-            title={
-              <>
-                A little of your language.
-                <br />
-                <span className="text-ai">A world of possibility.</span>
-              </>
-            }
-            description="A phrase, a recording, a second opinion. Help build AI that speaks more like home, one thoughtful contribution at a time."
-          />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full"
+              onClick={() => navigate(Screen.HOME_CHAT)}
+              aria-label="Back to Samiati"
+            >
+              <ArrowLeft className="size-5" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Changa</h1>
+              <p className="text-sm text-muted-foreground">Help your language in seconds.</p>
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={handleShare} className="min-h-11 gap-1.5">
               <Share2 className="size-4" />
@@ -219,14 +222,17 @@ function LiveChangaHome({ onViewActivity }: ChangaHomeProps) {
         )}
         {/* Invite success toast */}
         {showInvite && (
-          <div role="status" className="rounded-lg bg-success/10 p-3 text-sm text-success">
+          <div
+            role="status"
+            className="rounded-lg bg-emerald-100 dark:bg-emerald-900/40 p-3 text-sm text-emerald-700 dark:text-emerald-300"
+          >
             Link copied! Invite someone to contribute in their language.
           </div>
         )}
 
         {/* Campaign scope — shown when the contributor arrived from a campaign */}
         {entryParams.campaignId && (
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm  ">
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-300/60 dark:border-amber-800/60 bg-amber-100 dark:bg-amber-900/40 p-3 text-sm  ">
             <span className="min-w-0 truncate">
               <Target className="mr-1.5 inline size-3.5" />
               {scopedCampaign ? `Tasks for ${scopedCampaign.title}` : 'Tasks for this campaign'}
@@ -251,9 +257,9 @@ function LiveChangaHome({ onViewActivity }: ChangaHomeProps) {
                 setSelectedLanguage(lang.id);
                 setSelectedDialect(null);
               }}
-              className={`flex items-center gap-1.5 min-h-11 rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
+              className={`flex items-center gap-1.5 min-h-11 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
                 selectedLanguage === lang.id
-                  ? 'bg-ai/10 text-ai'
+                  ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300'
                   : 'bg-muted text-muted-foreground hover:bg-accent'
               }`}
             >
@@ -286,9 +292,9 @@ function LiveChangaHome({ onViewActivity }: ChangaHomeProps) {
                     setSelectedDialect(null);
                     setShowDialectPicker(false);
                   }}
-                  className={`min-h-11 rounded-xl px-3 py-2 text-xs font-medium transition-colors ${
+                  className={`min-h-11 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                     selectedDialect === null
-                      ? 'bg-warning/10 text-warning'
+                      ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
                       : 'bg-muted text-muted-foreground hover:bg-accent'
                   }`}
                 >
@@ -303,9 +309,9 @@ function LiveChangaHome({ onViewActivity }: ChangaHomeProps) {
                       setSelectedDialect(dialect.id);
                       setShowDialectPicker(false);
                     }}
-                    className={`min-h-11 rounded-xl px-3 py-2 text-xs font-medium transition-colors ${
+                    className={`min-h-11 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                       selectedDialect === dialect.id
-                        ? 'bg-warning/10 text-warning'
+                        ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
                         : 'bg-muted text-muted-foreground hover:bg-accent'
                     }`}
                   >
@@ -321,19 +327,27 @@ function LiveChangaHome({ onViewActivity }: ChangaHomeProps) {
         {languageStats && (
           <Card className="grid grid-cols-2 gap-4 p-5 text-center sm:grid-cols-4">
             <div>
-              <p className="text-lg font-bold text-warning ">{languageStats.openTasks}</p>
+              <p className="text-lg font-bold text-amber-700 dark:text-amber-300 ">
+                {languageStats.openTasks}
+              </p>
               <p className="text-xs text-muted-foreground">Open tasks</p>
             </div>
             <div>
-              <p className="text-lg font-bold text-ai ">{languageStats.submissions}</p>
+              <p className="text-lg font-bold text-violet-700 dark:text-violet-300 ">
+                {languageStats.submissions}
+              </p>
               <p className="text-xs text-muted-foreground">Submitted</p>
             </div>
             <div>
-              <p className="text-lg font-bold text-success ">{languageStats.curatedExamples}</p>
+              <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300 ">
+                {languageStats.curatedExamples}
+              </p>
               <p className="text-xs text-muted-foreground">Curated</p>
             </div>
             <div>
-              <p className="text-lg font-bold text-ai ">{languageStats.activeCampaigns}</p>
+              <p className="text-lg font-bold text-violet-700 dark:text-violet-300 ">
+                {languageStats.activeCampaigns}
+              </p>
               <p className="text-xs text-muted-foreground">Campaigns</p>
             </div>
           </Card>
@@ -341,7 +355,7 @@ function LiveChangaHome({ onViewActivity }: ChangaHomeProps) {
 
         {/* Personal impact */}
         <Card className="flex flex-wrap items-center gap-4 p-5">
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-success/10 text-success  ">
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300  ">
             <CheckCircle2 className="size-5" />
           </div>
           <div className="min-w-0 flex-1">
@@ -358,7 +372,9 @@ function LiveChangaHome({ onViewActivity }: ChangaHomeProps) {
           </div>
           {userStats && userStats.trustScore > 0 && (
             <div className="text-right">
-              <p className="text-lg font-bold text-warning ">{userStats.trustScore}</p>
+              <p className="text-lg font-bold text-amber-700 dark:text-amber-300 ">
+                {userStats.trustScore}
+              </p>
               <p className="text-xs text-muted-foreground">Trust</p>
             </div>
           )}
@@ -374,12 +390,12 @@ function LiveChangaHome({ onViewActivity }: ChangaHomeProps) {
               </h3>
               <button
                 onClick={() => navigate(Screen.CHANGA_CAMPAIGNS)}
-                className="min-h-11 text-xs text-ai hover:underline"
+                className="min-h-11 text-xs text-violet-700 dark:text-violet-300 hover:underline"
               >
                 View all
               </button>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
               {campaigns.map((campaign) => {
                 const progress =
                   campaign.goalCount > 0
@@ -394,11 +410,13 @@ function LiveChangaHome({ onViewActivity }: ChangaHomeProps) {
                           {campaign.description}
                         </p>
                       </div>
-                      <span className="shrink-0 text-xs font-bold text-warning ">{progress}%</span>
+                      <span className="shrink-0 text-xs font-bold text-amber-700 dark:text-amber-300 ">
+                        {progress}%
+                      </span>
                     </div>
                     <div className="w-full bg-muted rounded-full h-1.5">
                       <div
-                        className="bg-warning/10 h-1.5 rounded-full transition-colors duration-200"
+                        className="bg-amber-500 h-1.5 rounded-full transition-all duration-300"
                         style={{ width: `${progress}%` }}
                       />
                     </div>
@@ -414,7 +432,7 @@ function LiveChangaHome({ onViewActivity }: ChangaHomeProps) {
 
         {/* Community review — the peer lane is how contributions earn trust */}
         <Card className="flex flex-wrap items-center gap-4 p-5">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ai/10 text-ai  ">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300  ">
             <CheckCircle2 className="size-5" />
           </div>
           <div className="min-w-0 flex-1">
@@ -442,8 +460,8 @@ function LiveChangaHome({ onViewActivity }: ChangaHomeProps) {
 
         {/* Recommended task */}
         {recommendedTask ? (
-          <Card className="space-y-4 border-ai/40 bg-ai/5 p-6 sm:p-8 ">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-warning ">
+          <Card className="space-y-4 border-primary/30 bg-primary/5 p-5">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300 ">
               <Sparkles className="size-3.5" />A place to start
             </div>
             <div className="space-y-2">
@@ -524,6 +542,6 @@ function LiveChangaHome({ onViewActivity }: ChangaHomeProps) {
           </Button>
         </Card>
       </div>
-    </ChangaShell>
+    </main>
   );
 }

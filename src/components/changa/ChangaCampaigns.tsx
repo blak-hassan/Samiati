@@ -1,6 +1,5 @@
 'use client';
 
-import { ChangaShell } from './ChangaShell';
 import { ServiceUnavailable } from '@/components/shared/ServiceUnavailable';
 
 import { useState } from 'react';
@@ -86,8 +85,8 @@ function LiveChangaCampaigns({ navigate, goBack }: ChangaCampaignsProps) {
   };
 
   return (
-    <ChangaShell>
-      <div className="mx-auto max-w-3xl space-y-5">
+    <main id="main-content" tabIndex={-1} className="min-h-screen bg-background px-4 py-6 sm:py-10">
+      <div className="mx-auto max-w-xl space-y-5">
         {/* Header */}
         <div className="flex items-center gap-3">
           <button
@@ -98,7 +97,7 @@ function LiveChangaCampaigns({ navigate, goBack }: ChangaCampaignsProps) {
             <ArrowLeft className="size-5" />
           </button>
           <div className="flex-1">
-            <h1 className="font-editorial text-4xl tracking-tight">Campaigns</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Campaigns</h1>
             <p className="text-sm text-muted-foreground">
               Join a campaign to help collect Sheng data.
             </p>
@@ -118,15 +117,19 @@ function LiveChangaCampaigns({ navigate, goBack }: ChangaCampaignsProps) {
         {activeCampaigns.length > 0 && (
           <Card className="grid grid-cols-3 divide-x divide-border p-4 text-center">
             <div>
-              <p className="text-2xl font-bold text-warning ">{activeCampaigns.length}</p>
+              <p className="text-2xl font-bold text-amber-700 dark:text-amber-300 ">
+                {activeCampaigns.length}
+              </p>
               <p className="text-xs text-muted-foreground">Active campaigns</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-ai ">{totalContributions}</p>
+              <p className="text-2xl font-bold text-violet-700 dark:text-violet-300 ">
+                {totalContributions}
+              </p>
               <p className="text-xs text-muted-foreground">Total contributions</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-success ">
+              <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300 ">
                 {totalGoals > 0 ? Math.round((totalContributions / totalGoals) * 100) : 0}%
               </p>
               <p className="text-xs text-muted-foreground">Overall progress</p>
@@ -137,7 +140,7 @@ function LiveChangaCampaigns({ navigate, goBack }: ChangaCampaignsProps) {
         {/* Your impact */}
         {userStats && userStats.contributionCount > 0 && (
           <Card className="flex items-center gap-4 p-4">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-success/10 text-success  ">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300  ">
               <Zap className="size-5" />
             </div>
             <div className="min-w-0 flex-1">
@@ -148,7 +151,9 @@ function LiveChangaCampaigns({ navigate, goBack }: ChangaCampaignsProps) {
             </div>
             {userStats.trustScore > 0 && (
               <div className="text-right">
-                <p className="text-lg font-bold text-warning ">{userStats.trustScore}</p>
+                <p className="text-lg font-bold text-amber-700 dark:text-amber-300 ">
+                  {userStats.trustScore}
+                </p>
                 <p className="text-xs text-muted-foreground">Trust</p>
               </div>
             )}
@@ -157,7 +162,7 @@ function LiveChangaCampaigns({ navigate, goBack }: ChangaCampaignsProps) {
 
         {/* Propose form */}
         {showPropose && (
-          <Card className="space-y-4 p-5 border-warning/40 ">
+          <Card className="space-y-4 p-5 border-amber-300/60 dark:border-amber-800/60 ">
             <h3 className="text-sm font-semibold">Propose a campaign</h3>
             <input
               type="text"
@@ -236,7 +241,7 @@ function LiveChangaCampaigns({ navigate, goBack }: ChangaCampaignsProps) {
               <Trophy className="size-3.5" />
               Active campaigns
             </h3>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-4">
               {activeCampaigns.map((campaign) => {
                 const progress =
                   campaign.goalCount > 0
@@ -250,7 +255,7 @@ function LiveChangaCampaigns({ navigate, goBack }: ChangaCampaignsProps) {
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-semibold truncate">{campaign.title}</p>
                           {isComplete && (
-                            <span className="shrink-0 text-xs font-bold text-success">
+                            <span className="shrink-0 text-xs font-bold text-emerald-700 dark:text-emerald-300">
                               Complete!
                             </span>
                           )}
@@ -259,7 +264,9 @@ function LiveChangaCampaigns({ navigate, goBack }: ChangaCampaignsProps) {
                           {campaign.description}
                         </p>
                       </div>
-                      <span className="shrink-0 text-xs font-bold text-warning ">{progress}%</span>
+                      <span className="shrink-0 text-xs font-bold text-amber-700 dark:text-amber-300 ">
+                        {progress}%
+                      </span>
                     </div>
 
                     {/* Metadata pills */}
@@ -291,7 +298,7 @@ function LiveChangaCampaigns({ navigate, goBack }: ChangaCampaignsProps) {
                       <div className="w-full bg-muted rounded-full h-1.5">
                         <div
                           className={`h-1.5 rounded-full transition-colors duration-200 ${
-                            isComplete ? 'bg-success/10' : 'bg-warning/10'
+                            isComplete ? 'bg-emerald-500' : 'bg-amber-500'
                           }`}
                           style={{ width: `${progress}%` }}
                         />
@@ -338,6 +345,6 @@ function LiveChangaCampaigns({ navigate, goBack }: ChangaCampaignsProps) {
           </Card>
         )}
       </div>
-    </ChangaShell>
+    </main>
   );
 }

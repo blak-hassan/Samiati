@@ -1,6 +1,5 @@
 'use client';
 
-import { ChangaShell } from './ChangaShell';
 import { ServiceUnavailable } from '@/components/shared/ServiceUnavailable';
 
 import { useState } from 'react';
@@ -23,6 +22,26 @@ const REJECT_CODES: Array<{
   { code: 'unclear_audio', label: 'Audio unclear' },
   { code: 'wrong_language', label: 'Wrong language' },
 ];
+
+interface ReviewForm {
+  submissionId: string | null;
+  isVoting: boolean;
+  showRejectCodes: boolean;
+  selectedCode: (typeof REJECT_CODES)[number]['code'] | null;
+  comment: string;
+  error: string | null;
+}
+
+function emptyReviewForm(submissionId: string | null): ReviewForm {
+  return {
+    submissionId,
+    isVoting: false,
+    showRejectCodes: false,
+    selectedCode: null,
+    comment: '',
+    error: null,
+  };
+}
 
 interface ValidationRunnerProps {
   languageCode?: string;
@@ -51,14 +70,19 @@ function LiveValidationRunner({ languageCode, goBack }: ValidationRunnerProps) {
   const escalateSubmission = useMutation(api.changa.validation.escalateSubmission);
 
   const [reviewedIds, setReviewedIds] = useState<ReadonlySet<string>>(() => new Set());
-  const [isVoting, setIsVoting] = useState(false);
-  const [showRejectCodes, setShowRejectCodes] = useState(false);
-  const [selectedCode, setSelectedCode] = useState<(typeof REJECT_CODES)[number]['code'] | null>(
-    null
-  );
-  const [comment, setComment] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const current = nextUnreviewedSubmission(queue, reviewedIds);
+  const [form, setForm] = useState<ReviewForm>(() => emptyReviewForm(null));
+  const current = nextUnreviewedSubmission(queue, reviewedIds, form.submissionId);
+  const currentId = current?._id ?? null;
+  if (queue !== undefined && form.submissionId !== currentId) {
+    setForm(emptyReviewForm(currentId));
+  }
+  const { isVoting, showRejectCodes, selectedCode, comment, error } = form;
+  // A late response for a previous item cannot overwrite the current inputs.
+  const updateForm = (patch: Partial<Omit<ReviewForm, 'submissionId'>>) => {
+    setForm((previous) =>
+      previous.submissionId === currentId ? { ...previous, ...patch } : previous
+    );
+  };
 
   // Blind review: the bundle hides earlier votes unless the reviewer is a
   // moderator. Assets and transcript are shown so the verdict is informed.
@@ -73,20 +97,17 @@ function LiveValidationRunner({ languageCode, goBack }: ValidationRunnerProps) {
   );
 
   const advance = (submissionId: Id<'changaSubmissions'>) => {
-    setSelectedCode(null);
-    setShowRejectCodes(false);
-    setComment('');
-    setError(null);
+    updateForm({ selectedCode: null, showRejectCodes: false, comment: '', error: null });
     setReviewedIds((previous) => new Set([...previous, submissionId]));
   };
 
   const handleVote = async (vote: 'accept' | 'minor_fix' | 'reject') => {
     if (!current || isVoting) return;
     if (vote === 'reject' && !selectedCode) {
-      setShowRejectCodes(true);
+      updateForm({ showRejectCodes: true });
       return;
     }
-    setIsVoting(true);
+    updateForm({ isVoting: true });
     try {
       await submitValidationVote({
         submissionId: current._id,
@@ -98,19 +119,20 @@ function LiveValidationRunner({ languageCode, goBack }: ValidationRunnerProps) {
       });
       advance(current._id);
     } catch (voteError) {
-      setError(
-        voteError instanceof Error
-          ? voteError.message
-          : 'We could not record your review. Please try again.'
-      );
+      updateForm({
+        error:
+          voteError instanceof Error
+            ? voteError.message
+            : 'We could not record your review. Please try again.',
+      });
     } finally {
-      setIsVoting(false);
+      updateForm({ isVoting: false });
     }
   };
 
   const handleEscalate = async () => {
     if (!current || isVoting) return;
-    setIsVoting(true);
+    updateForm({ isVoting: true });
     try {
       await escalateSubmission({
         submissionId: current._id,
@@ -118,34 +140,37 @@ function LiveValidationRunner({ languageCode, goBack }: ValidationRunnerProps) {
       });
       advance(current._id);
     } catch (escalateError) {
-      setError(
-        escalateError instanceof Error
-          ? escalateError.message
-          : 'We could not escalate this item. Please try again.'
-      );
+      updateForm({
+        error:
+          escalateError instanceof Error
+            ? escalateError.message
+            : 'We could not escalate this item. Please try again.',
+      });
     } finally {
-      setIsVoting(false);
+      updateForm({ isVoting: false });
     }
   };
 
   if (queue !== undefined && !current && reviewedIds.size > 0) {
     return (
-      <ChangaShell>
+      <main id="main-content" tabIndex={-1} className="min-h-screen bg-background px-4 py-12">
         <Card className="mx-auto max-w-lg space-y-4 p-8 text-center">
-          <CheckCircle2 className="mx-auto size-12 text-success" />
+          <CheckCircle2 className="mx-auto size-12 text-emerald-700 dark:text-emerald-300" />
           <h1 className="text-2xl font-bold">Queue cleared</h1>
           <p className="text-sm text-muted-foreground">
             Thanks for reviewing. New submissions appear here as they pass quality checks.
           </p>
-          <Button variant="outline" onClick={goBack}>Back</Button>
+          <Button variant="outline" onClick={goBack}>
+            Back
+          </Button>
         </Card>
-      </ChangaShell>
+      </main>
     );
   }
 
   return (
-    <ChangaShell>
-      <div className="mx-auto max-w-3xl space-y-5">
+    <main id="main-content" tabIndex={-1} className="min-h-screen bg-background px-4 py-6 sm:py-10">
+      <div className="mx-auto max-w-xl space-y-5">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold tracking-tight">Community review</h1>
           <button onClick={goBack} className="text-sm text-muted-foreground hover:text-foreground">
@@ -187,7 +212,7 @@ function LiveValidationRunner({ languageCode, goBack }: ValidationRunnerProps) {
                   {changaTaskShortLabel(bundle.submissionType)}
                 </span>
                 {current.requiresModerator && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2.5 py-1 text-warning  ">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-900/40 px-2.5 py-1 text-amber-700 dark:text-amber-300  ">
                     <Flag className="size-3" /> Needs moderator attention
                   </span>
                 )}
@@ -242,7 +267,7 @@ function LiveValidationRunner({ languageCode, goBack }: ValidationRunnerProps) {
                 <Textarea
                   id="review-note"
                   value={comment}
-                  onChange={(event) => setComment(event.target.value)}
+                  onChange={(event) => updateForm({ comment: event.target.value })}
                   placeholder="One clear sentence — what should change, if anything?"
                   className="min-h-20 text-sm"
                   maxLength={2000}
@@ -256,7 +281,7 @@ function LiveValidationRunner({ languageCode, goBack }: ValidationRunnerProps) {
                     {REJECT_CODES.map((option) => (
                       <button
                         key={option.code}
-                        onClick={() => setSelectedCode(option.code)}
+                        onClick={() => updateForm({ selectedCode: option.code })}
                         className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                           selectedCode === option.code
                             ? 'bg-destructive text-destructive-foreground'
@@ -285,7 +310,7 @@ function LiveValidationRunner({ languageCode, goBack }: ValidationRunnerProps) {
                 variant="outline"
                 disabled={isVoting}
                 onClick={() => handleVote('accept')}
-                className="border-success/40 text-success hover:bg-success/10   "
+                className="border-emerald-300/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40   "
               >
                 <CheckCircle2 className="mr-2 size-4" /> Accept
               </Button>
@@ -293,7 +318,7 @@ function LiveValidationRunner({ languageCode, goBack }: ValidationRunnerProps) {
                 variant="outline"
                 disabled={isVoting}
                 onClick={() => handleVote('minor_fix')}
-                className="border-ai/40 text-ai hover:bg-ai/10   "
+                className="border-violet-300/60 dark:border-violet-800/60 text-violet-700 dark:text-violet-300 hover:bg-violet-100 dark:hover:bg-violet-900/40   "
               >
                 <Wrench className="mr-2 size-4" /> Needs a small fix
               </Button>
@@ -316,7 +341,7 @@ function LiveValidationRunner({ languageCode, goBack }: ValidationRunnerProps) {
           </div>
         ) : null}
       </div>
-    </ChangaShell>
+    </main>
   );
 }
 

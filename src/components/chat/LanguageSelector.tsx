@@ -2,7 +2,7 @@
 
 import React, { useId, useState } from 'react';
 import Link from 'next/link';
-import { Check, ChevronDown, Languages, Search } from 'lucide-react';
+import { Check, ChevronDown, Globe, Search } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,10 +49,10 @@ export function LanguageSelector({
         <Button
           variant="ghost"
           disabled={disabled}
-          className="h-11 max-w-full gap-2 rounded-xl px-3 text-sm"
+          className="h-9 max-w-full gap-1.5 rounded-full px-2 text-[10px] font-bold uppercase tracking-wide text-muted-foreground"
           aria-label={`Conversation language: ${selectedLanguage.name}. Choose a language`}
         >
-          <Languages className="size-4 text-primary" aria-hidden="true" />
+          <Globe className="size-4" aria-hidden="true" />
           <span className="truncate">{selectedLanguage.name}</span>
           <ChevronDown className="size-3.5 text-muted-foreground" aria-hidden="true" />
         </Button>

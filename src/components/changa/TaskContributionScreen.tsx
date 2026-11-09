@@ -1,6 +1,5 @@
 'use client';
 
-import { ChangaShell } from './ChangaShell';
 import { ServiceUnavailable } from '@/components/shared/ServiceUnavailable';
 
 import { useEffect, useRef, useState } from 'react';
@@ -340,21 +339,11 @@ function LiveTaskContributionScreen({ task, onComplete }: TaskContributionScreen
   }
 
   return (
-    <ChangaShell>
-      <div className="mx-auto max-w-3xl space-y-5">
-        <div className="flex items-center gap-2 text-sm font-medium text-warning ">
+    <main id="main-content" tabIndex={-1} className="min-h-screen bg-background px-4 py-6 sm:py-12">
+      <div className="mx-auto max-w-xl space-y-5">
+        <div className="flex items-center gap-2 text-sm font-medium text-amber-700 dark:text-amber-300 ">
           <Sparkles className="size-4" />A quick Changa task
         </div>
-        <ol
-          aria-label="Contribution steps"
-          className="grid grid-cols-3 gap-2 text-xs text-muted-foreground"
-        >
-          <li className="rounded-xl border border-ai/40 bg-ai/10 p-3 text-ai" aria-current="step">
-            1. Contribute
-          </li>
-          <li className="rounded-xl border p-3">2. Check &amp; submit</li>
-          <li className="rounded-xl border p-3">3. Community review</li>
-        </ol>
         <Card className="space-y-6 p-5 sm:p-7">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -412,7 +401,7 @@ function LiveTaskContributionScreen({ task, onComplete }: TaskContributionScreen
                     onClick={() => setCodeSwitchingType(option.id)}
                     className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                       codeSwitchingType === option.id
-                        ? 'bg-warning/10 text-warning  '
+                        ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300  '
                         : 'bg-muted text-muted-foreground hover:bg-accent'
                     }`}
                   >
@@ -457,7 +446,10 @@ function LiveTaskContributionScreen({ task, onComplete }: TaskContributionScreen
           </p>
 
           {draftSavedAt && (
-            <p role="status" className="rounded-lg bg-success/10 p-3 text-sm text-success  ">
+            <p
+              role="status"
+              className="rounded-lg bg-emerald-100 dark:bg-emerald-900/40 p-3 text-sm text-emerald-700 dark:text-emerald-300  "
+            >
               Draft saved. You can close this page and come back later.
             </p>
           )}
@@ -507,7 +499,7 @@ function LiveTaskContributionScreen({ task, onComplete }: TaskContributionScreen
           </div>
         </Card>
       </div>
-    </ChangaShell>
+    </main>
   );
 }
 
@@ -530,12 +522,12 @@ function SubmitResult({
   const totalChecks = status?.processingRuns.length ?? 0;
 
   return (
-    <ChangaShell>
+    <main id="main-content" tabIndex={-1} className="min-h-screen bg-background px-4 py-12">
       <div className="mx-auto max-w-lg space-y-5">
         <Card className="space-y-5 p-8 text-center">
           {status === undefined ? (
             <>
-              <Loader2 className="mx-auto size-12 animate-spin text-warning" />
+              <Loader2 className="mx-auto size-12 animate-spin text-amber-700 dark:text-amber-300" />
               <h1 className="text-2xl font-bold">Checking your contribution…</h1>
               <p className="text-sm text-muted-foreground">
                 Quality checks are running now. This page updates automatically.
@@ -544,13 +536,13 @@ function SubmitResult({
           ) : (
             <>
               {status.status === 'accepted' ? (
-                <CheckCircle2 className="mx-auto size-12 text-success" />
+                <CheckCircle2 className="mx-auto size-12 text-emerald-700 dark:text-emerald-300" />
               ) : status.status === 'rejected' ? (
                 <XCircle className="mx-auto size-12 text-destructive" />
               ) : status.status === 'needs_retry' ? (
-                <XCircle className="mx-auto size-12 text-warning" />
+                <XCircle className="mx-auto size-12 text-amber-700 dark:text-amber-300" />
               ) : (
-                <Loader2 className="mx-auto size-12 animate-spin text-warning" />
+                <Loader2 className="mx-auto size-12 animate-spin text-amber-700 dark:text-amber-300" />
               )}
               <h1 className="text-2xl font-bold">
                 {status.status === 'accepted'
@@ -570,7 +562,7 @@ function SubmitResult({
                     <li key={run.processor} className="flex items-center justify-between text-sm">
                       <span>{PROCESSOR_LABELS[run.processor] ?? run.processor}</span>
                       {run.status === 'completed' ? (
-                        <span className="inline-flex items-center gap-1 text-success ">
+                        <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-300 ">
                           <CheckCircle2 className="size-4" /> done
                         </span>
                       ) : run.status === 'failed' ? (
@@ -607,6 +599,6 @@ function SubmitResult({
           )}
         </Card>
       </div>
-    </ChangaShell>
+    </main>
   );
 }

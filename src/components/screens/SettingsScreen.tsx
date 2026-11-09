@@ -47,13 +47,7 @@ interface Props {
   user: UserType;
 }
 
-/**
- * The settings index.
- *
- * Borrowed from T3Chat: instead of a flat card list, the index is a searchable
- * directory of every settings area, and each individual setting can be
- * restored to its default in one action.
- */
+/** Settings retain their persisted values within the original Samiati shell. */
 const SettingsScreen: React.FC<Props> = ({ navigate, onSignOut, user }) => {
   const [showSignOutDialog, setShowSignOutDialog] = useState(false);
   const { resetAll } = useSettings();
@@ -69,11 +63,11 @@ const SettingsScreen: React.FC<Props> = ({ navigate, onSignOut, user }) => {
         <RestoreDefaultsButton changedLabels={changedLabels} onRestore={() => resetAll()} />
       }
     >
-      <div className="space-y-8">
+      <div className="space-y-6">
         {/* Profile Card */}
         <button
           type="button"
-          className="w-full text-left flex items-center gap-4 bg-card p-5 rounded-2xl border border-border cursor-pointer hover:bg-secondary/40 transition-colors duration-200 group shadow-none"
+          className="w-full text-left flex items-center gap-4 bg-muted/20 p-5 rounded-2xl border border-border/50 cursor-pointer hover:bg-muted/30 transition-colors duration-200 group shadow-none"
           onClick={() => navigate(Screen.PROFILE)}
         >
           <Avatar className="w-14 h-14 rounded-full border-2 border-background shadow-lg">
@@ -89,10 +83,10 @@ const SettingsScreen: React.FC<Props> = ({ navigate, onSignOut, user }) => {
           <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
         </button>
 
-        <Card className="space-y-3 rounded-2xl border border-ai/30 bg-ai/5 p-5 sm:p-6">
-          <div className="flex items-center gap-2 text-ai">
+        <Card className="space-y-3 rounded-2xl border border-primary/20 bg-primary/10 p-5">
+          <div className="flex items-center gap-2 text-primary">
             <Zap className="size-5" />
-            <h3 className="text-lg font-semibold">Find your possibilities.</h3>
+            <h3 className="text-lg font-bold">Samiati+</h3>
           </div>
           <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
             Explore the proposed Samiati plans. Pricing and included features are being finalized;

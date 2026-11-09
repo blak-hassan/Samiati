@@ -38,6 +38,7 @@ export default function DashboardPage() {
   const searchParams = useSearchParams();
   const chatId = searchParams.get('chatId');
   const discoverQuery = searchParams.get('q');
+  const draftQuery = searchParams.get('draft');
   const { user: clerkUser, isLoaded } = useUser();
 
   // Load all conversations for sidebar
@@ -101,9 +102,10 @@ export default function DashboardPage() {
   if (!clerkUser) {
     return (
       <HomeSearchScreen
-        key={discoverQuery ?? 'guest'}
+        key={draftQuery ?? discoverQuery ?? 'guest'}
         navigate={navigate}
         initialQuery={discoverQuery || undefined}
+        initialDraft={draftQuery || undefined}
       />
     );
   }
@@ -120,6 +122,7 @@ export default function DashboardPage() {
 
   return (
     <HomeSearchScreen
+      key={draftQuery || undefined}
       user={appUser}
       navigate={navigate}
       unreadCount={0}
@@ -129,6 +132,7 @@ export default function DashboardPage() {
       onSaveChat={handleSaveChat}
       conversations={historyLoaded ? conversations : []}
       initialQuery={historyLoaded ? discoverQuery || undefined : undefined}
+      initialDraft={draftQuery || undefined}
     />
   );
 }
